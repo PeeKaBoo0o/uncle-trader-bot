@@ -316,23 +316,23 @@ const TradingChart: React.FC<TradingChartProps> = ({
           title: isLong ? '▲ Buy' : '▼ Sell',
         } as any);
 
-        // TP/SL dashed lines with labels
-        const addLabeledLine = (price: number, label: string, color: string) => {
-          const series = chart.addSeries(LineSeries, {
-            color,
-            lineWidth: 1,
-            lineStyle: 2,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            title: label,
-          });
-          setSafeLineData(series, entryTime, price, endTime, price);
-        };
-
-        addLabeledLine(trade.tp1, 'TP1', 'rgba(38,166,154,0.7)');
-        addLabeledLine(trade.tp2, 'TP2', 'rgba(38,166,154,0.7)');
-        addLabeledLine(trade.tp3, 'TP3', 'rgba(38,166,154,0.7)');
-        addLabeledLine(trade.slTarget, 'SL', 'rgba(239,83,80,0.7)');
+        // TP/SL as price axis labels
+        candleSeries.createPriceLine({
+          price: trade.tp1, color: '#26a69a', lineWidth: 1, lineStyle: 2,
+          axisLabelVisible: true, title: 'TP1',
+        } as any);
+        candleSeries.createPriceLine({
+          price: trade.tp2, color: '#26a69a', lineWidth: 1, lineStyle: 2,
+          axisLabelVisible: true, title: 'TP2',
+        } as any);
+        candleSeries.createPriceLine({
+          price: trade.tp3, color: '#26a69a', lineWidth: 1, lineStyle: 2,
+          axisLabelVisible: true, title: 'TP3',
+        } as any);
+        candleSeries.createPriceLine({
+          price: trade.slTarget, color: '#ef5350', lineWidth: 1, lineStyle: 2,
+          axisLabelVisible: true, title: 'SL',
+        } as any);
 
         // Result marker at exit
         if (trade.result && trade.exitPrice !== undefined) {
@@ -686,90 +686,66 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── TP/SL Zones ──
-    if (tpSlData && enabledIndicators.includes('tp_sl')) {
+    // ── TP/SL Zones (only show current active trade) ──
+    if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.activeTrade) {
+      const trade = tpSlData.activeTrade;
+      const entryT = Math.floor(trade.entryTime / 1000);
+      const endT = Math.floor(candles[candles.length - 1].time / 1000);
+      const isLong = trade.type === 'long';
+
       const setSafeData = (series: any, t1: number, v1: number, t2: number, v2: number) => {
         if (t1 === t2) { series.setData([{ time: t1 as any, value: v2 }]); return; }
         if (t1 < t2) { series.setData([{ time: t1 as any, value: v1 }, { time: t2 as any, value: v2 }]); return; }
         series.setData([{ time: t2 as any, value: v2 }, { time: t1 as any, value: v1 }]);
       };
 
-      // Show all trades (entry labels + zones + hit markers)
-      tpSlData.trades.forEach(trade => {
-        const entryT = Math.floor(trade.entryTime / 1000);
-        const endIdx = trade.exitIndex ?? candles.length - 1;
-        const endT = Math.floor(candles[Math.min(endIdx, candles.length - 1)].time / 1000);
-        const isLong = trade.type === 'long';
+      // Entry price label
+      candleSeries.createPriceLine({
+        price: trade.entryPrice,
+        color: isLong ? '#26a69a' : '#ef5350',
+        lineWidth: 2, lineStyle: 0, axisLabelVisible: true,
+        title: isLong ? '▲ LONG' : '▼ SHORT',
+      } as any);
 
-        // Only draw zones for active trade (open) or last few closed trades
-        const isActive = trade.result === 'open';
+      // TP line (green dashed) with label
+      candleSeries.createPriceLine({
+        price: trade.tpPrice,
+        color: '#4CAF50', lineWidth: 1, lineStyle: 2,
+        axisLabelVisible: true, title: 'TP',
+      } as any);
 
-        // Entry label marker
-        candleSeries.createPriceLine({
-          price: trade.entryPrice,
-          color: isLong ? '#26a69a' : '#ef5350',
-          lineWidth: isActive ? 2 : 1,
-          lineStyle: isActive ? 0 : 2,
-          axisLabelVisible: isActive,
-          title: isLong ? '▲ LONG' : '▼ SHORT',
-        } as any);
+      // SL line (red dashed) with label
+      candleSeries.createPriceLine({
+        price: trade.slPrice,
+        color: '#F44336', lineWidth: 1, lineStyle: 2,
+        axisLabelVisible: true, title: 'SL',
+      } as any);
 
-        // Draw TP/SL zones only for active trade
-        if (isActive) {
-          // TP line (green dashed)
-          const tpLine = chart.addSeries(LineSeries, {
-            color: 'rgba(76,175,80,0.7)', lineWidth: 1, lineStyle: 2,
-            priceLineVisible: false, lastValueVisible: false, title: 'TP',
-          });
-          setSafeData(tpLine, entryT, trade.tpPrice, endT, trade.tpPrice);
-
-          // SL line (red dashed)
-          const slLine = chart.addSeries(LineSeries, {
-            color: 'rgba(244,67,54,0.7)', lineWidth: 1, lineStyle: 2,
-            priceLineVisible: false, lastValueVisible: false, title: 'SL',
-          });
-          setSafeData(slLine, entryT, trade.slPrice, endT, trade.slPrice);
-
-          // TP fill zone (green)
-          const tpFill = chart.addSeries(AreaSeries, {
-            topColor: 'rgba(76,175,80,0.08)',
-            bottomColor: 'rgba(76,175,80,0.08)',
-            lineColor: 'transparent', lineWidth: 1 as 1,
-            priceLineVisible: false, lastValueVisible: false,
-          });
-          const tpMid = (trade.entryPrice + trade.tpPrice) / 2;
-          const tpFillData = candles
-            .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
-            .map(c => ({ time: Math.floor(c.time / 1000) as any, value: tpMid }));
-          if (tpFillData.length > 0) tpFill.setData(tpFillData);
-
-          // SL fill zone (red)
-          const slFill = chart.addSeries(AreaSeries, {
-            topColor: 'rgba(244,67,54,0.08)',
-            bottomColor: 'rgba(244,67,54,0.08)',
-            lineColor: 'transparent', lineWidth: 1 as 1,
-            priceLineVisible: false, lastValueVisible: false,
-          });
-          const slMid = (trade.entryPrice + trade.slPrice) / 2;
-          const slFillData = candles
-            .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
-            .map(c => ({ time: Math.floor(c.time / 1000) as any, value: slMid }));
-          if (slFillData.length > 0) slFill.setData(slFillData);
-        }
-
-        // Hit SL / Hit TP markers for closed trades
-        if (trade.result !== 'open' && trade.exitIndex !== undefined) {
-          const hitPrice = trade.result === 'TP' ? trade.tpPrice : trade.slPrice;
-          const hitColor = trade.result === 'TP' ? '#9C27B0' : '#9E9E9E';
-          const hitLabel = trade.result === 'TP' ? 'Hit TP' : 'Hit SL';
-          candleSeries.createPriceLine({
-            price: hitPrice,
-            color: hitColor,
-            lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
-            title: hitLabel,
-          } as any);
-        }
+      // TP fill zone (green)
+      const tpFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(76,175,80,0.08)',
+        bottomColor: 'rgba(76,175,80,0.08)',
+        lineColor: 'transparent', lineWidth: 1 as 1,
+        priceLineVisible: false, lastValueVisible: false,
       });
+      const tpMid = (trade.entryPrice + trade.tpPrice) / 2;
+      const tpFillData = candles
+        .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
+        .map(c => ({ time: Math.floor(c.time / 1000) as any, value: tpMid }));
+      if (tpFillData.length > 0) tpFill.setData(tpFillData);
+
+      // SL fill zone (red)
+      const slFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(244,67,54,0.08)',
+        bottomColor: 'rgba(244,67,54,0.08)',
+        lineColor: 'transparent', lineWidth: 1 as 1,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      const slMid = (trade.entryPrice + trade.slPrice) / 2;
+      const slFillData = candles
+        .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
+        .map(c => ({ time: Math.floor(c.time / 1000) as any, value: slMid }));
+      if (slFillData.length > 0) slFill.setData(slFillData);
     }
 
     // ── Crosshair data (OHLC legend) ──
