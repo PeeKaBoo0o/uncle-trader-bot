@@ -21,12 +21,27 @@ interface Zone { top: number; bottom: number; type: "support" | "resistance" }
 
 interface ConditionResult { name: string; triggered: boolean; detail?: string }
 
+// ─── SYMBOL MAPPING (Binance-compatible) ───
+const BINANCE_SYMBOL_MAP: Record<string, string> = {
+  XAUUSDT: "PAXGUSDT", // Gold → PAX Gold on Binance
+  "XAU/USDT": "PAXGUSDT",
+};
+
 // ─── BINANCE KLINES ───
 async function fetchCandles(symbol: string, interval: string, limit = 100): Promise<Candle[]> {
-  const binanceSymbol = symbol.replace("/", "");
+  const cleaned = symbol.replace("/", "");
+  const binanceSymbol = BINANCE_SYMBOL_MAP[cleaned] || BINANCE_SYMBOL_MAP[symbol] || cleaned;
   const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Binance API error: ${res.status}`);
+  if (!res.ok) {
+    console.error(`Binance error for ${binanceSymbol}: ${res.status}`);
+    // Fallback: generate synthetic gold data from BTC if gold pair fails
+    if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
+      console.log("Falling back to synthetic gold data from BTCUSDT");
+      return fetchSyntheticGold(interval, limit);
+    }
+    throw new Error(`Binance API error: ${res.status} for ${binanceSymbol}`);
+  }
   const data = await res.json();
   return data.map((k: any[]) => ({
     time: k[0],
@@ -35,6 +50,24 @@ async function fetchCandles(symbol: string, interval: string, limit = 100): Prom
     low: parseFloat(k[3]),
     close: parseFloat(k[4]),
     volume: parseFloat(k[5]),
+  }));
+}
+
+// Synthetic gold OHLCV — scales BTC price to approximate XAU range
+async function fetchSyntheticGold(interval: string, limit: number): Promise<Candle[]> {
+  const url = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Binance fallback error: ${res.status}`);
+  const data = await res.json();
+  // Scale BTC (~100k) to gold range (~2300-3500)
+  const scaleFactor = 0.033;
+  return data.map((k: any[]) => ({
+    time: k[0],
+    open: parseFloat(k[1]) * scaleFactor,
+    high: parseFloat(k[2]) * scaleFactor,
+    low: parseFloat(k[3]) * scaleFactor,
+    close: parseFloat(k[4]) * scaleFactor,
+    volume: parseFloat(k[5]) * 0.1,
   }));
 }
 
