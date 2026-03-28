@@ -158,7 +158,7 @@ const Analysis: React.FC = () => {
         setLogs(prev => [`[${ts}] 🤖 Auto scanning...`, ...prev].slice(0, 15));
         try {
           await supabase.functions.invoke('signal-bot', {
-            body: { mode: 'scan', symbols: ['BTCUSDT', 'XAUUSDT'], timeframe: activeTimeframe }
+            body: { mode: 'scan', symbols: ['BTCUSDT', 'XAUUSDT'], timeframe: btcTimeframe }
           });
           setLogs(prev => [`[${ts}] ✅ Auto scan done`, ...prev].slice(0, 15));
         } catch { setLogs(prev => [`[${ts}] ❌ Auto scan failed`, ...prev].slice(0, 15)); }
