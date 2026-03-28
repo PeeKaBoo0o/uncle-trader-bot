@@ -43,7 +43,7 @@ const SubIndicators: React.FC<SubIndicatorsProps> = ({ candles, indicators, acti
       const rsiSeries = chart.addSeries(LineSeries, { color: '#A855F7', lineWidth: 2, priceLineVisible: false });
       const data = indicators.rsi
         .map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
-        .filter(d => !isNaN(d.value));
+        .filter(d => typeof d.value === 'number' && !isNaN(d.value) && d.value !== null);
       if (data.length > 0) rsiSeries.setData(data);
       rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' } as any);
       rsiSeries.createPriceLine({ price: 30, color: 'rgba(16,185,129,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' } as any);
@@ -64,13 +64,14 @@ const SubIndicators: React.FC<SubIndicatorsProps> = ({ candles, indicators, acti
       const signalSeries = chart.addSeries(LineSeries, { color: '#F97316', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
       const histSeries = chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false });
 
-      const macdData = indicators.macd.macdLine.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
-      const signalData = indicators.macd.signalLine.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
+      const isValid = (v: any) => typeof v === 'number' && !isNaN(v) && v !== null;
+      const macdData = indicators.macd.macdLine.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => isValid(d.value));
+      const signalData = indicators.macd.signalLine.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => isValid(d.value));
       const histData = indicators.macd.histogram.map((v, i) => ({
         time: (candles[i].time / 1000) as any,
         value: v,
         color: v >= 0 ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)',
-      })).filter(d => !isNaN(d.value));
+      })).filter(d => isValid(d.value));
 
       if (macdData.length) macdSeries.setData(macdData);
       if (signalData.length) signalSeries.setData(signalData);

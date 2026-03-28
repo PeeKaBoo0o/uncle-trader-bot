@@ -71,7 +71,7 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     if (indicators && enabledIndicators.includes('bb_squeeze')) {
       const addLine = (values: number[], color: string) => {
         const series = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-        const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
+        const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => typeof d.value === 'number' && !isNaN(d.value) && d.value !== null);
         if (data.length > 0) series.setData(data);
       };
       addLine(indicators.bb.upper, 'rgba(245,158,11,0.4)');
@@ -83,7 +83,7 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     if (indicators && enabledIndicators.includes('ema_cross')) {
       const addEMA = (values: number[], color: string) => {
         const series = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-        const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
+        const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => typeof d.value === 'number' && !isNaN(d.value) && d.value !== null);
         if (data.length > 0) series.setData(data);
       };
       addEMA(indicators.ema20, '#EC4899');
