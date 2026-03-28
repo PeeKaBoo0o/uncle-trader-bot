@@ -100,7 +100,7 @@ const Analysis: React.FC = () => {
     if (!btcData.loading && btcData.candles.length > 0) {
       triggerScan();
     }
-  }, [activeTimeframe, btcData.loading]);
+  }, [btcTimeframe, goldTimeframe, btcData.loading]);
 
   // ── Auto H4 scan timer: trigger every 4 hours ──
   useEffect(() => {
