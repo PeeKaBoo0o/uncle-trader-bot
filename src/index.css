@@ -123,6 +123,13 @@ body {
 .animate-pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
 .animate-rotate-slow { animation: rotateSlow 20s linear infinite; }
 
+/* ─── Scan sweep animation ───────────────────────────────── */
+@keyframes scanSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-scan-sweep { animation: scanSweep 2s ease-in-out infinite; }
+
 /* ─── Scroll reveal ──────────────────────────────────────── */
 .reveal-hidden {
   opacity: 0;

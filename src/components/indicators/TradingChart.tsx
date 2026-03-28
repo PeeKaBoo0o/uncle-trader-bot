@@ -1,16 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CrosshairMode, IChartApi, CandlestickSeries, LineSeries } from 'lightweight-charts';
+import React, { useEffect, useRef } from 'react';
+import {
+  createChart, ColorType, CrosshairMode, IChartApi,
+  CandlestickSeries, LineSeries, AreaSeries,
+} from 'lightweight-charts';
 import type { Candle, Indicators, Zone } from '@/hooks/useMarketData';
+
+export interface AITrendline {
+  start: { time: number; price: number };
+  end: { time: number; price: number };
+}
 
 interface TradingChartProps {
   candles: Candle[];
   indicators: Indicators | null;
   zones: Zone[];
+  trendline?: AITrendline | null;
   signals?: { time: number; type: 'buy' | 'sell' }[];
   enabledIndicators: string[];
+  height?: number;
+  label?: string;
 }
 
-const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones, signals, enabledIndicators }) => {
+const TradingChart: React.FC<TradingChartProps> = ({
+  candles, indicators, zones, trendline, signals, enabledIndicators, height = 380, label,
+}) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -18,104 +31,154 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     if (!chartContainerRef.current || candles.length === 0) return;
 
     if (chartRef.current) {
-      try { chartRef.current.remove(); } catch { /* already disposed */ }
+      try { chartRef.current.remove(); } catch { /* disposed */ }
       chartRef.current = null;
     }
-
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: '#0a0f1e' },
-        textColor: '#8892b0',
+        textColor: '#64748b',
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 10,
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.03)' },
-        horzLines: { color: 'rgba(255,255,255,0.03)' },
+        vertLines: { color: 'rgba(255,255,255,0.025)' },
+        horzLines: { color: 'rgba(255,255,255,0.025)' },
       },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: {
-        borderColor: 'rgba(255,255,255,0.1)',
-        scaleMargins: { top: 0.1, bottom: 0.2 },
+        borderColor: 'rgba(255,255,255,0.08)',
+        scaleMargins: { top: 0.08, bottom: 0.15 },
       },
       timeScale: {
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.08)',
         timeVisible: true,
         secondsVisible: false,
       },
       width: chartContainerRef.current.clientWidth,
-      height: 400,
+      height,
     });
-
     chartRef.current = chart;
 
+    // ── Candles ──
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10B981',
-      downColor: '#EF4444',
-      borderUpColor: '#10B981',
-      borderDownColor: '#EF4444',
-      wickUpColor: '#10B981',
-      wickDownColor: '#EF4444',
+      upColor: '#10B981', downColor: '#EF4444',
+      borderUpColor: '#10B981', borderDownColor: '#EF4444',
+      wickUpColor: '#10B981', wickDownColor: '#EF4444',
     });
-
     const chartData = candles.map(c => ({
       time: (c.time / 1000) as any,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
+      open: c.open, high: c.high, low: c.low, close: c.close,
     }));
     candleSeries.setData(chartData);
 
-    // Bollinger Bands
+    // ── Bollinger Bands ──
     if (indicators && enabledIndicators.includes('bb_squeeze')) {
-      const addLine = (values: number[], color: string) => {
-        const series = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-        const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => typeof d.value === 'number' && !isNaN(d.value) && d.value !== null);
-        if (data.length > 0) series.setData(data);
+      const addBBLine = (values: number[], color: string, lw: 1 | 2 | 3 | 4 = 1) => {
+        const s = chart.addSeries(LineSeries, {
+          color, lineWidth: lw, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const d = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
+          .filter(p => typeof p.value === 'number' && !isNaN(p.value));
+        if (d.length > 0) s.setData(d);
       };
-      addLine(indicators.bb.upper, 'rgba(245,158,11,0.4)');
-      addLine(indicators.bb.middle, 'rgba(245,158,11,0.2)');
-      addLine(indicators.bb.lower, 'rgba(245,158,11,0.4)');
+      addBBLine(indicators.bb.upper, 'rgba(6,182,212,0.5)');
+      addBBLine(indicators.bb.middle, 'rgba(6,182,212,0.2)');
+      addBBLine(indicators.bb.lower, 'rgba(6,182,212,0.5)');
     }
 
-    // EMA lines
+    // ── EMA lines ──
     if (indicators && enabledIndicators.includes('ema_cross')) {
       const addEMA = (values: number[], color: string) => {
-        const series = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-        const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => typeof d.value === 'number' && !isNaN(d.value) && d.value !== null);
-        if (data.length > 0) series.setData(data);
+        const s = chart.addSeries(LineSeries, {
+          color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+        });
+        const d = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
+          .filter(p => typeof p.value === 'number' && !isNaN(p.value));
+        if (d.length > 0) s.setData(d);
       };
       addEMA(indicators.ema20, '#EC4899');
       addEMA(indicators.ema50, '#8B5CF6');
     }
 
-    // S/R zones
+    // ── AI Support/Resistance ZONES (filled areas) ──
     zones.forEach(zone => {
-      const color = zone.type === 'support' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)';
+      const isSupport = zone.type === 'support';
+      // Top line
+      const topSeries = chart.addSeries(LineSeries, {
+        color: isSupport ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)',
+        lineWidth: 1, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      // Bottom line
+      const bottomSeries = chart.addSeries(LineSeries, {
+        color: isSupport ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)',
+        lineWidth: 1, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      // Fill area between
+      const fillSeries = chart.addSeries(AreaSeries, {
+        topColor: isSupport ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+        bottomColor: isSupport ? 'rgba(16,185,129,0.02)' : 'rgba(239,68,68,0.02)',
+        lineColor: 'transparent',
+        lineWidth: 1 as 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+
+      const start = candles[0].time / 1000;
+      const end = candles[candles.length - 1].time / 1000;
+      topSeries.setData([
+        { time: start as any, value: zone.top },
+        { time: end as any, value: zone.top },
+      ]);
+      bottomSeries.setData([
+        { time: start as any, value: zone.bottom },
+        { time: end as any, value: zone.bottom },
+      ]);
+      // Fill mid-area
+      const mid = (zone.top + zone.bottom) / 2;
+      fillSeries.setData(candles.map(c => ({
+        time: (c.time / 1000) as any,
+        value: mid,
+      })));
+
+      // Label
       candleSeries.createPriceLine({
-        price: (zone.top + zone.bottom) / 2,
-        color,
-        lineWidth: 1,
-        lineStyle: 2,
-        axisLabelVisible: true,
-        title: zone.type === 'support' ? 'S' : 'R',
+        price: mid,
+        color: isSupport ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)',
+        lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
+        title: isSupport ? 'S' : 'R',
       } as any);
     });
 
-    // Signal markers via price lines (v5 doesn't have setMarkers on typed series)
+    // ── AI Trendline (dashed amber) ──
+    if (trendline) {
+      const trendSeries = chart.addSeries(LineSeries, {
+        color: '#F59E0B', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      trendSeries.setData([
+        { time: (trendline.start.time / 1000) as any, value: trendline.start.price },
+        { time: (trendline.end.time / 1000) as any, value: trendline.end.price },
+      ]);
+    }
+
+    // ── Signal arrows ──
     if (signals && signals.length > 0) {
       signals.forEach(s => {
-        candleSeries.createPriceLine({
-          price: candles.find(c => c.time === s.time)?.close ?? 0,
-          color: s.type === 'buy' ? '#10B981' : '#EF4444',
-          lineWidth: 1,
-          lineStyle: 0,
-          axisLabelVisible: false,
-          title: s.type === 'buy' ? '🟢' : '🔴',
-        } as any);
+        const candle = candles.find(c => c.time === s.time);
+        if (candle) {
+          candleSeries.createPriceLine({
+            price: candle.close,
+            color: s.type === 'buy' ? '#10B981' : '#EF4444',
+            lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
+            title: s.type === 'buy' ? '🟢 BUY' : '🔴 SELL',
+          } as any);
+        }
       });
     }
 
@@ -127,12 +190,23 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
-      try { chart.remove(); } catch { /* already disposed */ }
+      try { chart.remove(); } catch { /* disposed */ }
       chartRef.current = null;
     };
-  }, [candles, indicators, zones, signals, enabledIndicators]);
+  }, [candles, indicators, zones, trendline, signals, enabledIndicators, height]);
 
-  return <div ref={chartContainerRef} className="w-full" style={{ minHeight: 400 }} />;
+  return (
+    <div className="relative">
+      {label && (
+        <div className="absolute top-2 left-3 z-10 flex items-center gap-2">
+          <span className="text-[10px] font-bold text-foreground/60 font-mono tracking-wider uppercase bg-background/80 backdrop-blur px-2 py-0.5 rounded">
+            {label}
+          </span>
+        </div>
+      )}
+      <div ref={chartContainerRef} className="w-full" style={{ minHeight: height }} />
+    </div>
+  );
 };
 
 export default TradingChart;
