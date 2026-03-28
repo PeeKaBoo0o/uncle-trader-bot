@@ -125,7 +125,11 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
       if (chartContainerRef.current) chart.applyOptions({ width: chartContainerRef.current.clientWidth });
     };
     window.addEventListener('resize', handleResize);
-    return () => { window.removeEventListener('resize', handleResize); chart.remove(); };
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      try { chart.remove(); } catch { /* already disposed */ }
+      chartRef.current = null;
+    };
   }, [candles, indicators, zones, signals, enabledIndicators]);
 
   return <div ref={chartContainerRef} className="w-full" style={{ minHeight: 400 }} />;
