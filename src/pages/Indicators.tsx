@@ -9,6 +9,7 @@ import { useMarketData, useSignals } from '@/hooks/useMarketData';
 import { useSmcAnalysis } from '@/hooks/useSmcAnalysis';
 import { useAlphaNet } from '@/hooks/useAlphaNet';
 import AlphaNetDashboard from '@/components/indicators/AlphaNetDashboard';
+import { useMatrixIndicator } from '@/hooks/useMatrixIndicator';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
