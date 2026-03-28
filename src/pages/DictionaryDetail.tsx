@@ -131,11 +131,11 @@ const DictionaryDetail: React.FC = () => {
                   )}
 
                   {/* Key Takeaways - only for advanced section */}
-                  {isAdvanced && 'keyTakeaways' in data && data.keyTakeaways && (
+                  {isAdvanced && 'keyTakeaways' in data && (data as any).keyTakeaways && (
                     <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
                       <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 font-mono-custom">🎯 KEY TAKEAWAYS</h3>
                       <ul className="space-y-2">
-                        {data.keyTakeaways.map((item: string, i: number) => (
+                        {((data as any).keyTakeaways as string[]).map((item: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                             <span className="text-primary mt-0.5">✓</span>
                             <span>{item}</span>
