@@ -379,6 +379,19 @@ const TradingChart: React.FC<TradingChartProps> = ({
         )}
       </div>
 
+      {/* ── Scan Sweep Overlay ── */}
+      {scanning && (
+        <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/8 to-transparent animate-scan-sweep" />
+          <div className="relative bg-background/90 backdrop-blur-sm border border-primary/30 rounded-lg px-4 py-2.5 shadow-lg shadow-primary/10">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-mono text-primary font-bold">{scanLabel || '🔍 Gemini AI đang phân tích...'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Chart (Candles + Volume + MA) ── */}
       <div ref={chartContainerRef} className="w-full" style={{ minHeight: height }} />
 
