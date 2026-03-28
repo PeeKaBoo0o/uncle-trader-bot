@@ -26,8 +26,7 @@ const ENABLED_INDICATORS = ['bb_squeeze', 'breakout', 'breakdown', 'confluence',
 
 const Analysis: React.FC = () => {
   const [activeTimeframe, setActiveTimeframe] = useState('H4');
-  const [subTabBTC, setSubTabBTC] = useState<'rsi' | 'volume' | 'macd'>('rsi');
-  const [subTabGold, setSubTabGold] = useState<'rsi' | 'volume' | 'macd'>('rsi');
+  // subTab states removed — RSI built into TradingChart
   const [logs, setLogs] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanLabel, setScanLabel] = useState('');
