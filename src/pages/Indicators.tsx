@@ -54,6 +54,8 @@ const Indicators: React.FC = () => {
   const matrixData = useMatrixIndicator(marketData.candles, matrixEnabled && !marketData.loading);
   const engineEnabled = indicators.find(i => i.id === 'engine')?.enabled ?? false;
   const engineData = useEngineIndicator(marketData.candles, engineEnabled && !marketData.loading);
+  const tpSlEnabled = indicators.find(i => i.id === 'tp_sl')?.enabled ?? false;
+  const tpSlData = useTpSlIndicator(marketData.candles, tpSlEnabled && !marketData.loading);
 
   const toggleIndicator = (id: string) => {
     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
