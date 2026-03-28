@@ -321,42 +321,27 @@ const Analysis: React.FC = () => {
 
               {/* ── GOLD Column ── */}
               <div className="space-y-2">
-                <div className="glass-card rounded-xl overflow-hidden">
-                  {goldData.loading ? (
-                    <div className="flex items-center justify-center h-[340px]">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs text-muted-foreground font-mono">Loading XAU/USD...</span>
-                      </div>
+                {goldData.loading ? (
+                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs text-muted-foreground font-mono">Loading XAU/USD...</span>
                     </div>
-                  ) : goldData.error ? (
-                    <div className="flex items-center justify-center h-[340px]">
-                      <span className="text-destructive text-sm">⚠️ {goldData.error}</span>
-                    </div>
-                  ) : (
-                    <TradingChart
-                      candles={goldData.candles}
-                      indicators={goldData.indicators}
-                      zones={goldData.zones}
-                      enabledIndicators={ENABLED_INDICATORS}
-                      height={320}
-                      label="🥇 XAU/USD (Gold)"
-                    />
-                  )}
-                  <div className="border-t border-foreground/5">
-                    <div className="flex gap-0.5 px-3 py-1 border-b border-foreground/5">
-                      {(['rsi', 'volume', 'macd'] as const).map(tab => (
-                        <button key={tab} onClick={() => setSubTabGold(tab)}
-                          className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
-                            subTabGold === tab ? 'bg-foreground/5 text-foreground' : 'text-muted-foreground/40'
-                          }`}>{tab}</button>
-                      ))}
-                    </div>
-                    {!goldData.loading && goldData.candles.length > 0 && (
-                      <SubIndicators candles={goldData.candles} indicators={goldData.indicators} activeTab={subTabGold} />
-                    )}
                   </div>
-                </div>
+                ) : goldData.error ? (
+                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                    <span className="text-destructive text-sm">⚠️ {goldData.error}</span>
+                  </div>
+                ) : (
+                  <TradingChart
+                    candles={goldData.candles}
+                    indicators={goldData.indicators}
+                    zones={goldData.zones}
+                    enabledIndicators={ENABLED_INDICATORS}
+                    height={300}
+                    label="🥇 XAU/USD (Gold) · H4"
+                  />
+                )}
                 <AIActionCard ai={goldAI} symbol="🥇 XAU/USD" isGold />
                 <a href="https://www.okx.com/join/UNCLETRADER" target="_blank" rel="noopener noreferrer"
                   className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-yellow-500/30 transition-all group border border-foreground/5">
