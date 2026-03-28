@@ -157,9 +157,11 @@ const Indicators: React.FC = () => {
             <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
             
             {/* AlphaNet AI Dashboard */}
-            <div className="mt-3">
-              <AlphaNetDashboard data={alphaNet.data} loading={alphaNet.loading} error={alphaNet.error} />
-            </div>
+            {alphaNetEnabled && (
+              <div className="mt-3">
+                <AlphaNetDashboard data={alphaNet.data} loading={alphaNet.loading} error={alphaNet.error} />
+              </div>
+            )}
           </div>
 
           {/* ── CENTER: Chart Area ── */}
