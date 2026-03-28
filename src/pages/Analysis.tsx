@@ -87,13 +87,13 @@ const Analysis: React.FC = () => {
     setScanning(true);
     setScanLabel('🔍 Gemini AI đang phân tích dữ liệu nến mới...');
     const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    setLogs(prev => [`[${now}] 🔄 Gemini AI scanning ${activeTimeframe}...`, ...prev].slice(0, 15));
+    setLogs(prev => [`[${now}] 🔄 Gemini AI scanning BTC:${btcTimeframe} / Gold:${goldTimeframe}...`, ...prev].slice(0, 15));
     setTimeout(() => {
       setScanLabel('✅ Phân tích hoàn tất — Trendline & Zones đã cập nhật');
       setLogs(prev => [`[${now}] ✅ AI scan complete — trendlines & zones updated`, ...prev].slice(0, 15));
     }, 2500);
     setTimeout(() => { setScanning(false); setScanLabel(''); }, 4000);
-  }, [activeTimeframe]);
+  }, [btcTimeframe, goldTimeframe]);
 
   // Trigger scan on data load & timeframe change
   useEffect(() => {
