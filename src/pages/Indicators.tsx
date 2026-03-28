@@ -211,6 +211,7 @@ const Indicators: React.FC = () => {
                   smcAnalysis={smcResult.analysis}
                   alphaNetData={alphaNet.data}
                   matrixData={matrixData}
+                  engineData={engineData}
                 />
               )}
             </div>
