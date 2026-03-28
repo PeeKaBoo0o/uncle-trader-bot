@@ -185,7 +185,7 @@ const Indicators: React.FC = () => {
                   </div>
                 </div>
               ) : marketData.error ? (
-                <div className="flex items-center justify-center h-[380px]">
+                <div className="flex items-center justify-center h-[520px]">
                   <div className="text-center">
                     <span className="text-red-400 text-sm">⚠️ {marketData.error}</span>
                     <p className="text-muted-foreground text-xs mt-2">Đang sử dụng dữ liệu demo</p>
