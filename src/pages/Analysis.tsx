@@ -317,6 +317,7 @@ const Analysis: React.FC = () => {
                     scanLabel={scanLabel}
                     timeframe={btcTimeframe}
                     onTimeframeChange={setBtcTimeframe}
+                    tpSlData={btcTpSl}
                   />
                 )}
                 <AIActionCard ai={btcAI} symbol="₿ BTC/USDT" />
