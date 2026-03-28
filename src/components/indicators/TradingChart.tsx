@@ -185,15 +185,27 @@ const TradingChart: React.FC<TradingChartProps> = ({
       fillSeries.setData(candles.map(c => ({ time: (c.time / 1000) as any, value: mid })));
     });
 
-    // ── AI Trendline ──
+    // ── AI Trendlines (Support = green dashed, Resistance = red dashed) ──
     if (trendline) {
       const trendSeries = chart.addSeries(LineSeries, {
-        color: '#ffa726', lineWidth: 2, lineStyle: 2,
+        color: '#26a69a', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false,
+        title: 'Trend ▲',
       });
       trendSeries.setData([
         { time: (trendline.start.time / 1000) as any, value: trendline.start.price },
         { time: (trendline.end.time / 1000) as any, value: trendline.end.price },
+      ]);
+    }
+    if (trendlineResistance) {
+      const resSeries = chart.addSeries(LineSeries, {
+        color: '#ef5350', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false,
+        title: 'Trend ▼',
+      });
+      resSeries.setData([
+        { time: (trendlineResistance.start.time / 1000) as any, value: trendlineResistance.start.price },
+        { time: (trendlineResistance.end.time / 1000) as any, value: trendlineResistance.end.price },
       ]);
     }
 
