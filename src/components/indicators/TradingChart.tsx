@@ -4,6 +4,7 @@ import {
   CandlestickSeries, LineSeries, AreaSeries, HistogramSeries,
 } from 'lightweight-charts';
 import type { Candle, Indicators, Zone } from '@/hooks/useMarketData';
+import { computeLiquidityZones } from '@/lib/liquidityHunter';
 
 export interface AITrendline {
   start: { time: number; price: number };
