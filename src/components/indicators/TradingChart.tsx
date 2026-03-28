@@ -4,6 +4,7 @@ import {
   CandlestickSeries, LineSeries, AreaSeries, HistogramSeries,
 } from 'lightweight-charts';
 import type { Candle, Indicators, Zone } from '@/hooks/useMarketData';
+import { computeLiquidityZones } from '@/lib/liquidityHunter';
 
 export interface AITrendline {
   start: { time: number; price: number };
@@ -211,6 +212,47 @@ const TradingChart: React.FC<TradingChartProps> = ({
         { time: (trendlineResistance.start.time / 1000) as any, value: trendlineResistance.start.price },
         { time: (trendlineResistance.end.time / 1000) as any, value: trendlineResistance.end.price },
       ]);
+    }
+
+    // ── Liquidity Hunter ──
+    if (enabledIndicators.includes('liq_hunter') && candles.length > 20) {
+      const { zones: liqZones, grabs } = computeLiquidityZones(candles, 5);
+
+      // Draw liquidity zones as horizontal dashed lines
+      liqZones.forEach(zone => {
+        const color = zone.type === 'high'
+          ? (zone.swept ? 'rgba(239,83,80,0.6)' : 'rgba(239,83,80,0.25)')
+          : (zone.swept ? 'rgba(38,166,154,0.6)' : 'rgba(38,166,154,0.25)');
+
+        const ls = chart.addSeries(LineSeries, {
+          color,
+          lineWidth: 1,
+          lineStyle: zone.swept ? 0 : 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        });
+
+        const startTime = (candles[zone.startIndex].time / 1000) as any;
+        const endTime = (candles[Math.min(zone.endIndex, candles.length - 1)].time / 1000) as any;
+        ls.setData([
+          { time: startTime, value: zone.price },
+          { time: endTime, value: zone.price },
+        ]);
+      });
+
+      // Mark liquidity grabs with price lines on candle series
+      grabs.forEach(grab => {
+        const color = grab.type === 'bull_grab' ? '#26a69a' : '#ef5350';
+        const label = grab.type === 'bull_grab' ? '▲ LQ Grab' : '▼ LQ Grab';
+        candleSeries.createPriceLine({
+          price: grab.price,
+          color,
+          lineWidth: 1,
+          lineStyle: 0,
+          axisLabelVisible: true,
+          title: label,
+        } as any);
+      });
     }
 
     // ── Signal arrows ──
