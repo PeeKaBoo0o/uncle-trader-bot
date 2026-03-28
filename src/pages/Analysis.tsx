@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import TradingChart from '@/components/indicators/TradingChart';
+import SubIndicators from '@/components/indicators/SubIndicators';
+import IndicatorPanel, { IndicatorConfig } from '@/components/indicators/IndicatorPanel';
+import SignalFeed from '@/components/indicators/SignalFeed';
+import { useMarketData, useSignals } from '@/hooks/useMarketData';
+import { useSmartSignals } from '@/hooks/useSmartSignal';
+import { useDXY } from '@/hooks/useDXY';
+import html2canvas from 'html2canvas';
 
-interface BotSignal {
-  id: number;
-  time: string;
-  message: string;
-  type: 'buy' | 'sell' | 'alert' | 'breakout' | 'support_touch' | 'volume_anomaly';
-  symbol: string;
-  badge: string;
-}
+const PAIRS = ['BTC/USDT', 'XAU/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT'];
+const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
 
 const SIGNAL_COLORS: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
   buy: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400', dot: 'bg-emerald-400', label: 'MUA' },
@@ -18,227 +20,348 @@ const SIGNAL_COLORS: Record<string, { bg: string; border: string; text: string; 
   breakout: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-300', dot: 'bg-violet-400', label: 'BREAKOUT' },
   support_touch: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/25', text: 'text-cyan-300', dot: 'bg-cyan-400', label: 'HỖ TRỢ' },
   volume_anomaly: { bg: 'bg-orange-500/10', border: 'border-orange-500/25', text: 'text-orange-300', dot: 'bg-orange-400', label: 'VOLUME' },
+  info: { bg: 'bg-blue-500/10', border: 'border-blue-500/25', text: 'text-blue-300', dot: 'bg-blue-400', label: 'INFO' },
 };
 
-const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'SOL/USDT'];
-const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
-
-const INITIAL_SIGNALS: BotSignal[] = [
-  { id: 1, time: '06:42', message: 'BTC breakout khỏi vùng kháng cự 68,000 — momentum tăng mạnh', type: 'breakout', symbol: 'BTC', badge: 'BREAKOUT' },
-  { id: 2, time: '06:15', message: 'XAU/USD chạm vùng hỗ trợ 2,290 — theo dõi phản ứng giá', type: 'support_touch', symbol: 'GOLD', badge: 'HỖ TRỢ' },
-  { id: 3, time: '05:58', message: 'Volume BTC tăng 340% so với trung bình — dấu hiệu bất thường', type: 'volume_anomaly', symbol: 'BTC', badge: 'VOLUME' },
-  { id: 4, time: '05:30', message: 'BTC phá vỡ vùng tích lũy 67.5k–68k với volume lớn', type: 'breakout', symbol: 'BTC', badge: 'BREAKOUT' },
-  { id: 5, time: '04:45', message: 'ETH tăng 5.2% — breakout trên EMA 200', type: 'buy', symbol: 'ETH', badge: 'MUA' },
-  { id: 6, time: '04:12', message: 'Vàng rebound từ hỗ trợ 2,290 — nến đảo chiều tăng H4', type: 'support_touch', symbol: 'GOLD', badge: 'HỖ TRỢ' },
-  { id: 7, time: '03:55', message: 'Volume XAU/USD tăng đột biến 280% — theo dõi breakout', type: 'volume_anomaly', symbol: 'GOLD', badge: 'VOLUME' },
-  { id: 8, time: '03:20', message: 'Lực bán xuất hiện tại kháng cự 2,340 XAU/USD', type: 'sell', symbol: 'GOLD', badge: 'BÁN' },
+const DEFAULT_INDICATORS: IndicatorConfig[] = [
+  { id: 'bb_squeeze', label: 'BB Squeeze', enabled: true, color: '#F59E0B', category: 'Volatility' },
+  { id: 'breakout', label: 'Breakout', enabled: true, color: '#00D4FF', category: 'Trend' },
+  { id: 'breakdown', label: 'Breakdown', enabled: true, color: '#EF4444', category: 'Trend' },
+  { id: 'confluence', label: 'Confluence', enabled: true, color: '#7C3AED', category: 'S/R' },
+  { id: 'momentum', label: 'Momentum', enabled: true, color: '#14B8A6', category: 'Momentum' },
+  { id: 'vol_spike', label: 'Vol Spike', enabled: true, color: '#10B981', category: 'Volume' },
+  { id: 'rsi_div', label: 'RSI Div', enabled: true, color: '#A855F7', category: 'Momentum' },
+  { id: 'sup_bounce', label: 'Sup Bounce', enabled: true, color: '#F97316', category: 'S/R' },
+  { id: 'ema_cross', label: 'EMA Cross', enabled: false, color: '#EC4899', category: 'Trend' },
+  { id: 'macd_cross', label: 'MACD Cross', enabled: true, color: '#06B6D4', category: 'Trend' },
 ];
 
-// Generate mock candle data
-function generateCandles(count: number): { time: number; open: number; high: number; low: number; close: number }[] {
-  const candles = [];
-  let price = 67500;
-  const now = Date.now();
-  for (let i = count; i >= 0; i--) {
-    const change = (Math.random() - 0.48) * 500;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * 200;
-    const low = Math.min(open, close) - Math.random() * 200;
-    candles.push({ time: now - i * 3600000, open, high, low, close });
-    price = close;
-  }
-  return candles;
-}
-
-function CandleChart({ width, height }: { width: number; height: number }) {
-  const candles = generateCandles(40);
-  const prices = candles.flatMap(c => [c.high, c.low]);
-  const maxP = Math.max(...prices);
-  const minP = Math.min(...prices);
-  const range = maxP - minP || 1;
-  const pad = { top: 20, bottom: 20, left: 60, right: 10 };
-  const chartW = width - pad.left - pad.right;
-  const chartH = height - pad.top - pad.bottom;
-  const toY = (p: number) => pad.top + ((maxP - p) / range) * chartH;
-  const candleW = Math.max(2, (chartW / candles.length) * 0.6);
-  const spacing = chartW / candles.length;
-
-  return (
-    <svg width={width} height={height} className="w-full h-full">
-      {[0, 0.25, 0.5, 0.75, 1].map((t) => {
-        const y = pad.top + t * chartH;
-        const price = maxP - t * range;
-        return (
-          <g key={t}>
-            <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-            <text x={pad.left - 4} y={y + 4} fill="rgba(136,146,176,0.8)" fontSize="9" textAnchor="end">{price.toFixed(0)}</text>
-          </g>
-        );
-      })}
-      {/* Support/Resistance zones */}
-      <line x1={pad.left} y1={toY(maxP - range * 0.15)} x2={width - pad.right} y2={toY(maxP - range * 0.15)} stroke="rgba(239,68,68,0.4)" strokeWidth="1" strokeDasharray="4,3" />
-      <line x1={pad.left} y1={toY(minP + range * 0.15)} x2={width - pad.right} y2={toY(minP + range * 0.15)} stroke="rgba(16,185,129,0.4)" strokeWidth="1" strokeDasharray="4,3" />
-      <text x={width - pad.right - 2} y={toY(maxP - range * 0.15) - 3} fill="#EF4444" fontSize="8" textAnchor="end">R1</text>
-      <text x={width - pad.right - 2} y={toY(minP + range * 0.15) - 3} fill="#10B981" fontSize="8" textAnchor="end">S1</text>
-      {candles.map((c, i) => {
-        const x = pad.left + i * spacing + spacing / 2;
-        const isUp = c.close >= c.open;
-        const color = isUp ? '#10B981' : '#EF4444';
-        const bodyTop = toY(Math.max(c.open, c.close));
-        const bodyBot = toY(Math.min(c.open, c.close));
-        const bodyH = Math.max(1, bodyBot - bodyTop);
-        return (
-          <g key={i}>
-            <line x1={x} y1={toY(c.high)} x2={x} y2={toY(c.low)} stroke={color} strokeWidth="1" />
-            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={color} opacity="0.9" />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
 const Analysis: React.FC = () => {
-  const [activeSymbol, setActiveSymbol] = useState('BTC/USDT');
-  const [activeTimeframe, setActiveTimeframe] = useState('H1');
-  const [signals] = useState<BotSignal[]>(INITIAL_SIGNALS);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [chartSize, setChartSize] = useState({ width: 800, height: 400 });
+  const [activePair, setActivePair] = useState('BTC/USDT');
+  const [activeTimeframe, setActiveTimeframe] = useState('H4');
+  const [indicators, setIndicators] = useState(DEFAULT_INDICATORS);
+  const [subTab, setSubTab] = useState<'rsi' | 'volume' | 'macd'>('rsi');
+  const [logs, setLogs] = useState<string[]>([]);
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const els = document.querySelectorAll('.page-reveal');
-    els.forEach((el, i) => setTimeout(() => el.classList.add('revealed'), 200 + i * 150));
-  }, []);
+  const marketData = useMarketData(activePair, activeTimeframe);
+  const { signals: dbSignals, loading: signalsLoading } = useSignals();
+  const smartSignals = useSmartSignals(
+    marketData.candles, marketData.indicators, marketData.zones, activePair, marketData.loading
+  );
+  const dxy = useDXY();
 
+  const toggleIndicator = (id: string) => {
+    setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
+  };
+
+  const enabledIds = indicators.filter(i => i.enabled).map(i => i.id);
+
+  // Live price
+  const lastCandle = marketData.candles[marketData.candles.length - 1];
+  const livePrice = lastCandle ? lastCandle.close : 0;
+  const prevCandle = marketData.candles[marketData.candles.length - 2];
+  const priceChange = prevCandle ? ((livePrice - prevCandle.close) / prevCandle.close * 100) : 0;
+
+  // AI Analysis from zones/actions
+  const trend = marketData.actions
+    ? (marketData.actions.target > livePrice ? '📈 Tăng (Bullish)' : '📉 Giảm (Bearish)')
+    : '⏳ Đang phân tích...';
+  const supportZone = marketData.zones.find(z => z.type === 'support');
+  const resistanceZone = marketData.zones.find(z => z.type === 'resistance');
+
+  // Log simulation
   useEffect(() => {
-    const updateSize = () => {
-      if (chartRef.current) {
-        setChartSize({ width: chartRef.current.offsetWidth, height: 400 });
-      }
-    };
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
+    if (!marketData.loading && marketData.candles.length > 0) {
+      const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const sym = activePair.replace('/', '');
+      const triggeredCount = smartSignals.filter(s => s.isNew).length;
+      setLogs(prev => {
+        const newLogs = [`[${now}] Scanning ${activeTimeframe} candle for ${sym}...`];
+        if (triggeredCount > 0) {
+          newLogs.push(`[${now}] ${sym}: Signal generated ✅`);
+        }
+        return [...newLogs, ...prev].slice(0, 12);
+      });
+    }
+  }, [marketData.loading, activePair, activeTimeframe, smartSignals]);
+
+  // Screenshot
+  const handleScreenshot = useCallback(async () => {
+    if (!dashboardRef.current) return;
+    try {
+      const canvas = await html2canvas(dashboardRef.current, {
+        backgroundColor: '#0b1120',
+        scale: 2,
+        useCORS: true,
+      });
+      const link = document.createElement('a');
+      link.download = `${activePair.replace('/', '-')}_${activeTimeframe}_${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      console.error('Screenshot failed:', e);
+    }
+  }, [activePair, activeTimeframe]);
 
   return (
-    <main className="min-h-screen bg-navy grain-overlay">
+    <main className="min-h-screen bg-[#0b1120]">
       <Header />
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-10 overflow-hidden line-grid">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[400px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)', filter: 'blur(80px)' }} />
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center relative z-10">
-          <div className="reveal-hidden page-reveal inline-flex items-center gap-2 glass-card rounded-full px-4 py-2 mb-8">
-            <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-            <span className="font-mono-custom text-xs text-violet-400 tracking-wider">AI-POWERED ANALYSIS</span>
+      {/* TOP BAR */}
+      <div className="pt-20 px-2 lg:px-4">
+        <div className="bg-[#0d1526] border border-white/5 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-3 text-xs">
+          {/* Pairs */}
+          <div className="flex gap-0.5">
+            {PAIRS.map(p => (
+              <button key={p} onClick={() => setActivePair(p)}
+                className={`px-2.5 py-1.5 rounded font-mono font-bold transition-all ${
+                  activePair === p
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'text-muted-foreground/60 hover:text-foreground'
+                }`}>
+                {p.split('/')[0]}
+              </button>
+            ))}
           </div>
-          <h1 className="reveal-hidden page-reveal font-display font-bold text-4xl sm:text-5xl lg:text-6xl text-foreground tracking-tight mb-6">
-            Phân Tích <span className="text-gradient-cyan italic">Thị Trường</span>
-          </h1>
-          <p className="reveal-hidden page-reveal text-muted-foreground text-lg leading-relaxed max-w-2xl mx-auto">
-            Biểu đồ real-time với AI phân tích xu hướng, vùng hỗ trợ/kháng cự và tín hiệu giao dịch tự động.
-          </p>
+
+          <div className="w-px h-5 bg-white/10" />
+
+          {/* Timeframes */}
+          <div className="flex gap-0.5">
+            {TIMEFRAMES.map(tf => (
+              <button key={tf} onClick={() => setActiveTimeframe(tf)}
+                className={`px-2 py-1.5 rounded font-mono transition-all ${
+                  activeTimeframe === tf
+                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                    : 'text-muted-foreground/60 hover:text-foreground'
+                }`}>
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-white/10" />
+
+          {/* Live Price */}
+          <div className="flex items-center gap-2">
+            <span className="text-foreground font-mono font-bold text-sm">
+              {marketData.loading ? '...' : `$${livePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </span>
+            {!marketData.loading && (
+              <span className={`font-mono text-[10px] ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Screenshot */}
+          <button onClick={handleScreenshot}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+            📸 <span className="hidden sm:inline">Chụp màn hình</span>
+          </button>
         </div>
-      </section>
+      </div>
 
-      {/* Chart Section */}
-      <section className="py-8 px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Chart */}
-            <div className="lg:col-span-2">
-              <div className="glass-card rounded-2xl overflow-hidden cyber-border">
-                {/* Chart Toolbar */}
-                <div className="px-5 py-3 border-b border-white/5 flex flex-wrap items-center gap-3">
-                  <div className="flex gap-1">
-                    {SYMBOLS.map(s => (
-                      <button key={s} onClick={() => setActiveSymbol(s)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeSymbol === s ? 'bg-cyan-400/20 text-cyan-400 border border-cyan-400/30' : 'text-muted-foreground hover:text-foreground'}`}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="h-4 w-px bg-white/10" />
-                  <div className="flex gap-1">
-                    {TIMEFRAMES.map(tf => (
-                      <button key={tf} onClick={() => setActiveTimeframe(tf)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTimeframe === tf ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'text-muted-foreground hover:text-foreground'}`}>
-                        {tf}
-                      </button>
-                    ))}
+      {/* 3-PANEL LAYOUT */}
+      <div ref={dashboardRef} className="px-2 lg:px-4 py-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-2 min-h-[70vh]">
+          
+          {/* LEFT - AI Analysis + Indicators */}
+          <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3 space-y-4 overflow-y-auto max-h-[80vh]">
+            {/* AI Analysis Box */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-cyan-400/80 tracking-widest uppercase">🤖 AI PHÂN TÍCH</span>
+              </div>
+
+              <div className="space-y-2.5">
+                <div className="bg-white/[0.03] rounded-lg p-2.5 border border-white/5">
+                  <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">📈 XU HƯỚNG</div>
+                  <div className={`text-xs font-semibold ${marketData.actions && marketData.actions.target > livePrice ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {trend}
                   </div>
                 </div>
 
-                {/* Chart Area */}
-                <div ref={chartRef} className="bg-[#0a0f1e] p-4" style={{ minHeight: 400 }}>
-                  <CandleChart width={chartSize.width} height={chartSize.height} />
+                <div className="bg-white/[0.03] rounded-lg p-2.5 border border-white/5">
+                  <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">🗝️ VÙNG THEN CHỐT</div>
+                  <div className="text-xs text-foreground">
+                    {supportZone && resistanceZone ? (
+                      <>
+                        <span className="text-emerald-400">S: ${((supportZone.top + supportZone.bottom) / 2).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        {' | '}
+                        <span className="text-red-400">R: ${((resistanceZone.top + resistanceZone.bottom) / 2).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      </>
+                    ) : 'Đang tính toán...'}
+                  </div>
                 </div>
 
-                {/* AI Analysis Panel */}
-                <div className="px-5 py-4 border-t border-white/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-bold text-cyan-400/80 uppercase tracking-wider">🤖 AI Phân Tích — {activeSymbol} {activeTimeframe}</span>
-                  </div>
-                  <div className="grid sm:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground/60 text-xs mb-1 font-mono-custom">XU HƯỚNG</div>
-                      <div className="text-emerald-400 font-semibold">📈 Tăng (Bullish)</div>
-                      <p className="text-muted-foreground text-xs mt-1">Giá đang giao dịch trên EMA 200, momentum tích cực</p>
+                <div className="bg-white/[0.03] rounded-lg p-2.5 border border-white/5">
+                  <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">🎯 KẾ HOẠCH</div>
+                  {marketData.actions ? (
+                    <div className="text-[10px] space-y-0.5">
+                      <div className="text-cyan-400">Entry: ${marketData.actions.entry.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                      <div className="text-emerald-400">TP: ${marketData.actions.target.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                      <div className="text-red-400">SL: ${marketData.actions.stopLoss.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                     </div>
-                    <div>
-                      <div className="text-muted-foreground/60 text-xs mb-1 font-mono-custom">VÙNG QUAN TRỌNG</div>
-                      <div className="text-foreground font-semibold">S: $66,800 | R: $69,200</div>
-                      <p className="text-muted-foreground text-xs mt-1">Vùng hỗ trợ mạnh tại $66.8K, kháng cự tiếp theo $69.2K</p>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground/60 text-xs mb-1 font-mono-custom">HÀNH ĐỘNG</div>
-                      <div className="text-cyan-400 font-semibold">🎯 Long tại pullback $67K</div>
-                      <p className="text-muted-foreground text-xs mt-1">SL: $66.2K | TP1: $69K | TP2: $71K</p>
-                    </div>
-                  </div>
+                  ) : <span className="text-xs text-muted-foreground">Đang phân tích...</span>}
                 </div>
+              </div>
+
+              <button onClick={() => window.location.reload()}
+                className="w-full py-2 rounded-lg text-[10px] font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 transition-all">
+                🔄 Phân tích lại
+              </button>
+            </div>
+
+            <div className="border-t border-white/5 pt-3">
+              <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
+            </div>
+          </div>
+
+          {/* CENTER - Chart */}
+          <div className="bg-[#0d1526] border border-white/5 rounded-lg overflow-hidden">
+            {marketData.loading ? (
+              <div className="flex items-center justify-center h-[400px]">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs text-muted-foreground font-mono">Loading {activePair}...</span>
+                </div>
+              </div>
+            ) : marketData.error ? (
+              <div className="flex items-center justify-center h-[400px]">
+                <div className="text-center">
+                  <span className="text-red-400 text-sm">⚠️ {marketData.error}</span>
+                </div>
+              </div>
+            ) : (
+              <TradingChart
+                candles={marketData.candles}
+                indicators={marketData.indicators}
+                zones={marketData.zones}
+                enabledIndicators={enabledIds}
+              />
+            )}
+
+            {/* Sub-indicator tabs */}
+            <div className="border-t border-white/5">
+              <div className="flex gap-0.5 px-3 py-1.5 border-b border-white/5">
+                {(['rsi', 'volume', 'macd'] as const).map(tab => (
+                  <button key={tab} onClick={() => setSubTab(tab)}
+                    className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase font-bold transition-all ${
+                      subTab === tab ? 'bg-white/5 text-foreground' : 'text-muted-foreground/40 hover:text-muted-foreground'
+                    }`}>
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              {!marketData.loading && marketData.candles.length > 0 && (
+                <SubIndicators candles={marketData.candles} indicators={marketData.indicators} activeTab={subTab} />
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT - Signal Feed + DXY */}
+          <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3 flex flex-col overflow-hidden">
+            {/* Live indicator */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-foreground tracking-wider uppercase">BOT SIGNAL Live</span>
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground/50">🟢 LIVE</span>
+            </div>
+
+            {/* Signal type legend */}
+            <div className="flex flex-wrap gap-1 mb-3">
+              {[
+                { label: '🚀 Breakout', color: 'text-violet-300' },
+                { label: '🛡️ Hỗ trợ', color: 'text-cyan-300' },
+                { label: '📊 Volume', color: 'text-orange-300' },
+              ].map(l => (
+                <span key={l.label} className={`text-[9px] font-bold ${l.color} bg-white/5 px-1.5 py-0.5 rounded`}>
+                  {l.label}
+                </span>
+              ))}
+            </div>
+
+            {/* DXY Widget */}
+            <div className={`rounded-lg p-2.5 mb-3 border ${
+              dxy.change > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-emerald-500/5 border-emerald-500/20'
+            }`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">DXY CORRELATION</span>
+                <span className={`text-[10px] font-bold ${dxy.change > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {dxy.loading ? '...' : dxy.value.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-[9px] font-mono ${dxy.change > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {dxy.change > 0 ? '↑' : '↓'} {Math.abs(dxy.changePercent).toFixed(2)}%
+                </span>
+                <span className="text-[9px] text-muted-foreground/60">
+                  {dxy.change > 0 ? 'DXY↑ = BTC/GOLD áp lực' : 'DXY↓ = BTC/GOLD hưởng lợi'}
+                </span>
               </div>
             </div>
 
-            {/* Signal Feed */}
-            <div className="glass-card rounded-2xl overflow-hidden cyber-border flex flex-col">
-              <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-sm font-bold text-foreground">BOT SIGNAL Live</span>
-                </div>
-                <span className="text-xs text-muted-foreground font-mono-custom">{signals.length} tín hiệu</span>
-              </div>
-              <div className="flex-1 overflow-y-auto max-h-[520px] divide-y divide-white/5">
-                {signals.map((signal) => {
-                  const style = SIGNAL_COLORS[signal.type] || SIGNAL_COLORS.alert;
-                  return (
-                    <div key={signal.id} className={`px-4 py-3 ${style.bg} border-l-2 ${style.border} hover:bg-white/5 transition-colors`}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-                          <span className={`text-xs font-bold ${style.text} uppercase tracking-wider`}>{style.label}</span>
-                          <span className="text-xs font-bold text-foreground/70 px-1.5 py-0.5 rounded bg-white/5">{signal.symbol}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground font-mono-custom">{signal.time}</span>
+            {/* Smart Signal Feed */}
+            <div className="flex-1 overflow-y-auto max-h-[450px] space-y-1.5 scrollbar-thin">
+              {smartSignals.map(signal => {
+                const style = SIGNAL_COLORS[signal.type] || SIGNAL_COLORS.alert;
+                return (
+                  <div key={signal.id}
+                    className={`p-2.5 rounded-lg border-l-2 transition-all duration-500 ${style.bg} ${style.border} ${
+                      signal.isNew ? 'ring-1 ring-cyan-400/30 bg-cyan-500/5' : ''
+                    }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                        <span className={`text-[9px] font-bold ${style.text} uppercase`}>{style.label}</span>
+                        <span className="text-[9px] font-bold text-foreground/60 px-1 py-0.5 rounded bg-white/5">{signal.symbol}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{signal.message}</p>
+                      <span className="text-[9px] text-muted-foreground font-mono">{signal.time}</span>
                     </div>
-                  );
-                })}
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">{signal.message}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DB Signal Feed (collapsed) */}
+            {dbSignals.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-white/5">
+                <div className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2">
+                  BOT SIGNALS ({dbSignals.length})
+                </div>
+                <SignalFeed signals={dbSignals.slice(0, 5)} loading={signalsLoading} />
               </div>
-              <div className="px-5 py-3 border-t border-white/5">
-                <a href="https://t.me/botsignal" target="_blank" rel="noopener noreferrer"
-                  className="btn-primary w-full py-2.5 rounded-xl text-xs font-bold text-center block">
-                  🚀 Tham Gia BOT SIGNAL Telegram
-                </a>
-              </div>
+            )}
+
+            {/* Telegram CTA */}
+            <div className="mt-3 pt-3 border-t border-white/5">
+              <a href="https://t.me/UNCLETRADER" target="_blank" rel="noopener noreferrer"
+                className="btn-primary w-full py-2.5 rounded-xl text-[11px] font-bold text-center block">
+                🚀 Tham Gia BOT SIGNAL Telegram
+              </a>
             </div>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* SYSTEM LOG */}
+      <div className="px-2 lg:px-4 pb-4">
+        <div className="bg-[#0d1526] border border-white/5 rounded-lg px-4 py-2 flex items-center gap-3 overflow-x-auto">
+          <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest shrink-0">SYSTEM LOG</span>
+          <div className="flex gap-4 text-[10px] font-mono text-muted-foreground/60">
+            {logs.slice(0, 5).map((log, i) => (
+              <span key={i} className={i === 0 ? 'text-cyan-400/60' : ''}>{log}</span>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <Footer />
     </main>

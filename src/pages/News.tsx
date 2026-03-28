@@ -2,18 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Link } from 'react-router-dom';
-
-interface NewsArticle {
-  id: string;
-  title: string;
-  source: string;
-  publishedAt: string;
-  summary: string;
-  imageUrl?: string;
-  stream: string;
-  badge?: string;
-  badgeColor?: string;
-}
+import { useNewsData } from '@/hooks/useNewsData';
 
 interface NewsStream {
   id: string;
@@ -24,24 +13,33 @@ interface NewsStream {
   color: string;
   borderColor: string;
   bgColor: string;
+  ctaLink: string;
+  ctaLabel: string;
 }
 
 const NEWS_STREAMS: NewsStream[] = [
-  { id: 'hot', label: 'Tin Nóng & Nhịp Đập Thị Trường', icon: '🔥', description: 'Tin tức nóng nhất, biến động giá, xu hướng thị trường theo thời gian thực', sources: 'CoinGecko · CryptoPanic · CoinMarketCap', color: 'text-rose-400', borderColor: 'border-rose-400/40', bgColor: 'bg-rose-400/10' },
-  { id: 'whale', label: 'Dòng Tiền & Cá Voi', icon: '🐋', description: 'Giao dịch siêu lớn, dòng tiền nạp/rút từ sàn, TVL On-chain', sources: 'Whale Alert · DefiLlama', color: 'text-cyan-400', borderColor: 'border-cyan-400/40', bgColor: 'bg-cyan-400/10' },
-  { id: 'macro', label: 'Vĩ Mô & Pháp Lý', icon: '🏛️', description: 'FED, SEC, lạm phát, luật pháp, lịch kinh tế quan trọng', sources: 'CryptoPanic · Finnhub', color: 'text-violet-400', borderColor: 'border-violet-400/40', bgColor: 'bg-violet-400/10' },
-  { id: 'event', label: 'Sự Kiện & Unlock', icon: '📅', description: 'Mainnet, Halving, lịch xả token, Airdrop, sự kiện hot', sources: 'CoinMarketCal · CoinGecko', color: 'text-amber-400', borderColor: 'border-amber-400/40', bgColor: 'bg-amber-400/10' },
-  { id: 'sentiment', label: 'Tâm Lý Thị Trường', icon: '📊', description: 'Fear & Greed Index, Long/Short Ratio, thanh lý, social buzz', sources: 'Alternative.me · Coinglass · LunarCrush', color: 'text-emerald-400', borderColor: 'border-emerald-400/40', bgColor: 'bg-emerald-400/10' },
+  { id: 'hot', label: 'Tin Nóng', icon: '🔥', description: 'Tin tức nóng nhất, biến động giá, xu hướng thị trường', sources: 'CoinGecko · CryptoPanic', color: 'text-rose-400', borderColor: 'border-rose-400/40', bgColor: 'bg-rose-400/10', ctaLink: 'https://t.me/UNCLETRADER', ctaLabel: '🚀 Theo dõi Telegram' },
+  { id: 'whale', label: 'Cá Voi', icon: '🐋', description: 'Giao dịch siêu lớn, dòng tiền nạp/rút, TVL On-chain', sources: 'DefiLlama · Whale Alert', color: 'text-cyan-400', borderColor: 'border-cyan-400/40', bgColor: 'bg-cyan-400/10', ctaLink: 'https://t.me/UNCLETRADER', ctaLabel: '🐋 Cảnh báo Cá Voi' },
+  { id: 'macro', label: 'Vĩ Mô', icon: '🏛️', description: 'FED, SEC, lạm phát, luật pháp, lịch kinh tế', sources: 'Finnhub · CryptoPanic', color: 'text-violet-400', borderColor: 'border-violet-400/40', bgColor: 'bg-violet-400/10', ctaLink: 'https://t.me/UNCLETRADER', ctaLabel: '📡 Cập nhật Vĩ Mô' },
+  { id: 'event', label: 'Sự Kiện', icon: '📅', description: 'Mainnet, Halving, xả token, Airdrop', sources: 'CoinMarketCal · CoinGecko', color: 'text-amber-400', borderColor: 'border-amber-400/40', bgColor: 'bg-amber-400/10', ctaLink: 'https://www.okx.com/join/UNCLETRADER', ctaLabel: '💰 Trade OKX -20% phí' },
+  { id: 'sentiment', label: 'Tâm Lý', icon: '📊', description: 'Fear & Greed, Long/Short, thanh lý, social buzz', sources: 'Alternative.me · CoinGecko', color: 'text-emerald-400', borderColor: 'border-emerald-400/40', bgColor: 'bg-emerald-400/10', ctaLink: 'https://t.me/UNCLETRADER', ctaLabel: '📊 Phân tích Tâm Lý' },
 ];
 
-const MOCK_NEWS: NewsArticle[] = [
-  { id: '1', title: 'BTC vượt mốc $100,000 — Kỷ lục mới trong lịch sử crypto', source: 'CoinGecko', publishedAt: new Date().toISOString(), summary: '• Bitcoin đạt ATH mới tại $100,500\n• Volume giao dịch tăng 340% trong 24h\n• Dòng tiền từ ETF tiếp tục đổ vào', imageUrl: '', stream: 'hot', badge: 'BREAKING', badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/30' },
-  { id: '2', title: 'Whale chuyển 5,000 BTC từ Binance ra cold wallet', source: 'Whale Alert', publishedAt: new Date(Date.now() - 3600000).toISOString(), summary: '• Giao dịch trị giá ~$500M\n• Tín hiệu tích lũy dài hạn\n• Số dư BTC trên sàn giảm xuống mức thấp nhất 3 năm', stream: 'whale', badge: 'WHALE', badgeColor: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/30' },
-  { id: '3', title: 'FED giữ nguyên lãi suất — Thị trường phản ứng tích cực', source: 'CryptoPanic', publishedAt: new Date(Date.now() - 7200000).toISOString(), summary: '• Lãi suất giữ ở mức 4.5%\n• Dự báo cắt giảm vào Q3 2026\n• Bitcoin tăng 3% sau thông báo', stream: 'macro', badge: 'FED', badgeColor: 'text-violet-400 bg-violet-400/10 border-violet-400/30' },
-  { id: '4', title: 'Ethereum Pectra upgrade hoàn tất — Gas fee giảm 40%', source: 'CoinGecko', publishedAt: new Date(Date.now() - 14400000).toISOString(), summary: '• Upgrade Pectra triển khai thành công\n• Gas fee trung bình giảm từ $2.5 xuống $1.5\n• TVL DeFi tăng 15% trong 48h', stream: 'event', badge: 'UPGRADE', badgeColor: 'text-amber-400 bg-amber-400/10 border-amber-400/30' },
-  { id: '5', title: 'Fear & Greed Index chạm 82 — Extreme Greed', source: 'Alternative.me', publishedAt: new Date(Date.now() - 21600000).toISOString(), summary: '• Chỉ số tham lam cực độ\n• Long/Short Ratio: 1.8\n• Thanh lý short $340M trong 24h', stream: 'sentiment', badge: 'GREED', badgeColor: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30' },
-  { id: '6', title: 'SOL Breakout khỏi vùng kháng cự $180 — Momentum mạnh', source: 'CoinMarketCap', publishedAt: new Date(Date.now() - 28800000).toISOString(), summary: '• SOL tăng 12% trong 24h\n• Volume on-chain tăng đột biến\n• DeFi TVL trên Solana đạt $8B', stream: 'hot', badge: 'BREAKOUT', badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/30' },
-];
+const UNSPLASH_POOLS: Record<string, string[]> = {
+  hot: ['photo-1518546305927-5a555bb7020d', 'photo-1639762681485-074b7f938ba0', 'photo-1622630998477-20aa696ecb05', 'photo-1605792657660-596af9009e82', 'photo-1642104704074-907c0698cbd9'],
+  whale: ['photo-1611974789855-9c2a0a7236a3', 'photo-1535320903710-d993d3d77d29', 'photo-1642790106117-e829e14a795f', 'photo-1559526324-593bc073d938', 'photo-1516245834210-c4c142787335'],
+  macro: ['photo-1526304640581-d334cdbbf45e', 'photo-1486406146926-c627a92ad1ab', 'photo-1541354329998-f4d9a9f9297f', 'photo-1569428034239-f9565e32e224', 'photo-1590283603385-17ffb3a7f29f'],
+  event: ['photo-1504384308090-c894fdcc538d', 'photo-1540575467063-178a50e2fd60', 'photo-1507003211169-0a1dd7228f2d', 'photo-1451187580459-43490279c0fa', 'photo-1517245386807-bb43f82c33c4'],
+  sentiment: ['photo-1611605698335-8b1569810432', 'photo-1590283603385-17ffb3a7f29f', 'photo-1526628953301-3e589a6a8b74', 'photo-1551288049-bebda4e38f71', 'photo-1460925895917-afdab827c52f'],
+};
+
+function getImageUrl(articleId: string, stream: string): string {
+  const pool = UNSPLASH_POOLS[stream] || UNSPLASH_POOLS.hot;
+  let hash = 0;
+  for (let i = 0; i < articleId.length; i++) hash = ((hash << 5) - hash + articleId.charCodeAt(i)) | 0;
+  const idx = Math.abs(hash) % pool.length;
+  return `https://images.unsplash.com/${pool[idx]}?w=400&h=250&fit=crop&auto=format`;
+}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -60,50 +58,99 @@ function parseBullets(summary: string): string[] {
 
 const News: React.FC = () => {
   const [activeStream, setActiveStream] = useState('hot');
-  const [articles, setArticles] = useState<NewsArticle[]>(MOCK_NEWS);
+  const [tickerIndex, setTickerIndex] = useState(0);
+  const { articles, market, loading } = useNewsData(activeStream);
 
+  // Ticker auto-rotate
+  const hotArticles = articles.filter(a => a.stream === 'hot').slice(0, 5);
   useEffect(() => {
-    const els = document.querySelectorAll('.page-reveal');
-    els.forEach((el, i) => setTimeout(() => el.classList.add('revealed'), 200 + i * 150));
-  }, []);
+    if (hotArticles.length === 0) return;
+    const timer = setInterval(() => {
+      setTickerIndex(prev => (prev + 1) % hotArticles.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [hotArticles.length]);
 
-  const filtered = activeStream === 'all' ? articles : articles.filter(a => a.stream === activeStream);
+  const activeStreamData = NEWS_STREAMS.find(s => s.id === activeStream);
 
   return (
-    <main className="min-h-screen bg-navy grain-overlay">
+    <main className="min-h-screen bg-[#0b1120] grain-overlay">
       <Header />
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-12 overflow-hidden line-grid">
-        <div className="absolute top-0 right-1/4 w-[500px] h-[400px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.1) 0%, transparent 70%)', filter: 'blur(80px)' }} />
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center relative z-10">
-          <div className="reveal-hidden page-reveal inline-flex items-center gap-2 glass-card rounded-full px-4 py-2 mb-8">
-            <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-            <span className="font-mono-custom text-xs text-rose-400 tracking-wider">LIVE NEWS</span>
+      {/* Hot Ticker */}
+      <div className="pt-20">
+        <div className="bg-gradient-to-r from-rose-500/10 via-transparent to-rose-500/10 border-b border-rose-500/20">
+          <div className="max-w-7xl mx-auto px-6 py-2.5 flex items-center gap-3">
+            <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded animate-pulse">LIVE</span>
+            <div className="flex-1 overflow-hidden">
+              {hotArticles.length > 0 && (
+                <Link to={`/tin-tuc/${hotArticles[tickerIndex]?.id}?stream=hot`}
+                  className="text-sm text-foreground hover:text-cyan-400 transition-colors truncate block font-medium">
+                  🔥 {hotArticles[tickerIndex]?.title}
+                </Link>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {hotArticles.map((_, i) => (
+                <button key={i} onClick={() => setTickerIndex(i)}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${i === tickerIndex ? 'bg-rose-400' : 'bg-white/20'}`} />
+              ))}
+            </div>
           </div>
-          <h1 className="reveal-hidden page-reveal font-display font-bold text-4xl sm:text-5xl lg:text-6xl text-foreground tracking-tight mb-6">
-            Tin Tức <span className="text-gradient-cyan italic">Crypto</span>
-          </h1>
-          <p className="reveal-hidden page-reveal text-muted-foreground text-lg leading-relaxed max-w-2xl mx-auto">
-            Cập nhật tin tức thị trường crypto theo thời gian thực. AI tóm tắt & phân tích tác động đến giá.
-          </p>
+        </div>
+      </div>
+
+      {/* Market Pulse */}
+      <section className="py-4 px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">📊 NHỊP ĐẬP THỊ TRƯỜNG</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {market.global && (
+              <>
+                <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+                  <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">BTC DOMINANCE</div>
+                  <div className="text-sm font-bold text-foreground">{market.global.btc_dominance.toFixed(1)}%</div>
+                </div>
+                <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+                  <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">TOTAL MCAP</div>
+                  <div className="text-sm font-bold text-foreground">${(market.global.total_market_cap / 1e12).toFixed(2)}T</div>
+                  <div className={`text-[10px] font-mono ${market.global.market_cap_change_24h > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {market.global.market_cap_change_24h > 0 ? '+' : ''}{market.global.market_cap_change_24h.toFixed(2)}%
+                  </div>
+                </div>
+              </>
+            )}
+            {market.fng && (
+              <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+                <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">FEAR & GREED</div>
+                <div className={`text-sm font-bold ${market.fng.value > 60 ? 'text-emerald-400' : market.fng.value < 40 ? 'text-red-400' : 'text-amber-400'}`}>
+                  {market.fng.value} — {market.fng.classification}
+                </div>
+              </div>
+            )}
+            <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+              <div className="text-[10px] text-muted-foreground/60 font-mono mb-1">VOL 24H</div>
+              <div className="text-sm font-bold text-foreground">
+                {market.global ? `$${(market.global.total_volume / 1e9).toFixed(1)}B` : '...'}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Stream Tabs */}
-      <section className="pb-6 px-6 lg:px-8">
+      <section className="pb-4 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {NEWS_STREAMS.map((stream) => (
-              <button
-                key={stream.id}
-                onClick={() => setActiveStream(stream.id)}
+            {NEWS_STREAMS.map(stream => (
+              <button key={stream.id} onClick={() => setActiveStream(stream.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 border ${
                   activeStream === stream.id
                     ? `${stream.bgColor} ${stream.color} ${stream.borderColor} font-bold`
                     : 'text-muted-foreground border-transparent hover:bg-white/5'
-                }`}
-              >
+                }`}>
                 <span>{stream.icon}</span>
                 <span>{stream.label}</span>
               </button>
@@ -112,83 +159,107 @@ const News: React.FC = () => {
         </div>
       </section>
 
-      {/* Stream Description */}
-      {NEWS_STREAMS.filter(s => s.id === activeStream).map(stream => (
-        <section key={stream.id} className="pb-6 px-6 lg:px-8">
+      {/* Trending Coins */}
+      {market.trending.length > 0 && activeStream === 'hot' && (
+        <section className="pb-6 px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <div className={`glass-card rounded-xl px-6 py-4 border ${stream.borderColor} ${stream.bgColor}`}>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{stream.icon}</span>
-                <div>
-                  <h2 className={`font-semibold text-sm ${stream.color}`}>{stream.label}</h2>
-                  <p className="text-muted-foreground text-xs mt-0.5">{stream.description}</p>
-                  <p className="text-muted-foreground/60 text-xs mt-1">Nguồn: {stream.sources}</p>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] font-bold text-rose-400/80 uppercase tracking-widest">🔥 TOP COIN ĐANG HOT</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {market.trending.map(coin => (
+                <a key={coin.id} href={`https://www.okx.com/join/UNCLETRADER`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-[#0d1526] border border-white/5 rounded-lg px-3 py-2 hover:border-cyan-500/30 transition-all shrink-0">
+                  <img src={coin.thumb} alt={coin.name} className="w-5 h-5 rounded-full" />
+                  <span className="text-xs font-bold text-foreground">{coin.symbol.toUpperCase()}</span>
+                  <span className="text-[10px] text-muted-foreground">#{coin.market_cap_rank || '—'}</span>
+                </a>
+              ))}
+              <a href="https://www.okx.com/join/UNCLETRADER" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 shrink-0 hover:bg-amber-500/20 transition-all">
+                <span className="text-[10px] font-bold text-amber-400">💰 Mua ngay — OKX -20% phí</span>
+              </a>
             </div>
           </div>
         </section>
-      ))}
+      )}
 
-      {/* News Cards */}
-      <section className="py-8 px-6 lg:px-8">
+      {/* Article Grid */}
+      <section className="py-6 px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((article) => {
-              const stream = NEWS_STREAMS.find(s => s.id === article.stream);
-              const bullets = parseBullets(article.summary);
-              return (
-                <div key={article.id} className="glass-card glass-card-hover rounded-2xl overflow-hidden flex flex-col group">
-                  {/* Header */}
-                  <div className="p-5 pb-3">
-                    <div className="flex items-start gap-2 mb-3">
-                      {article.badge && (
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${article.badgeColor}`}>
-                          {article.badge}
+          {loading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-[#0d1526] border border-white/5 rounded-2xl h-80 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {articles.map(article => {
+                const stream = NEWS_STREAMS.find(s => s.id === article.stream);
+                const bullets = parseBullets(article.summary || '');
+                const imgUrl = article.image_url || getImageUrl(article.id, article.stream);
+
+                return (
+                  <div key={article.id} className="bg-[#0d1526] border border-white/5 rounded-2xl overflow-hidden flex flex-col hover:border-white/10 transition-all group">
+                    {/* Hero Image */}
+                    <div className="relative h-40 overflow-hidden">
+                      <img src={imgUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d1526] to-transparent" />
+                      <div className="absolute bottom-2 left-3 flex gap-1.5">
+                        {article.badge && (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${article.badge_color || ''}`}>
+                            {article.badge}
+                          </span>
+                        )}
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${stream?.borderColor} ${stream?.color} ${stream?.bgColor}`}>
+                          {article.source}
                         </span>
-                      )}
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${stream?.borderColor} ${stream?.color} ${stream?.bgColor}`}>
-                        {article.source}
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">
-                      {article.title}
-                    </h3>
-                    <span className="text-xs text-muted-foreground/60 mt-2 block">{formatDate(article.publishedAt)}</span>
-                  </div>
-
-                  {/* AI Summary */}
-                  <div className="px-5 pb-4 flex-1">
-                    <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-bold text-cyan-400/80 uppercase tracking-wider">✨ AI Tóm Tắt</span>
                       </div>
-                      <ul className="space-y-2">
-                        {bullets.map((bullet, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed">
-                            <span className="text-cyan-400 mt-0.5 shrink-0">•</span>
-                            <span>{bullet}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4 flex-1 flex flex-col">
+                      <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug mb-1.5">
+                        {article.title}
+                      </h3>
+                      <span className="text-[10px] text-muted-foreground/60 mb-3">{formatDate(article.published_at)}</span>
+
+                      {/* AI Summary */}
+                      {bullets.length > 0 && (
+                        <div className="bg-white/[0.03] rounded-lg p-3 border border-white/5 mb-3 flex-1">
+                          <div className="text-[9px] font-bold text-cyan-400/80 uppercase tracking-wider mb-2">✨ AI Tóm Tắt</div>
+                          <ul className="space-y-1.5">
+                            {bullets.slice(0, 3).map((bullet, i) => (
+                              <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                                <span className="text-cyan-400 mt-0.5 shrink-0">•</span>
+                                <span>{bullet}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="space-y-2 mt-auto">
+                        <Link to={`/tin-tuc/${article.id}?stream=${article.stream}`}
+                          className="w-full block text-center text-[11px] font-bold py-2 px-4 rounded-xl border border-white/10 text-foreground hover:border-cyan-400/40 hover:text-cyan-400 transition-all">
+                          📖 Đọc chi tiết
+                        </Link>
+                        {stream && (
+                          <a href={stream.ctaLink} target="_blank" rel="noopener noreferrer"
+                            className={`w-full block text-center text-[10px] font-bold py-2 px-4 rounded-xl border ${stream.borderColor} ${stream.color} hover:${stream.bgColor} transition-all`}>
+                            {stream.ctaLabel}
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
 
-                  {/* Actions */}
-                  <div className="px-5 pb-5">
-                    <Link
-                      to={`/tin-tuc/${article.id}`}
-                      className="w-full block text-center text-xs font-bold py-2.5 px-4 rounded-xl transition-all duration-300 border border-white/15 text-foreground hover:border-cyan-400/40 hover:text-cyan-400"
-                    >
-                      📖 Đọc chi tiết & Phân tích đầy đủ
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {filtered.length === 0 && (
+          {!loading && articles.length === 0 && (
             <div className="text-center py-20">
               <div className="text-5xl mb-4">📰</div>
               <h3 className="font-display font-bold text-xl text-foreground mb-2">Chưa có tin tức</h3>
