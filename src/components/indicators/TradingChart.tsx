@@ -28,6 +28,7 @@ interface TradingChartProps {
   scanLabel?: string;
   timeframe?: string;
   onTimeframeChange?: (tf: string) => void;
+  smcAnalysis?: SmcAnalysis | null;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
