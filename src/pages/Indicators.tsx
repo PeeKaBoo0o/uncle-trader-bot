@@ -201,6 +201,7 @@ const Indicators: React.FC = () => {
                   enabledIndicators={enabledIds}
                   height={520}
                   smcAnalysis={smcResult.analysis}
+                  alphaNetData={alphaNet.data}
                 />
               )}
             </div>
