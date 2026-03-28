@@ -5,6 +5,7 @@ export interface LiquidityZone {
   type: 'high' | 'low';
   startIndex: number;
   endIndex: number;
+  swept: boolean;
 }
 
 export interface LiquidityGrab {
@@ -35,221 +36,312 @@ export interface LiquidityResult {
   stats: { total: number; tp: number; losses: number; winrate: number };
 }
 
-/**
- * Alpha Net Liquidity Hunter — faithful port of the Pine Script.
- *
- * Flow:
- * 1. Compute "higher timeframe" session highs/lows (using barLength window)
- * 2. Detect liquidity grabs (price breaking session high/low)
- * 3. Wait for MSS (Market Structure Shift) to confirm entry
- * 4. Calculate TP1/TP2/TP3 + SL
- * 5. Track trade outcome
- */
-export function computeLiquidityZones(
-  candles: Candle[],
-  mssOffset: number = 10,
-  htfMultiplier: number = 4,   // how many current bars = 1 HTF bar
-  breakoutMethod: 'Wick' | 'Close' = 'Wick',
-  tpPercent: number = 0.3,
-  slPercent: number = 0.4,
-): LiquidityResult {
-  const len = candles.length;
-  if (len < mssOffset * 2 + 1) return { zones: [], grabs: [], trades: [], stats: { total: 0, tp: 0, losses: 0, winrate: 0 } };
+type TsState = 'waiting_liq_break' | 'waiting_execution' | 'entry_taken';
 
-  const barLength = Math.max(htfMultiplier, 4);
+interface TsContext {
+  state: TsState;
+  startIndex: number;
+  lastHourHigh: number;
+  lastHourLow: number;
+  brokenSweepIndex?: number;
+  brokenSweepPrice?: number;
+  brokenSweepSide?: 'buyside' | 'sellside';
+  entryType?: 'Long' | 'Short';
+  entryIndex?: number;
+  entryPrice?: number;
+  slTarget?: number;
+  tp1?: number;
+  tp2?: number;
+  tp3?: number;
+  hitTP1: boolean;
+  hitTP2: boolean;
+  hitTP3: boolean;
+  highZone: LiquidityZone;
+  lowZone: LiquidityZone;
+}
 
-  // Pre-compute rolling highest/lowest for HTF session and MSS
-  const sessionHigh = new Float64Array(len);
-  const sessionLow = new Float64Array(len);
-  const mssHigh = new Float64Array(len);
-  const mssLow = new Float64Array(len);
-
-  for (let i = 0; i < len; i++) {
-    let hh = -Infinity, ll = Infinity;
-    for (let j = Math.max(0, i - barLength + 1); j <= i; j++) {
-      if (candles[j].high > hh) hh = candles[j].high;
-      if (candles[j].low < ll) ll = candles[j].low;
-    }
-    sessionHigh[i] = hh;
-    sessionLow[i] = ll;
-
-    let mh = -Infinity, ml = Infinity;
-    for (let j = Math.max(0, i - mssOffset + 1); j <= i; j++) {
-      if (candles[j].high > mh) mh = candles[j].high;
-      if (candles[j].low < ml) ml = candles[j].low;
-    }
-    mssHigh[i] = mh;
-    mssLow[i] = ml;
+function getHighest(candles: Candle[], endIndex: number, length: number): number {
+  const start = Math.max(0, endIndex - length + 1);
+  let hh = -Infinity;
+  for (let i = start; i <= endIndex; i++) {
+    if (candles[i].high > hh) hh = candles[i].high;
   }
+  return hh;
+}
 
-  // ATR (5)
-  const atrLen = 5;
-  const atr = new Float64Array(len);
-  for (let i = 0; i < len; i++) {
-    if (i === 0) { atr[i] = candles[i].high - candles[i].low; continue; }
-    let sum = 0, count = 0;
-    for (let j = Math.max(0, i - atrLen + 1); j <= i; j++) {
+function getLowest(candles: Candle[], endIndex: number, length: number): number {
+  const start = Math.max(0, endIndex - length + 1);
+  let ll = Infinity;
+  for (let i = start; i <= endIndex; i++) {
+    if (candles[i].low < ll) ll = candles[i].low;
+  }
+  return ll;
+}
+
+function computeAtr(candles: Candle[], atrLen: number): Float64Array {
+  const atr = new Float64Array(candles.length);
+  for (let i = 0; i < candles.length; i++) {
+    if (i === 0) {
+      atr[i] = candles[i].high - candles[i].low;
+      continue;
+    }
+
+    const start = Math.max(0, i - atrLen + 1);
+    let sum = 0;
+    let count = 0;
+
+    for (let j = start; j <= i; j++) {
+      const prevClose = candles[Math.max(0, j - 1)].close;
       const tr = Math.max(
         candles[j].high - candles[j].low,
-        Math.abs(candles[j].high - candles[j > 0 ? j - 1 : 0].close),
-        Math.abs(candles[j].low - candles[j > 0 ? j - 1 : 0].close),
+        Math.abs(candles[j].high - prevClose),
+        Math.abs(candles[j].low - prevClose),
       );
       sum += tr;
       count++;
     }
-    atr[i] = sum / count;
+
+    atr[i] = count > 0 ? sum / count : 0;
   }
+
+  return atr;
+}
+
+/**
+ * Liquidity Hunter port from Pine Script (Classic + Dynamic TP/SL core behavior).
+ */
+export function computeLiquidityZones(
+  candles: Candle[],
+  mssOffset: number = 10,
+  htfMultiplier: number = 4,
+  breakoutMethod: 'Wick' | 'Close' = 'Wick',
+): LiquidityResult {
+  const len = candles.length;
+  if (len < Math.max(30, mssOffset + htfMultiplier + 5)) {
+    return { zones: [], grabs: [], trades: [], stats: { total: 0, tp: 0, losses: 0, winrate: 0 } };
+  }
+
+  const barLength = Math.max(2, htfMultiplier);
+  const atr = computeAtr(candles, 5);
 
   const zones: LiquidityZone[] = [];
   const grabs: LiquidityGrab[] = [];
   const trades: TradeEntry[] = [];
 
-  // State machine per the Pine Script
-  type State = 'waiting' | 'execution' | 'entry' | 'done';
-
-  let state: State = 'waiting';
-  let lastHourHigh = 0;
-  let lastHourLow = 0;
-  let grabIndex = -1;
-  let grabPrice = 0;
-  let entryType: 'Long' | 'Short' = 'Long';
-  let grabSide: 'buyside' | 'sellside' = 'sellside';
-  let entryIndex = -1;
-  let entryPrice = 0;
-  let slTarget = 0;
-  let tp1 = 0, tp2 = 0, tp3 = 0;
-  let hitTP1 = false, hitTP2 = false, hitTP3 = false;
-
-  const slATRMult = 3.5; // "Low" risk setting as default
+  // Pine defaults in shared script
+  const slATRMult = 3.5; // Risk = Low
   const RR = 0.9;
 
-  // Only process recent bars (last ~500 for performance)
-  const startIdx = Math.max(barLength + mssOffset, len - 500);
+  let ts: TsContext | null = null;
+
+  const startIdx = Math.max(barLength + mssOffset + 2, len - 800);
 
   for (let i = startIdx; i < len; i++) {
     const c = candles[i];
-    const brkVal = breakoutMethod === 'Close' ? c.close : undefined;
 
-    if (state === 'waiting' || state === 'done') {
-      // Reset for new trade search
-      lastHourHigh = sessionHigh[i];
-      lastHourLow = sessionLow[i];
+    if (!ts) {
+      const lastHourHigh = getHighest(candles, i, barLength);
+      const lastHourLow = getLowest(candles, i, barLength);
 
-      // Add zone visualization
-      const zoneStart = Math.max(0, i - barLength + 1);
-      zones.push({ price: lastHourHigh, type: 'high', startIndex: zoneStart, endIndex: i });
-      zones.push({ price: lastHourLow, type: 'low', startIndex: zoneStart, endIndex: i });
+      const highZone: LiquidityZone = {
+        price: lastHourHigh,
+        type: 'high',
+        startIndex: i,
+        endIndex: len - 1,
+        swept: false,
+      };
+      const lowZone: LiquidityZone = {
+        price: lastHourLow,
+        type: 'low',
+        startIndex: i,
+        endIndex: len - 1,
+        swept: false,
+      };
 
-      state = 'waiting';
+      zones.push(highZone, lowZone);
 
-      // Check for liquidity break on this bar
-      const lowBreak = (brkVal !== undefined ? brkVal : c.low) < lastHourLow;
-      const highBreak = (brkVal !== undefined ? brkVal : c.high) > lastHourHigh;
+      ts = {
+        state: 'waiting_liq_break',
+        startIndex: i,
+        lastHourHigh,
+        lastHourLow,
+        hitTP1: false,
+        hitTP2: false,
+        hitTP3: false,
+        highZone,
+        lowZone,
+      };
 
-      if (lowBreak) {
-        grabSide = 'sellside';
-        grabIndex = i;
-        grabPrice = lastHourLow;
-        entryType = 'Long'; // Classic method
-        state = 'execution';
+      continue;
+    }
+
+    const breakDownValue = breakoutMethod === 'Close' ? c.close : c.low;
+    const breakUpValue = breakoutMethod === 'Close' ? c.close : c.high;
+
+    if (ts.state === 'waiting_liq_break') {
+      if (i <= ts.startIndex) continue;
+
+      if (breakDownValue < ts.lastHourLow) {
+        ts.state = 'waiting_execution';
+        ts.brokenSweepIndex = i;
+        ts.brokenSweepPrice = ts.lastHourLow;
+        ts.brokenSweepSide = 'sellside';
+        ts.entryType = 'Long';
+        ts.lowZone.swept = true;
+        ts.lowZone.endIndex = i;
+
         grabs.push({ index: i, type: 'sellside', price: c.low });
-      } else if (highBreak) {
-        grabSide = 'buyside';
-        grabIndex = i;
-        grabPrice = lastHourHigh;
-        entryType = 'Short'; // Classic method
-        state = 'execution';
+      } else if (breakUpValue > ts.lastHourHigh) {
+        ts.state = 'waiting_execution';
+        ts.brokenSweepIndex = i;
+        ts.brokenSweepPrice = ts.lastHourHigh;
+        ts.brokenSweepSide = 'buyside';
+        ts.entryType = 'Short';
+        ts.highZone.swept = true;
+        ts.highZone.endIndex = i;
+
         grabs.push({ index: i, type: 'buyside', price: c.high });
       }
+
+      continue;
     }
 
-    if (state === 'execution' && i > grabIndex) {
-      // Wait for MSS confirmation
-      const prevMssHigh = mssHigh[i - 1];
-      const prevMssLow = mssLow[i - 1];
+    if (ts.state === 'waiting_execution') {
+      if (ts.brokenSweepIndex === undefined || ts.entryType === undefined) continue;
+      if (i <= ts.brokenSweepIndex || i - 1 < 0) continue;
 
-      if (entryType === 'Short') {
-        const breakBelow = (brkVal !== undefined ? brkVal : c.low) < prevMssLow;
-        if (breakBelow) {
-          entryPrice = brkVal !== undefined ? c.close : prevMssLow;
-          entryIndex = i;
-          // Dynamic TP/SL
-          slTarget = mssHigh[i] + atr[i] * slATRMult;
-          const tpTarget = entryPrice - (Math.abs(entryPrice - slTarget) * RR);
-          tp1 = entryPrice + (tpTarget - entryPrice) * 0.33;
-          tp2 = entryPrice + (tpTarget - entryPrice) * 0.66;
-          tp3 = tpTarget;
-          hitTP1 = false; hitTP2 = false; hitTP3 = false;
-          state = 'entry';
+      const prevMssHigh = getHighest(candles, i - 1, mssOffset);
+      const prevMssLow = getLowest(candles, i - 1, mssOffset);
+
+      if (ts.entryType === 'Short') {
+        if (breakDownValue < prevMssLow) {
+          const entryPrice = breakoutMethod === 'Close' ? c.close : prevMssLow;
+          const slTarget = getHighest(candles, i, mssOffset) + atr[i] * slATRMult;
+          const tpTarget = entryPrice - Math.abs(entryPrice - slTarget) * RR;
+
+          ts.state = 'entry_taken';
+          ts.entryIndex = i;
+          ts.entryPrice = entryPrice;
+          ts.slTarget = slTarget;
+          ts.tp1 = entryPrice + (tpTarget - entryPrice) * 0.33;
+          ts.tp2 = entryPrice + (tpTarget - entryPrice) * 0.66;
+          ts.tp3 = tpTarget;
+          ts.hitTP1 = false;
+          ts.hitTP2 = false;
+          ts.hitTP3 = false;
         }
       } else {
-        const breakAbove = (brkVal !== undefined ? brkVal : c.high) > prevMssHigh;
-        if (breakAbove) {
-          entryPrice = brkVal !== undefined ? c.close : prevMssHigh;
-          entryIndex = i;
-          slTarget = mssLow[i] - atr[i] * slATRMult;
-          const tpTarget = entryPrice + (Math.abs(entryPrice - slTarget) * RR);
-          tp1 = entryPrice + (tpTarget - entryPrice) * 0.33;
-          tp2 = entryPrice + (tpTarget - entryPrice) * 0.66;
-          tp3 = tpTarget;
-          hitTP1 = false; hitTP2 = false; hitTP3 = false;
-          state = 'entry';
+        if (breakUpValue > prevMssHigh) {
+          const entryPrice = breakoutMethod === 'Close' ? c.close : prevMssHigh;
+          const slTarget = getLowest(candles, i, mssOffset) - atr[i] * slATRMult;
+          const tpTarget = entryPrice + Math.abs(entryPrice - slTarget) * RR;
+
+          ts.state = 'entry_taken';
+          ts.entryIndex = i;
+          ts.entryPrice = entryPrice;
+          ts.slTarget = slTarget;
+          ts.tp1 = entryPrice + (tpTarget - entryPrice) * 0.33;
+          ts.tp2 = entryPrice + (tpTarget - entryPrice) * 0.66;
+          ts.tp3 = tpTarget;
+          ts.hitTP1 = false;
+          ts.hitTP2 = false;
+          ts.hitTP3 = false;
         }
       }
+
+      continue;
     }
 
-    if (state === 'entry' && i >= entryIndex) {
-      // Check TP hits
-      if (!hitTP1) {
-        if ((entryType === 'Long' && c.high >= tp1) || (entryType === 'Short' && c.low <= tp1)) hitTP1 = true;
+    if (ts.state === 'entry_taken') {
+      if (
+        ts.entryIndex === undefined ||
+        ts.entryPrice === undefined ||
+        ts.slTarget === undefined ||
+        ts.tp1 === undefined ||
+        ts.tp2 === undefined ||
+        ts.tp3 === undefined ||
+        ts.brokenSweepIndex === undefined ||
+        ts.brokenSweepPrice === undefined ||
+        ts.entryType === undefined
+      ) {
+        continue;
       }
-      if (!hitTP2) {
-        if ((entryType === 'Long' && c.high >= tp2) || (entryType === 'Short' && c.low <= tp2)) hitTP2 = true;
-      }
-      if (!hitTP3) {
-        if ((entryType === 'Long' && c.high >= tp3) || (entryType === 'Short' && c.low <= tp3)) hitTP3 = true;
-      }
+
+      const isLong = ts.entryType === 'Long';
+
+      if (!ts.hitTP1 && ((isLong && c.high >= ts.tp1) || (!isLong && c.low <= ts.tp1))) ts.hitTP1 = true;
+      if (!ts.hitTP2 && ((isLong && c.high >= ts.tp2) || (!isLong && c.low <= ts.tp2))) ts.hitTP2 = true;
+      if (!ts.hitTP3 && ((isLong && c.high >= ts.tp3) || (!isLong && c.low <= ts.tp3))) ts.hitTP3 = true;
 
       let result: TradeEntry['result'] | undefined;
-      let exitPrice2 = 0;
+      let exitPrice: number | undefined;
 
-      if (hitTP3) {
-        result = 'TP3'; exitPrice2 = tp3;
-      } else if (hitTP2 && ((entryType === 'Long' && c.low <= tp1) || (entryType === 'Short' && c.high >= tp1))) {
-        result = 'TP2'; exitPrice2 = tp2;
-      } else if (hitTP1 && ((entryType === 'Long' && c.low <= entryPrice) || (entryType === 'Short' && c.high >= entryPrice))) {
-        result = 'TP1'; exitPrice2 = tp1;
-      } else if (!hitTP1 && ((entryType === 'Long' && c.low <= slTarget) || (entryType === 'Short' && c.high >= slTarget))) {
-        result = 'SL'; exitPrice2 = slTarget;
+      if (ts.hitTP3) {
+        result = 'TP3';
+        exitPrice = ts.tp3;
+      } else if (ts.hitTP2 && ((isLong && c.low <= ts.tp1) || (!isLong && c.high >= ts.tp1))) {
+        result = 'TP2';
+        exitPrice = ts.tp2;
+      } else if (ts.hitTP1 && ((isLong && c.low <= ts.entryPrice) || (!isLong && c.high >= ts.entryPrice))) {
+        result = 'TP1';
+        exitPrice = ts.tp1;
+      } else if (!ts.hitTP1 && ((isLong && c.low <= ts.slTarget) || (!isLong && c.high >= ts.slTarget))) {
+        result = 'SL';
+        exitPrice = ts.slTarget;
       }
 
       if (result) {
         trades.push({
-          entryIndex, entryPrice, type: entryType,
-          slTarget, tp1, tp2, tp3,
-          exitIndex: i, exitPrice: exitPrice2, result,
-          grabIndex, grabPrice,
+          entryIndex: ts.entryIndex,
+          entryPrice: ts.entryPrice,
+          type: ts.entryType,
+          slTarget: ts.slTarget,
+          tp1: ts.tp1,
+          tp2: ts.tp2,
+          tp3: ts.tp3,
+          exitIndex: i,
+          exitPrice,
+          result,
+          grabIndex: ts.brokenSweepIndex,
+          grabPrice: ts.brokenSweepPrice,
         });
-        state = 'done';
+
+        ts.highZone.endIndex = i;
+        ts.lowZone.endIndex = i;
+        ts = null;
       }
     }
   }
 
-  // If trade is still open, push it without exit
-  if (state === 'entry') {
+  if (
+    ts &&
+    ts.state === 'entry_taken' &&
+    ts.entryIndex !== undefined &&
+    ts.entryPrice !== undefined &&
+    ts.entryType !== undefined &&
+    ts.slTarget !== undefined &&
+    ts.tp1 !== undefined &&
+    ts.tp2 !== undefined &&
+    ts.tp3 !== undefined &&
+    ts.brokenSweepIndex !== undefined &&
+    ts.brokenSweepPrice !== undefined
+  ) {
     trades.push({
-      entryIndex, entryPrice, type: entryType,
-      slTarget, tp1, tp2, tp3,
-      grabIndex, grabPrice,
+      entryIndex: ts.entryIndex,
+      entryPrice: ts.entryPrice,
+      type: ts.entryType,
+      slTarget: ts.slTarget,
+      tp1: ts.tp1,
+      tp2: ts.tp2,
+      tp3: ts.tp3,
+      grabIndex: ts.brokenSweepIndex,
+      grabPrice: ts.brokenSweepPrice,
     });
   }
 
-  // Keep only recent zones (avoid clutter)
-  const recentZones = zones.slice(-40);
-
-  // Stats
+  const recentZones = zones.slice(-50);
   const completedTrades = trades.filter(t => t.result);
-  const tpCount = completedTrades.filter(t => t.result?.startsWith('TP')).length;
+  const tpCount = completedTrades.filter(t => t.result && t.result !== 'SL').length;
   const slCount = completedTrades.filter(t => t.result === 'SL').length;
   const total = tpCount + slCount;
 
