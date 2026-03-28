@@ -178,7 +178,7 @@ const Indicators: React.FC = () => {
             {/* Main chart */}
             <div className="flex-1">
               {marketData.loading ? (
-                <div className="flex items-center justify-center h-[380px]">
+                <div className="flex items-center justify-center h-[520px]">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs text-muted-foreground font-mono">Loading {activePair}...</span>
