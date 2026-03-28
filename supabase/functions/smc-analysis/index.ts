@@ -20,10 +20,100 @@ Nhiệm vụ phân tích và trích xuất tọa độ:
 
 KHÔNG ĐƯỢC GIẢI THÍCH, KHÔNG CHỨA ĐỊNH DẠNG MARKDOWN. Chỉ trả về duy nhất một chuỗi JSON.`;
 
+interface InputCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+const jsonResponse = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const normalizeCandles = (candles: unknown[]): InputCandle[] =>
+  candles
+    .map((c) => {
+      const row = c as Partial<InputCandle>;
+      return {
+        time: Number(row.time),
+        open: Number(row.open),
+        high: Number(row.high),
+        low: Number(row.low),
+        close: Number(row.close),
+        volume: Number(row.volume),
+      };
+    })
+    .filter((c) =>
+      Number.isFinite(c.time) &&
+      Number.isFinite(c.open) &&
+      Number.isFinite(c.high) &&
+      Number.isFinite(c.low) &&
+      Number.isFinite(c.close) &&
+      Number.isFinite(c.volume)
+    );
+
+const buildFallbackAnalysis = (candles: InputCandle[], reason: string) => {
+  const lastIndex = candles.length - 1;
+  const latest = candles[lastIndex];
+
+  const highIndex = candles.reduce(
+    (best, candle, idx) => (candle.high > candles[best].high ? idx : best),
+    0,
+  );
+  const lowIndex = candles.reduce(
+    (best, candle, idx) => (candle.low < candles[best].low ? idx : best),
+    0,
+  );
+
+  const highest = candles[highIndex].high;
+  const lowest = candles[lowIndex].low;
+  const range = Math.max(highest - lowest, latest.close * 0.005);
+  const band = Math.max(range * 0.04, latest.close * 0.0015);
+
+  const zoneStart = (idx: number) => candles[Math.max(0, idx - 16)].time;
+  const zoneEnd = (idx: number) => candles[Math.min(lastIndex, idx + 16)].time;
+
+  return {
+    liquidity_boxes: [
+      {
+        type: "Buyside",
+        start_time: zoneStart(highIndex),
+        end_time: zoneEnd(highIndex),
+        top_price: highest + band,
+        bottom_price: highest - band,
+      },
+      {
+        type: "Sellside",
+        start_time: zoneStart(lowIndex),
+        end_time: zoneEnd(lowIndex),
+        top_price: lowest + band,
+        bottom_price: lowest - band,
+      },
+    ],
+    trade_signal: { has_signal: false },
+    action_points: [
+      "AI tạm dừng, đang dùng phân tích nội bộ.",
+      "Canh phản ứng tại vùng thanh khoản gần nhất.",
+      "Ưu tiên quản trị rủi ro, giữ SL cố định.",
+    ],
+    meta: {
+      fallback: true,
+      reason,
+    },
+  };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  let recentCandles: InputCandle[] = [];
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -31,26 +121,18 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { candles, symbol, timeframe } = await req.json();
+    const payload = await req.json();
+    const candles = Array.isArray(payload?.candles) ? normalizeCandles(payload.candles) : [];
+    const symbol = typeof payload?.symbol === "string" ? payload.symbol : "BTC/USDT";
+    const timeframe = typeof payload?.timeframe === "string" ? payload.timeframe : "H4";
 
-    if (!candles || !Array.isArray(candles) || candles.length < 20) {
-      return new Response(
-        JSON.stringify({ error: "Cần ít nhất 20 nến OHLC" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (candles.length < 20) {
+      return jsonResponse({ error: "Cần ít nhất 20 nến OHLC hợp lệ" }, 400);
     }
 
-    // Take last 100 candles for analysis
-    const recentCandles = candles.slice(-100).map((c: any) => ({
-      time: c.time,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-      volume: c.volume,
-    }));
+    recentCandles = candles.slice(-100);
 
-    const userPrompt = `Dữ liệu đầu vào: ${symbol || "BTC/USDT"} khung ${timeframe || "H4"}.
+    const userPrompt = `Dữ liệu đầu vào: ${symbol} khung ${timeframe}.
 Dưới đây là mảng dữ liệu ${recentCandles.length} nến OHLC:
 ${JSON.stringify(recentCandles)}`;
 
@@ -120,46 +202,48 @@ ${JSON.stringify(recentCandles)}`;
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "AI rate limit exceeded, vui lòng thử lại sau." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Hết credits AI, vui lòng nạp thêm." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      const reason = response.status === 402
+        ? "Hết credits AI"
+        : response.status === 429
+          ? "AI đang quá tải"
+          : `AI gateway lỗi ${response.status}`;
+
       const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      console.error("AI gateway fallback:", response.status, errText);
+
+      return jsonResponse(buildFallbackAnalysis(recentCandles, reason), 200);
     }
 
     const data = await response.json();
+    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
 
-    // Extract tool call result
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) {
-      throw new Error("No tool call in AI response");
+      return jsonResponse(buildFallbackAnalysis(recentCandles, "AI trả dữ liệu rỗng"), 200);
     }
 
-    let analysis;
+    let analysis: unknown;
     try {
       analysis = JSON.parse(toolCall.function.arguments);
     } catch {
-      throw new Error("Failed to parse AI analysis JSON");
+      return jsonResponse(buildFallbackAnalysis(recentCandles, "AI trả JSON không hợp lệ"), 200);
     }
 
-    return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const typed = analysis as Record<string, unknown>;
+    if (!Array.isArray(typed?.liquidity_boxes) || !typed?.trade_signal || !Array.isArray(typed?.action_points)) {
+      return jsonResponse(buildFallbackAnalysis(recentCandles, "AI trả sai format"), 200);
+    }
+
+    return jsonResponse(analysis, 200);
   } catch (e) {
     console.error("smc-analysis error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+
+    if (recentCandles.length >= 20) {
+      return jsonResponse(buildFallbackAnalysis(recentCandles, "Lỗi xử lý tạm thời"), 200);
+    }
+
+    return jsonResponse(
+      { error: e instanceof Error ? e.message : "Unknown error" },
+      500,
     );
   }
 });
