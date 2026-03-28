@@ -359,6 +359,7 @@ const Analysis: React.FC = () => {
                     scanLabel={scanLabel}
                     timeframe={goldTimeframe}
                     onTimeframeChange={setGoldTimeframe}
+                    tpSlData={goldTpSl}
                   />
                 )}
                 <AIActionCard ai={goldAI} symbol="🥇 XAU/USD" isGold />
