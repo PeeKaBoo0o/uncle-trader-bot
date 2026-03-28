@@ -116,11 +116,11 @@ const DictionaryDetail: React.FC = () => {
                   </div>
 
                   {/* Pro Tips - only for advanced section */}
-                  {isAdvanced && 'proTips' in data && data.proTips && (
+                  {isAdvanced && 'proTips' in data && (data as any).proTips && (
                     <div className="mt-4 pt-4 border-t border-foreground/5">
                       <h3 className="text-xs font-bold text-amber-400/80 uppercase tracking-wider mb-3 font-mono-custom">💡 PRO TIPS</h3>
                       <ul className="space-y-2">
-                        {data.proTips.map((tip: string, i: number) => (
+                        {((data as any).proTips as string[]).map((tip: string, i: number) => (
                           <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
                             <span className="mt-1 flex-shrink-0 w-5 h-5 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-[10px] text-amber-400 font-bold">{i + 1}</span>
                             <span>{tip}</span>
