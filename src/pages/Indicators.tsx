@@ -33,6 +33,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'alphanet', label: 'AlphaNet AI', enabled: true, color: '#7C3AED', category: 'AI' },
   { id: 'matrix', label: 'Matrix NWE', enabled: true, color: '#00BCD4', category: 'Envelope' },
   { id: 'engine', label: 'MS Engine', enabled: true, color: '#FF9800', category: 'Structure' },
+  { id: 'tp_sl', label: 'TP/SL Zones', enabled: true, color: '#E91E63', category: 'Risk' },
 ];
 
 const Indicators: React.FC = () => {
