@@ -8,7 +8,7 @@ import Services from "./pages/Services.tsx";
 import Contact from "./pages/Contact.tsx";
 import News from "./pages/News.tsx";
 import Analysis from "./pages/Analysis.tsx";
-
+import Indicators from "./pages/Indicators.tsx";
 import EconomicCalendar from "./pages/EconomicCalendar.tsx";
 import Dictionary from "./pages/Dictionary.tsx";
 import DictionaryDetail from "./pages/DictionaryDetail.tsx";
