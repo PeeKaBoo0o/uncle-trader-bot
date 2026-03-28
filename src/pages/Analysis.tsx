@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import TradingChart from '@/components/indicators/TradingChart';
-// SubIndicators removed — RSI & Volume now built into TradingChart
 import SignalFeed from '@/components/indicators/SignalFeed';
 import { useMarketData, useSignals } from '@/hooks/useMarketData';
 import { useSmartSignals } from '@/hooks/useSmartSignal';
 import { useDXY } from '@/hooks/useDXY';
 import { supabase } from '@/integrations/supabase/client';
 import html2canvas from 'html2canvas';
+import { computeDualTrendlines } from '@/lib/computeTrendline';
 
 const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
 
