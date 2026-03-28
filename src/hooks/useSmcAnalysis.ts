@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Candle } from '@/hooks/useMarketData';
+import { computeLiquidityZones } from '@/lib/liquidityHunter';
 
 const CREDITS_ERROR_MESSAGE = 'Lovable AI hết credits, vui lòng nạp thêm ở Settings → Workspace → Usage.';
 const RATE_LIMIT_ERROR_MESSAGE = 'Lovable AI đang quá tải, vui lòng thử lại sau vài giây.';
-const CREDITS_COOLDOWN_MS = 60_000;
+const CREDITS_COOLDOWN_MS = 15 * 60_000;
+const BLOCKED_UNTIL_STORAGE_KEY = 'smc-analysis-blocked-until';
 
 const asObject = (value: unknown): Record<string, unknown> | null =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
@@ -57,6 +59,76 @@ const normalizeInvokeError = (respError: unknown, data: unknown) => {
   return { message, isCredits: false };
 };
 
+const readBlockedUntil = () => {
+  if (typeof window === 'undefined') return 0;
+  const raw = window.sessionStorage.getItem(BLOCKED_UNTIL_STORAGE_KEY);
+  const parsed = raw ? Number(raw) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const persistBlockedUntil = (value: number) => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(BLOCKED_UNTIL_STORAGE_KEY, String(value));
+};
+
+const toFallbackAnalysis = (candles: Candle[]): SmcAnalysis | null => {
+  if (candles.length < 20) return null;
+
+  const { zones, trades } = computeLiquidityZones(candles, 10, 4, 'Wick');
+  const lastIndex = candles.length - 1;
+
+  const findZoneTime = (index: number) => candles[Math.max(0, Math.min(index, lastIndex))]?.time ?? candles[lastIndex].time;
+
+  const buysideZone = [...zones].reverse().find(zone => zone.type === 'high');
+  const sellsideZone = [...zones].reverse().find(zone => zone.type === 'low');
+
+  const liquidity_boxes: SmcLiquidityBox[] = [];
+
+  if (buysideZone) {
+    liquidity_boxes.push({
+      type: 'Buyside',
+      start_time: findZoneTime(buysideZone.startIndex),
+      end_time: findZoneTime(buysideZone.endIndex),
+      top_price: buysideZone.price,
+      bottom_price: buysideZone.price,
+    });
+  }
+
+  if (sellsideZone) {
+    liquidity_boxes.push({
+      type: 'Sellside',
+      start_time: findZoneTime(sellsideZone.startIndex),
+      end_time: findZoneTime(sellsideZone.endIndex),
+      top_price: sellsideZone.price,
+      bottom_price: sellsideZone.price,
+    });
+  }
+
+  const latestTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+  const trade_signal: SmcTradeSignal = latestTrade
+    ? {
+        has_signal: true,
+        type: latestTrade.type,
+        entry_time: findZoneTime(latestTrade.entryIndex),
+        entry_price: latestTrade.entryPrice,
+        TP1: latestTrade.tp1,
+        TP2: latestTrade.tp2,
+        TP3: latestTrade.tp3,
+        SL: latestTrade.slTarget,
+      }
+    : { has_signal: false };
+
+  return {
+    liquidity_boxes,
+    trade_signal,
+    action_points: [
+      'AI tạm ngưng, dùng tín hiệu nội bộ.',
+      'Ưu tiên vùng quét thanh khoản gần nhất.',
+      'Quản trị rủi ro, giữ SL cố định.',
+    ],
+  };
+};
+
 export interface SmcLiquidityBox {
   type: 'Buyside' | 'Sellside';
   start_time: number;
@@ -91,7 +163,7 @@ export function useSmcAnalysis(
   const [analysis, setAnalysis] = useState<SmcAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const blockedUntilRef = useRef<number>(0);
+  const blockedUntilRef = useRef<number>(readBlockedUntil());
 
   useEffect(() => {
     if (!enabled || candles.length < 20) {
@@ -102,7 +174,7 @@ export function useSmcAnalysis(
     }
 
     if (blockedUntilRef.current > Date.now()) {
-      setAnalysis(null);
+      setAnalysis(toFallbackAnalysis(candles));
       setError(CREDITS_ERROR_MESSAGE);
       setLoading(false);
       return;
@@ -137,6 +209,7 @@ export function useSmcAnalysis(
           const normalized = normalizeInvokeError(resp.error, resp.data);
           if (normalized.isCredits) {
             blockedUntilRef.current = Date.now() + CREDITS_COOLDOWN_MS;
+            persistBlockedUntil(blockedUntilRef.current);
           }
           throw new Error(normalized.message);
         }
@@ -151,6 +224,7 @@ export function useSmcAnalysis(
           const normalized = normalizeInvokeError(null, result);
           if (normalized.isCredits) {
             blockedUntilRef.current = Date.now() + CREDITS_COOLDOWN_MS;
+            persistBlockedUntil(blockedUntilRef.current);
           }
           throw new Error(normalized.message);
         }
@@ -166,9 +240,10 @@ export function useSmcAnalysis(
           const message = e instanceof Error ? e.message : 'Unknown error';
           if (isCreditsError(undefined, message)) {
             blockedUntilRef.current = Date.now() + CREDITS_COOLDOWN_MS;
+            persistBlockedUntil(blockedUntilRef.current);
           }
           setError(message);
-          setAnalysis(null);
+          setAnalysis(toFallbackAnalysis(candles));
         }
       } finally {
         if (!cancelled) setLoading(false);
