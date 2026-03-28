@@ -134,7 +134,7 @@ const Analysis: React.FC = () => {
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (e) { console.error('Screenshot failed:', e); }
-  }, [activeTimeframe]);
+  }, [btcTimeframe]);
 
   // Send signal
   const handleSendSignal = useCallback(async (symbol: string) => {
