@@ -50,7 +50,7 @@ export function useSmcAnalysis(
       setError(null);
 
       try {
-        const { data, error: fnError } = await supabase.functions.invoke('smc-analysis', {
+        const resp = await supabase.functions.invoke('smc-analysis', {
           body: {
             candles: candles.slice(-100).map(c => ({
               time: c.time,
@@ -67,15 +67,30 @@ export function useSmcAnalysis(
 
         if (cancelled) return;
 
-        if (fnError) {
-          throw new Error(fnError.message || 'AI analysis failed');
+        // supabase-js may return error object OR put error in data
+        if (resp.error) {
+          const msg = typeof resp.error === 'object' && 'message' in resp.error
+            ? (resp.error as any).message
+            : String(resp.error);
+          throw new Error(msg || 'AI analysis failed');
         }
 
-        if (data?.error) {
-          throw new Error(data.error);
+        const result = resp.data;
+
+        if (!result || typeof result !== 'object') {
+          throw new Error('Empty AI response');
         }
 
-        setAnalysis(data as SmcAnalysis);
+        if ('error' in result && (result as any).error) {
+          throw new Error((result as any).error);
+        }
+
+        // Validate minimum shape
+        if (!Array.isArray((result as any).liquidity_boxes) || !(result as any).trade_signal) {
+          throw new Error('Invalid AI response format');
+        }
+
+        setAnalysis(result as SmcAnalysis);
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Unknown error');
