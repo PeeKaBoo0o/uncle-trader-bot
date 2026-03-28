@@ -10,6 +10,8 @@ export interface AITrendline {
   end: { time: number; price: number };
 }
 
+const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
+
 interface TradingChartProps {
   candles: Candle[];
   indicators: Indicators | null;
@@ -22,10 +24,12 @@ interface TradingChartProps {
   label?: string;
   scanning?: boolean;
   scanLabel?: string;
+  timeframe?: string;
+  onTimeframeChange?: (tf: string) => void;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiContainerRef = useRef<HTMLDivElement>(null);
@@ -376,6 +380,22 @@ const TradingChart: React.FC<TradingChartProps> = ({
         )}
         {indicators && (
           <span className="text-[10px] font-mono text-[#42a5f5]">MA 9</span>
+        )}
+
+        {/* ── Timeframe Selector ── */}
+        {onTimeframeChange && (
+          <div className="ml-auto flex gap-0.5">
+            {TIMEFRAMES.map(tf => (
+              <button key={tf} onClick={() => onTimeframeChange(tf)}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                  timeframe === tf
+                    ? 'bg-primary/20 text-primary border border-primary/30'
+                    : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-foreground/5'
+                }`}>
+                {tf}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

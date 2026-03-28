@@ -25,8 +25,8 @@ const SIGNAL_COLORS: Record<string, { bg: string; border: string; text: string; 
 const ENABLED_INDICATORS = ['bb_squeeze', 'breakout', 'breakdown', 'confluence', 'momentum', 'vol_spike', 'rsi_div', 'sup_bounce', 'macd_cross'];
 
 const Analysis: React.FC = () => {
-  const [activeTimeframe, setActiveTimeframe] = useState('H4');
-  // subTab states removed — RSI built into TradingChart
+  const [btcTimeframe, setBtcTimeframe] = useState('H4');
+  const [goldTimeframe, setGoldTimeframe] = useState('H4');
   const [logs, setLogs] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanLabel, setScanLabel] = useState('');
@@ -36,8 +36,8 @@ const Analysis: React.FC = () => {
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Data hooks
-  const btcData = useMarketData('BTC/USDT', activeTimeframe);
-  const goldData = useMarketData('XAU/USDT', activeTimeframe);
+  const btcData = useMarketData('BTC/USDT', btcTimeframe);
+  const goldData = useMarketData('XAU/USDT', goldTimeframe);
   const { signals: dbSignals, loading: signalsLoading } = useSignals();
   const btcSignals = useSmartSignals(btcData.candles, btcData.indicators, btcData.zones, 'BTC/USDT', btcData.loading);
   const goldSignals = useSmartSignals(goldData.candles, goldData.indicators, goldData.zones, 'XAU/USDT', goldData.loading);
@@ -87,24 +87,24 @@ const Analysis: React.FC = () => {
     setScanning(true);
     setScanLabel('🔍 Gemini AI đang phân tích dữ liệu nến mới...');
     const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    setLogs(prev => [`[${now}] 🔄 Gemini AI scanning ${activeTimeframe}...`, ...prev].slice(0, 15));
+    setLogs(prev => [`[${now}] 🔄 Gemini AI scanning BTC:${btcTimeframe} / Gold:${goldTimeframe}...`, ...prev].slice(0, 15));
     setTimeout(() => {
       setScanLabel('✅ Phân tích hoàn tất — Trendline & Zones đã cập nhật');
       setLogs(prev => [`[${now}] ✅ AI scan complete — trendlines & zones updated`, ...prev].slice(0, 15));
     }, 2500);
     setTimeout(() => { setScanning(false); setScanLabel(''); }, 4000);
-  }, [activeTimeframe]);
+  }, [btcTimeframe, goldTimeframe]);
 
   // Trigger scan on data load & timeframe change
   useEffect(() => {
     if (!btcData.loading && btcData.candles.length > 0) {
       triggerScan();
     }
-  }, [activeTimeframe, btcData.loading]);
+  }, [btcTimeframe, goldTimeframe, btcData.loading]);
 
   // ── Auto H4 scan timer: trigger every 4 hours ──
   useEffect(() => {
-    if (activeTimeframe !== 'H4') return;
+    if (btcTimeframe !== 'H4' && goldTimeframe !== 'H4') return;
     const now = new Date();
     const nextH4 = new Date(now);
     // Round up to next 4-hour mark
@@ -122,7 +122,7 @@ const Analysis: React.FC = () => {
     }, msUntilNext);
 
     return () => clearTimeout(timeout);
-  }, [activeTimeframe, triggerScan]);
+  }, [btcTimeframe, goldTimeframe, triggerScan]);
 
   // Screenshot
   const handleScreenshot = useCallback(async () => {
@@ -130,11 +130,11 @@ const Analysis: React.FC = () => {
     try {
       const canvas = await html2canvas(dashboardRef.current, { backgroundColor: '#0a0f1e', scale: 2, useCORS: true });
       const link = document.createElement('a');
-      link.download = `analysis_${activeTimeframe}_${Date.now()}.png`;
+      link.download = `analysis_${btcTimeframe}_${Date.now()}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (e) { console.error('Screenshot failed:', e); }
-  }, [activeTimeframe]);
+  }, [btcTimeframe]);
 
   // Send signal
   const handleSendSignal = useCallback(async (symbol: string) => {
@@ -142,13 +142,13 @@ const Analysis: React.FC = () => {
     const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     try {
       await supabase.functions.invoke('signal-bot', {
-        body: { mode: 'scan', symbols: [symbol], timeframe: activeTimeframe }
+        body: { mode: 'scan', symbols: [symbol], timeframe: symbol === 'BTCUSDT' ? btcTimeframe : goldTimeframe }
       });
       setLogs(prev => [`[${now}] ✅ Signal ${symbol} sent`, ...prev].slice(0, 15));
     } catch (e: any) {
       setLogs(prev => [`[${now}] ❌ Failed: ${e.message}`, ...prev].slice(0, 15));
     } finally { setSendingSignal(null); }
-  }, [activeTimeframe]);
+  }, [btcTimeframe, goldTimeframe]);
 
   // Auto-signal
   useEffect(() => {
@@ -158,7 +158,7 @@ const Analysis: React.FC = () => {
         setLogs(prev => [`[${ts}] 🤖 Auto scanning...`, ...prev].slice(0, 15));
         try {
           await supabase.functions.invoke('signal-bot', {
-            body: { mode: 'scan', symbols: ['BTCUSDT', 'XAUUSDT'], timeframe: activeTimeframe }
+            body: { mode: 'scan', symbols: ['BTCUSDT', 'XAUUSDT'], timeframe: btcTimeframe }
           });
           setLogs(prev => [`[${ts}] ✅ Auto scan done`, ...prev].slice(0, 15));
         } catch { setLogs(prev => [`[${ts}] ❌ Auto scan failed`, ...prev].slice(0, 15)); }
@@ -169,7 +169,7 @@ const Analysis: React.FC = () => {
       if (autoRef.current) clearInterval(autoRef.current);
     }
     return () => { if (autoRef.current) clearInterval(autoRef.current); };
-  }, [autoSignal, activeTimeframe]);
+  }, [autoSignal, btcTimeframe]);
 
   const formatPrice = (p: number, isGold = false) =>
     isGold ? `$${p.toFixed(2)}` : `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -240,21 +240,6 @@ const Analysis: React.FC = () => {
             <span className="px-2.5 py-1 rounded font-mono font-bold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20">🥇 XAU/USD</span>
           </div>
 
-          <div className="w-px h-5 bg-foreground/10" />
-
-          {/* Timeframes */}
-          <div className="flex gap-0.5">
-            {TIMEFRAMES.map(tf => (
-              <button key={tf} onClick={() => setActiveTimeframe(tf)}
-                className={`px-2 py-1.5 rounded font-mono transition-all ${
-                  activeTimeframe === tf
-                    ? 'bg-secondary/20 text-secondary border border-secondary/30'
-                    : 'text-muted-foreground/60 hover:text-foreground'
-                }`}>
-                {tf}
-              </button>
-            ))}
-          </div>
 
           <div className="w-px h-5 bg-foreground/10" />
 
@@ -324,9 +309,11 @@ const Analysis: React.FC = () => {
                     trendlineResistance={btcTrendlines.resistance}
                     enabledIndicators={ENABLED_INDICATORS}
                     height={300}
-                    label={`₿ BTC/USDT · ${activeTimeframe} · Binance`}
+                    label="₿ BTC/USDT · Binance"
                     scanning={scanning}
                     scanLabel={scanLabel}
+                    timeframe={btcTimeframe}
+                    onTimeframeChange={setBtcTimeframe}
                   />
                 )}
                 <AIActionCard ai={btcAI} symbol="₿ BTC/USDT" />
@@ -363,9 +350,11 @@ const Analysis: React.FC = () => {
                     trendlineResistance={goldTrendlines.resistance}
                     enabledIndicators={ENABLED_INDICATORS}
                     height={300}
-                    label={`🥇 XAU/USD (Gold) · ${activeTimeframe}`}
+                    label="🥇 XAU/USD (Gold)"
                     scanning={scanning}
                     scanLabel={scanLabel}
+                    timeframe={goldTimeframe}
+                    onTimeframeChange={setGoldTimeframe}
                   />
                 )}
                 <AIActionCard ai={goldAI} symbol="🥇 XAU/USD" isGold />
