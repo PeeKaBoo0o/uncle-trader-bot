@@ -14,7 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contacts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          phone: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          phone?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          phone?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      economic_events: {
+        Row: {
+          actual: string | null
+          country: string
+          created_at: string
+          estimate: string | null
+          event_name: string
+          event_time: string
+          flag: string
+          id: string
+          impact: string
+          prev: string | null
+        }
+        Insert: {
+          actual?: string | null
+          country: string
+          created_at?: string
+          estimate?: string | null
+          event_name: string
+          event_time: string
+          flag?: string
+          id?: string
+          impact?: string
+          prev?: string | null
+        }
+        Update: {
+          actual?: string | null
+          country?: string
+          created_at?: string
+          estimate?: string | null
+          event_name?: string
+          event_time?: string
+          flag?: string
+          id?: string
+          impact?: string
+          prev?: string | null
+        }
+        Relationships: []
+      }
+      news_articles: {
+        Row: {
+          badge: string | null
+          badge_color: string | null
+          created_at: string
+          full_content: string | null
+          id: string
+          image_url: string | null
+          is_published: boolean
+          published_at: string
+          source: string
+          stream: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          badge?: string | null
+          badge_color?: string | null
+          created_at?: string
+          full_content?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          published_at?: string
+          source?: string
+          stream?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          badge?: string | null
+          badge_color?: string | null
+          created_at?: string
+          full_content?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          published_at?: string
+          source?: string
+          stream?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
