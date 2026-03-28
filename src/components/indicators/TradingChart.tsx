@@ -8,6 +8,7 @@ import { computeLiquidityZones } from '@/lib/liquidityHunter';
 import type { SmcAnalysis } from '@/hooks/useSmcAnalysis';
 import type { AlphaNetData } from '@/hooks/useAlphaNet';
 import type { MatrixData } from '@/hooks/useMatrixIndicator';
+import type { EngineData } from '@/hooks/useEngineIndicator';
 
 export interface AITrendline {
   start: { time: number; price: number };
@@ -33,10 +34,11 @@ interface TradingChartProps {
   smcAnalysis?: SmcAnalysis | null;
   alphaNetData?: AlphaNetData | null;
   matrixData?: MatrixData | null;
+  engineData?: EngineData | null;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiContainerRef = useRef<HTMLDivElement>(null);
@@ -549,6 +551,139 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
+    // ── Market Structure Engine ──
+    if (engineData && enabledIndicators.includes('engine')) {
+      const setSafeData = (series: any, t1: number, v1: number, t2: number, v2: number) => {
+        if (t1 === t2) { series.setData([{ time: t1 as any, value: v2 }]); return; }
+        if (t1 < t2) { series.setData([{ time: t1 as any, value: v1 }, { time: t2 as any, value: v2 }]); return; }
+        series.setData([{ time: t2 as any, value: v2 }, { time: t1 as any, value: v1 }]);
+      };
+
+      // Order Blocks (colored boxes)
+      engineData.orderBlocks.forEach(ob => {
+        const fillColor = ob.bull
+          ? (ob.mitigated ? 'rgba(38,166,154,0.06)' : 'rgba(38,166,154,0.12)')
+          : (ob.mitigated ? 'rgba(239,83,80,0.06)' : 'rgba(239,83,80,0.12)');
+        const lineColor = ob.bull
+          ? (ob.mitigated ? 'rgba(38,166,154,0.2)' : 'rgba(38,166,154,0.5)')
+          : (ob.mitigated ? 'rgba(239,83,80,0.2)' : 'rgba(239,83,80,0.5)');
+        const startT = Math.floor(ob.startTime / 1000);
+        const endT = Math.floor(ob.endTime / 1000);
+
+        // Top & bottom lines
+        const topLine = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(topLine, startT, ob.top, endT, ob.top);
+
+        const botLine = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(botLine, startT, ob.bottom, endT, ob.bottom);
+
+        // Mid-line dashed
+        const midLine = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const mid = (ob.top + ob.bottom) / 2;
+        setSafeData(midLine, startT, mid, endT, mid);
+
+        // Fill
+        const fill = chart.addSeries(AreaSeries, {
+          topColor: fillColor, bottomColor: fillColor,
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const fillData = candles
+          .filter(c => {
+            const t = Math.floor(c.time / 1000);
+            return t >= startT && t <= endT;
+          })
+          .map(c => ({ time: Math.floor(c.time / 1000) as any, value: mid }));
+        if (fillData.length > 0) fill.setData(fillData);
+      });
+
+      // FVG zones
+      engineData.fvgs.forEach(fvg => {
+        const color = fvg.bull ? 'rgba(38,166,154,0.15)' : 'rgba(239,83,80,0.15)';
+        const lineColor = fvg.bull ? 'rgba(38,166,154,0.4)' : 'rgba(239,83,80,0.4)';
+        const startT = Math.floor(fvg.time / 1000);
+        const endT = Math.floor(candles[candles.length - 1].time / 1000);
+
+        const topL = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(topL, startT, fvg.top, endT, fvg.top);
+
+        const botL = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(botL, startT, fvg.bottom, endT, fvg.bottom);
+
+        const fillS = chart.addSeries(AreaSeries, {
+          topColor: color, bottomColor: color,
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const mid = (fvg.top + fvg.bottom) / 2;
+        const fillData = candles
+          .filter(c => Math.floor(c.time / 1000) >= startT && Math.floor(c.time / 1000) <= endT)
+          .map(c => ({ time: Math.floor(c.time / 1000) as any, value: mid }));
+        if (fillData.length > 0) fillS.setData(fillData);
+      });
+
+      // Structure breaks (BOS/CHoCH) as price lines
+      engineData.structures.slice(-8).forEach(s => {
+        const isBull = s.direction === 'bull';
+        candleSeries.createPriceLine({
+          price: s.price,
+          color: isBull ? '#089981' : '#f23645',
+          lineWidth: 1,
+          lineStyle: s.type === 'CHoCH' ? 2 : 0,
+          axisLabelVisible: false,
+          title: `${s.type === 'CHoCH' ? '◆' : '●'} ${s.type}`,
+        } as any);
+      });
+
+      // Trendline zones (support/resistance)
+      engineData.trendZones.forEach(zone => {
+        const isSup = zone.type === 'support';
+        const color = isSup ? 'rgba(0,150,136,0.08)' : 'rgba(244,67,54,0.08)';
+        const lineColor = isSup ? 'rgba(0,150,136,0.35)' : 'rgba(244,67,54,0.35)';
+        const startT = Math.floor(zone.startTime / 1000);
+        const endT = Math.floor(zone.endTime / 1000);
+
+        const topL = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+          title: isSup ? 'Support' : 'Resistance',
+        });
+        setSafeData(topL, startT, zone.top, endT, zone.top);
+
+        const botL = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(botL, startT, zone.bottom, endT, zone.bottom);
+
+        const fillS = chart.addSeries(AreaSeries, {
+          topColor: color, bottomColor: color,
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const mid = (zone.top + zone.bottom) / 2;
+        const fillData = candles
+          .filter(c => Math.floor(c.time / 1000) >= startT && Math.floor(c.time / 1000) <= endT)
+          .map(c => ({ time: Math.floor(c.time / 1000) as any, value: mid }));
+        if (fillData.length > 0) fillS.setData(fillData);
+      });
+    }
+
     // ── Crosshair data (OHLC legend) ──
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time) {
@@ -665,7 +800,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       chartRef.current = null;
       rsiChartRef.current = null;
     };
-  }, [candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis, alphaNetData, matrixData]);
+  }, [candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis, alphaNetData, matrixData, engineData]);
 
   const lastCandle = candles[candles.length - 1];
   const isUp = crosshairData ? crosshairData.change >= 0 : (lastCandle ? lastCandle.close >= lastCandle.open : true);

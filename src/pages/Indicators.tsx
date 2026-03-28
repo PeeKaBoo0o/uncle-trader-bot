@@ -10,6 +10,7 @@ import { useSmcAnalysis } from '@/hooks/useSmcAnalysis';
 import { useAlphaNet } from '@/hooks/useAlphaNet';
 import AlphaNetDashboard from '@/components/indicators/AlphaNetDashboard';
 import { useMatrixIndicator } from '@/hooks/useMatrixIndicator';
+import { useEngineIndicator } from '@/hooks/useEngineIndicator';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
@@ -30,6 +31,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'liq_hunter', label: 'Liquidity Hunter', enabled: true, color: '#FF6B6B', category: 'Liquidity' },
   { id: 'alphanet', label: 'AlphaNet AI', enabled: true, color: '#7C3AED', category: 'AI' },
   { id: 'matrix', label: 'Matrix NWE', enabled: true, color: '#00BCD4', category: 'Envelope' },
+  { id: 'engine', label: 'MS Engine', enabled: true, color: '#FF9800', category: 'Structure' },
 ];
 
 const Indicators: React.FC = () => {
@@ -48,6 +50,8 @@ const Indicators: React.FC = () => {
   const alphaNet = useAlphaNet(marketData.candles, alphaNetEnabled && !marketData.loading && marketData.candles.length >= 30);
   const matrixEnabled = indicators.find(i => i.id === 'matrix')?.enabled ?? false;
   const matrixData = useMatrixIndicator(marketData.candles, matrixEnabled && !marketData.loading);
+  const engineEnabled = indicators.find(i => i.id === 'engine')?.enabled ?? false;
+  const engineData = useEngineIndicator(marketData.candles, engineEnabled && !marketData.loading);
 
   const toggleIndicator = (id: string) => {
     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
@@ -207,6 +211,7 @@ const Indicators: React.FC = () => {
                   smcAnalysis={smcResult.analysis}
                   alphaNetData={alphaNet.data}
                   matrixData={matrixData}
+                  engineData={engineData}
                 />
               )}
             </div>
