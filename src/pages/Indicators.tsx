@@ -174,6 +174,35 @@ const Indicators: React.FC = () => {
                 <AlphaNetDashboard data={alphaNet.data} loading={alphaNet.loading} error={alphaNet.error} />
               </div>
             )}
+
+            {/* TP/SL Backtesting Dashboard */}
+            {tpSlEnabled && tpSlData && (
+              <div className="mt-3 border border-white/5 rounded-lg overflow-hidden">
+                <div className="bg-[#1B1F2B] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                  BACKTESTING
+                </div>
+                <div className="bg-[#0d1526] p-2 space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Total Entries</span>
+                    <span className="text-foreground font-bold">{tpSlData.stats.totalEntries}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">TP / SL Hit</span>
+                    <span className="text-foreground font-bold">
+                      <span className="text-emerald-400">{tpSlData.stats.tpCount}</span>
+                      {' / '}
+                      <span className="text-red-400">{tpSlData.stats.slCount}</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Winrate</span>
+                    <span className={`font-bold ${tpSlData.stats.winrate >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {tpSlData.stats.winrate.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── CENTER: Chart Area ── */}

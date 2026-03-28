@@ -694,72 +694,79 @@ const TradingChart: React.FC<TradingChartProps> = ({
         series.setData([{ time: t2 as any, value: v2 }, { time: t1 as any, value: v1 }]);
       };
 
-      // Show last few completed trades + active trade
-      const recentTrades = tpSlData.trades.slice(-6);
-      recentTrades.forEach(trade => {
+      // Show all trades (entry labels + zones + hit markers)
+      tpSlData.trades.forEach(trade => {
         const entryT = Math.floor(trade.entryTime / 1000);
         const endIdx = trade.exitIndex ?? candles.length - 1;
-        const endT = Math.floor(candles[endIdx].time / 1000);
+        const endT = Math.floor(candles[Math.min(endIdx, candles.length - 1)].time / 1000);
         const isLong = trade.type === 'long';
 
-        // Entry price line
+        // Only draw zones for active trade (open) or last few closed trades
+        const isActive = trade.result === 'open';
+
+        // Entry label marker
         candleSeries.createPriceLine({
           price: trade.entryPrice,
           color: isLong ? '#26a69a' : '#ef5350',
-          lineWidth: 2, lineStyle: 0, axisLabelVisible: trade.result === 'open',
+          lineWidth: isActive ? 2 : 1,
+          lineStyle: isActive ? 0 : 2,
+          axisLabelVisible: isActive,
           title: isLong ? '▲ LONG' : '▼ SHORT',
         } as any);
 
-        // TP line (green dashed)
-        const tpLine = chart.addSeries(LineSeries, {
-          color: 'rgba(76,175,80,0.7)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false, title: 'TP',
-        });
-        setSafeData(tpLine, entryT, trade.tpPrice, endT, trade.tpPrice);
+        // Draw TP/SL zones only for active trade
+        if (isActive) {
+          // TP line (green dashed)
+          const tpLine = chart.addSeries(LineSeries, {
+            color: 'rgba(76,175,80,0.7)', lineWidth: 1, lineStyle: 2,
+            priceLineVisible: false, lastValueVisible: false, title: 'TP',
+          });
+          setSafeData(tpLine, entryT, trade.tpPrice, endT, trade.tpPrice);
 
-        // SL line (red dashed)
-        const slLine = chart.addSeries(LineSeries, {
-          color: 'rgba(244,67,54,0.7)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false, title: 'SL',
-        });
-        setSafeData(slLine, entryT, trade.slPrice, endT, trade.slPrice);
+          // SL line (red dashed)
+          const slLine = chart.addSeries(LineSeries, {
+            color: 'rgba(244,67,54,0.7)', lineWidth: 1, lineStyle: 2,
+            priceLineVisible: false, lastValueVisible: false, title: 'SL',
+          });
+          setSafeData(slLine, entryT, trade.slPrice, endT, trade.slPrice);
 
-        // TP fill zone (green)
-        const tpFill = chart.addSeries(AreaSeries, {
-          topColor: isLong ? 'rgba(76,175,80,0.08)' : 'rgba(76,175,80,0.08)',
-          bottomColor: isLong ? 'rgba(76,175,80,0.08)' : 'rgba(76,175,80,0.08)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        const tpMid = (trade.entryPrice + trade.tpPrice) / 2;
-        const tpFillData = candles
-          .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
-          .map(c => ({ time: Math.floor(c.time / 1000) as any, value: tpMid }));
-        if (tpFillData.length > 0) tpFill.setData(tpFillData);
+          // TP fill zone (green)
+          const tpFill = chart.addSeries(AreaSeries, {
+            topColor: 'rgba(76,175,80,0.08)',
+            bottomColor: 'rgba(76,175,80,0.08)',
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          const tpMid = (trade.entryPrice + trade.tpPrice) / 2;
+          const tpFillData = candles
+            .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
+            .map(c => ({ time: Math.floor(c.time / 1000) as any, value: tpMid }));
+          if (tpFillData.length > 0) tpFill.setData(tpFillData);
 
-        // SL fill zone (red)
-        const slFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(244,67,54,0.08)',
-          bottomColor: 'rgba(244,67,54,0.08)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        const slMid = (trade.entryPrice + trade.slPrice) / 2;
-        const slFillData = candles
-          .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
-          .map(c => ({ time: Math.floor(c.time / 1000) as any, value: slMid }));
-        if (slFillData.length > 0) slFill.setData(slFillData);
+          // SL fill zone (red)
+          const slFill = chart.addSeries(AreaSeries, {
+            topColor: 'rgba(244,67,54,0.08)',
+            bottomColor: 'rgba(244,67,54,0.08)',
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          const slMid = (trade.entryPrice + trade.slPrice) / 2;
+          const slFillData = candles
+            .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
+            .map(c => ({ time: Math.floor(c.time / 1000) as any, value: slMid }));
+          if (slFillData.length > 0) slFill.setData(slFillData);
+        }
 
-        // Result marker
+        // Hit SL / Hit TP markers for closed trades
         if (trade.result !== 'open' && trade.exitIndex !== undefined) {
-          const resultColor = trade.result === 'TP' ? '#4CAF50' : '#9E9E9E';
+          const hitPrice = trade.result === 'TP' ? trade.tpPrice : trade.slPrice;
+          const hitColor = trade.result === 'TP' ? '#9C27B0' : '#9E9E9E';
+          const hitLabel = trade.result === 'TP' ? 'Hit TP' : 'Hit SL';
           candleSeries.createPriceLine({
-            price: trade.result === 'TP' ? trade.tpPrice : trade.slPrice,
-            color: resultColor,
+            price: hitPrice,
+            color: hitColor,
             lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
-            title: trade.result === 'TP'
-              ? (isLong ? '✓ Long TP' : '✓ Short TP')
-              : (isLong ? '✗ Long SL' : '✗ Short SL'),
+            title: hitLabel,
           } as any);
         }
       });
