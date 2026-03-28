@@ -41,6 +41,7 @@ const Indicators: React.FC = () => {
   const { signals, loading: signalsLoading } = useSignals();
   const liqHunterEnabled = indicators.find(i => i.id === 'liq_hunter')?.enabled ?? false;
   const smcResult = useSmcAnalysis(marketData.candles, activePair, activeTimeframe, liqHunterEnabled && !marketData.loading);
+  const alphaNet = useAlphaNet(marketData.candles, !marketData.loading && marketData.candles.length >= 30);
 
   const toggleIndicator = (id: string) => {
     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
