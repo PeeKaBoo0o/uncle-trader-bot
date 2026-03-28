@@ -36,8 +36,8 @@ const Analysis: React.FC = () => {
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Data hooks
-  const btcData = useMarketData('BTC/USDT', activeTimeframe);
-  const goldData = useMarketData('XAU/USDT', activeTimeframe);
+  const btcData = useMarketData('BTC/USDT', btcTimeframe);
+  const goldData = useMarketData('XAU/USDT', goldTimeframe);
   const { signals: dbSignals, loading: signalsLoading } = useSignals();
   const btcSignals = useSmartSignals(btcData.candles, btcData.indicators, btcData.zones, 'BTC/USDT', btcData.loading);
   const goldSignals = useSmartSignals(goldData.candles, goldData.indicators, goldData.zones, 'XAU/USDT', goldData.loading);
