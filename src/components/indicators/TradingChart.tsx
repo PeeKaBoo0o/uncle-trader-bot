@@ -165,6 +165,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
     }
 
     // ── Support/Resistance Zones ──
+    if (enabledIndicators.includes('confluence') || enabledIndicators.includes('sup_bounce')) {
     zones.forEach(zone => {
       const isSupport = zone.type === 'support';
       const zoneColor = isSupport ? 'rgba(38,166,154,0.08)' : 'rgba(239,83,80,0.08)';
@@ -191,9 +192,10 @@ const TradingChart: React.FC<TradingChartProps> = ({
       const mid = (zone.top + zone.bottom) / 2;
       fillSeries.setData(candles.map(c => ({ time: (c.time / 1000) as any, value: mid })));
     });
+    }
 
     // ── AI Trendlines (Support = green dashed, Resistance = red dashed) ──
-    if (trendline) {
+    if (trendline && enabledIndicators.includes('breakout')) {
       const trendSeries = chart.addSeries(LineSeries, {
         color: '#26a69a', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false,
@@ -204,7 +206,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
         { time: (trendline.end.time / 1000) as any, value: trendline.end.price },
       ]);
     }
-    if (trendlineResistance) {
+    if (trendlineResistance && enabledIndicators.includes('breakdown')) {
       const resSeries = chart.addSeries(LineSeries, {
         color: '#ef5350', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false,
@@ -438,7 +440,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
     }
 
     // ── Signal arrows ──
-    if (signals && signals.length > 0) {
+    if (signals && signals.length > 0 && enabledIndicators.includes('momentum')) {
       signals.forEach(s => {
         const candle = candles.find(c => c.time === s.time);
         if (candle) {
