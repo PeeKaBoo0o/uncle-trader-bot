@@ -10,6 +10,7 @@ import { useMarketData, useSignals } from '@/hooks/useMarketData';
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
   { symbol: 'ETH/USDT', label: 'ETH', color: '#627EEA' },
+  { symbol: 'XAU/USDT', label: 'XAU', color: '#FFD700' },
   { symbol: 'SOL/USDT', label: 'SOL', color: '#9945FF' },
   { symbol: 'XRP/USDT', label: 'XRP', color: '#23292F' },
   { symbol: 'BNB/USDT', label: 'BNB', color: '#F3BA2F' },
