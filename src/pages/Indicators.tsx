@@ -7,6 +7,8 @@ import IndicatorPanel, { IndicatorConfig } from '@/components/indicators/Indicat
 import SignalFeed from '@/components/indicators/SignalFeed';
 import { useMarketData, useSignals } from '@/hooks/useMarketData';
 import { useSmcAnalysis } from '@/hooks/useSmcAnalysis';
+import { useAlphaNet } from '@/hooks/useAlphaNet';
+import AlphaNetDashboard from '@/components/indicators/AlphaNetDashboard';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
@@ -39,6 +41,7 @@ const Indicators: React.FC = () => {
   const { signals, loading: signalsLoading } = useSignals();
   const liqHunterEnabled = indicators.find(i => i.id === 'liq_hunter')?.enabled ?? false;
   const smcResult = useSmcAnalysis(marketData.candles, activePair, activeTimeframe, liqHunterEnabled && !marketData.loading);
+  const alphaNet = useAlphaNet(marketData.candles, !marketData.loading && marketData.candles.length >= 30);
 
   const toggleIndicator = (id: string) => {
     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
@@ -150,6 +153,11 @@ const Indicators: React.FC = () => {
             </div>
             <p className="text-[9px] text-muted-foreground/40 mb-3 font-mono">Bật/Tắt để hiển thị lên đồ thị</p>
             <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
+            
+            {/* AlphaNet AI Dashboard */}
+            <div className="mt-3">
+              <AlphaNetDashboard data={alphaNet.data} loading={alphaNet.loading} error={alphaNet.error} />
+            </div>
           </div>
 
           {/* ── CENTER: Chart Area ── */}
