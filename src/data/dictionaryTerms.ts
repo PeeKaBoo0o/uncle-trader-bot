@@ -12,8 +12,9 @@ export interface TermDetail {
   term: string;
   english: string;
   category: string;
+  illustration?: string;
   basic: { definition: string; example: string; howToApply: string; commonMistakes: string };
-  advanced: { definition: string; example: string; howToApply: string; commonMistakes: string };
+  advanced: { definition: string; example: string; howToApply: string; commonMistakes: string; proTips?: string[]; keyTakeaways?: string[] };
 }
 
 export const CATEGORIES = [
@@ -108,47 +109,119 @@ export const TERMS: Term[] = [
 export const TERMS_DETAIL: Record<string, TermDetail> = {
   'support-resistance': {
     term: 'Hỗ Trợ & Kháng Cự', english: 'Support & Resistance', category: 'Phân tích kỹ thuật',
+    illustration: '/src/assets/dict/support-resistance.jpg',
     basic: { definition: 'Vùng giá mà tại đó lực mua (hỗ trợ) hoặc lực bán (kháng cự) đủ mạnh để ngăn giá đi xa hơn. S/R là VÙNG, không phải đường chính xác.', example: 'BTC có hỗ trợ tại $60,000 — giá bounce 3 lần từ vùng này.', howToApply: 'Vẽ đường ngang tại các mức giá mà giá đã đảo chiều nhiều lần. Mua gần hỗ trợ, bán gần kháng cự.', commonMistakes: 'Đặt entry ngay tại mức S/R thay vì chờ xác nhận nến. S/R là vùng, không phải đường chính xác.' },
-    advanced: { definition: 'S/R động (Dynamic S/R) từ EMA 50/200, Bollinger Bands. S/R flipping — khi kháng cự bị phá vỡ sẽ trở thành hỗ trợ và ngược lại.', example: 'BTC phá $68K (kháng cự) → retest $68K thành hỗ trợ → Long entry.', howToApply: 'Kết hợp S/R với volume profile, order flow. Xác nhận bằng nến đảo chiều + volume spike.', commonMistakes: 'Bỏ qua context (xu hướng lớn). S/R yếu khi volume thấp hoặc đã bị test quá nhiều lần.' },
+    advanced: {
+      definition: 'S/R động (Dynamic S/R) từ EMA 50/200, Bollinger Bands. S/R flipping — khi kháng cự bị phá vỡ sẽ trở thành hỗ trợ và ngược lại. Institutional S/R dựa trên Volume Profile và Order Flow cho thấy vùng tích lũy lệnh lớn.',
+      example: 'BTC phá $68K (kháng cự) → retest $68K thành hỗ trợ → Long entry với volume xác nhận tại vùng S/R flip.',
+      howToApply: 'Kết hợp S/R với Volume Profile (POC, VAH, VAL), Order Flow và Footprint Chart. Xác nhận bằng nến đảo chiều + volume spike. Multi-timeframe: S/R trên HTF (D1, W1) mạnh hơn LTF.',
+      commonMistakes: 'Bỏ qua context (xu hướng lớn). S/R yếu khi volume thấp hoặc đã bị test quá nhiều lần (>3 lần). Không phân biệt S/R tĩnh vs S/R động.',
+      proTips: ['Dùng heatmap thanh khoản để xác định vùng S/R ẩn mà retail trader không thấy', 'S/R mạnh nhất là nơi có sự hội tụ (confluence) giữa Fib, EMA, và mức giá tròn', 'Round numbers ($60K, $70K) thường là S/R tâm lý cực mạnh'],
+      keyTakeaways: ['S/R là vùng, không phải đường — luôn để buffer 0.5-1%', 'S/R càng nhiều timeframe xác nhận càng mạnh', 'S/R flip (kháng cự → hỗ trợ) là setup entry tin cậy nhất']
+    },
   },
   'breakout': {
     term: 'Breakout', english: 'Breakout Trading', category: 'Chiến lược giao dịch',
+    illustration: '/src/assets/dict/breakout.jpg',
     basic: { definition: 'Khi giá phá vỡ qua vùng hỗ trợ hoặc kháng cự quan trọng với volume lớn, báo hiệu xu hướng mới.', example: 'ETH breakout trên $4,000 với volume tăng 250%.', howToApply: 'Chờ nến đóng cửa trên/dưới S/R + volume xác nhận. Entry sau breakout hoặc retest.', commonMistakes: 'FOMO vào ngay khi giá chạm S/R, không chờ xác nhận. Dễ bị fakeout.' },
-    advanced: { definition: 'Breakout with retest, failed breakout (fakeout trap), breakout từ consolidation dài. Volume > 2x trung bình mới tin cậy.', example: 'BTC phá $68K → pullback retest $68K → bounce + volume = Long confirmed.', howToApply: 'Dùng multi-timeframe: breakout trên H4+ mới đáng tin. Kết hợp Bollinger Squeeze + volume.', commonMistakes: 'Không phân biệt breakout thật vs fakeout. Cần volume > 2x trung bình 20 phiên.' },
+    advanced: {
+      definition: 'Breakout with retest, failed breakout (fakeout trap), breakout từ consolidation dài (>20 nến). Phân biệt: True Breakout cần volume > 2x trung bình + nến đóng ngoài S/R. Breakout sau Bollinger Squeeze có xác suất thành công cao nhất.',
+      example: 'BTC consolidation 3 tuần trong range $65K-$68K → BB Squeeze → phá $68K + volume 3x → retest $68K hold → Long confirmed, target Fib Ext 1.618.',
+      howToApply: 'Dùng multi-timeframe: breakout trên H4+ mới đáng tin. Kết hợp Bollinger Squeeze + volume profile. Entry 2 cách: (1) Aggressive: entry ngay khi nến breakout đóng, (2) Conservative: chờ retest rồi entry.',
+      commonMistakes: 'Không phân biệt breakout thật vs fakeout. Cần volume > 2x trung bình 20 phiên. Breakout trên M5/M15 thường là noise — ưu tiên H4+.',
+      proTips: ['Fakeout thường xảy ra khi volume thấp — luôn kiểm tra volume trước khi entry', 'Breakout sau consolidation dài (>20 nến) mạnh hơn nhiều so với consolidation ngắn', 'Đặt SL dưới/trên vùng consolidation thay vì ngay tại mức S/R vừa phá'],
+      keyTakeaways: ['Volume là yếu tố xác nhận số 1 — không có volume = không tin', 'Retest sau breakout là entry an toàn nhất', 'Fakeout trap có thể trade ngược lại — failed breakout = reversal signal']
+    },
   },
   'rsi': {
     term: 'RSI', english: 'Relative Strength Index', category: 'Chỉ báo kỹ thuật',
+    illustration: '/src/assets/dict/rsi-divergence.jpg',
     basic: { definition: 'RSI đo tốc độ biến động giá trên thang 0-100. >70 quá mua (overbought), <30 quá bán (oversold). Mặc định dùng RSI 14.', example: 'RSI 14 chạm 25 → vùng quá bán → theo dõi tín hiệu mua.', howToApply: 'Dùng RSI 14 làm mặc định. Tìm vùng quá mua/bán kết hợp S/R zone.', commonMistakes: 'Mua ngay khi RSI < 30 — trong downtrend mạnh, RSI có thể ở vùng quá bán rất lâu.' },
-    advanced: { definition: 'RSI Regular Divergence (báo đảo chiều), Hidden Divergence (báo tiếp tục trend), RSI Failure Swing.', example: 'Giá tạo đỉnh mới + RSI đỉnh thấp hơn = Bearish Regular Divergence → cảnh báo giảm.', howToApply: 'Kết hợp RSI divergence với S/R zone + volume. Hidden divergence xác nhận xu hướng tiếp tục.', commonMistakes: 'Dùng RSI đơn lẻ không kết hợp price action. Divergence cần xác nhận bằng nến.' },
+    advanced: {
+      definition: 'RSI Regular Divergence (báo đảo chiều): giá đỉnh cao hơn nhưng RSI đỉnh thấp hơn. Hidden Divergence (báo tiếp tục trend): giá đáy cao hơn nhưng RSI đáy thấp hơn. RSI Failure Swing: RSI phá đỉnh/đáy trước đó — tín hiệu sớm hơn cả price action.',
+      example: 'BTC tạo đỉnh $73K (RSI 78) → đỉnh $74K (RSI 65) = Bearish Regular Divergence. 2 tuần sau giá giảm 18% về $60K. Hidden Bullish Div tại $60K xác nhận đáy.',
+      howToApply: 'Kết hợp RSI divergence với S/R zone + volume. Hidden divergence xác nhận xu hướng tiếp tục — trade theo trend. Regular Divergence cần confluence (Fib, S/R) để entry counter-trend.',
+      commonMistakes: 'Dùng RSI đơn lẻ không kết hợp price action. Divergence cần xác nhận bằng nến đảo chiều — đừng entry khi divergence mới hình thành.',
+      proTips: ['RSI Failure Swing cho tín hiệu sớm hơn divergence — RSI phá đỉnh/đáy trước khi giá làm', 'Dùng RSI trên HTF (H4, D1) cho divergence — LTF cho quá nhiều noise', 'RSI 50 là "đường giữa" — giá trên 50 = bullish bias, dưới 50 = bearish bias'],
+      keyTakeaways: ['Regular Divergence = counter-trend, cần S/R confluence', 'Hidden Divergence = continuation, trade theo trend', 'Đừng entry chỉ vì RSI overbought/oversold — chờ price action xác nhận']
+    },
   },
   'macd': {
     term: 'MACD', english: 'Moving Average Convergence Divergence', category: 'Chỉ báo kỹ thuật',
+    illustration: '/src/assets/dict/macd.jpg',
     basic: { definition: 'MACD = EMA 12 - EMA 26. Signal Line = EMA 9 của MACD. Histogram = MACD - Signal. Cắt lên = mua, cắt xuống = bán.', example: 'MACD cắt lên Signal + Histogram dương → Xác nhận đà tăng.', howToApply: 'Tìm MACD crossover kết hợp với trend direction. Zero-line crossover là tín hiệu mạnh hơn.', commonMistakes: 'MACD là lagging indicator — chậm hơn giá. Không dùng MACD trong thị trường sideway.' },
-    advanced: { definition: 'MACD Divergence, MACD Histogram divergence (sớm hơn), Zero-line rejection, MACD multi-timeframe.', example: 'MACD Histogram giảm dần trong khi giá tăng → Momentum yếu, chuẩn bị đảo chiều.', howToApply: 'Kết hợp MACD Histogram divergence (HTF) với price action (LTF) cho entry chính xác.', commonMistakes: 'Sử dụng MACD crossover đơn thuần mà không xét context. Trong trending market, MACD cho nhiều tín hiệu giả.' },
+    advanced: {
+      definition: 'MACD Histogram Divergence phát hiện momentum yếu đi sớm hơn MACD line. Zero-line rejection: MACD chạm zero rồi bật lại = trend continuation mạnh. Multi-timeframe MACD: HTF cho direction, LTF cho entry.',
+      example: 'D1 MACD trên zero (bullish) + H4 MACD crossover up = Long entry. Histogram H4 giảm dần khi giá sideways = momentum yếu, chuẩn bị reversal.',
+      howToApply: 'Kết hợp MACD Histogram divergence (HTF) với price action (LTF) cho entry chính xác. Zero-line acts as dynamic S/R cho MACD. MACD + Bollinger Bands = combo mạnh.',
+      commonMistakes: 'Sử dụng MACD crossover đơn thuần mà không xét context. Trong sideway market, MACD cho rất nhiều false signals. MACD lag nhiều trên LTF.',
+      proTips: ['MACD Histogram divergence sớm hơn MACD line divergence 3-5 nến', 'Zero-line rejection là tín hiệu continuation mạnh nhất của MACD', 'Dùng MACD settings (5, 13, 1) cho scalping — phản ứng nhanh hơn mặc định'],
+      keyTakeaways: ['MACD là trend-following indicator — chỉ dùng trong trending market', 'Histogram cho tín hiệu sớm nhất, sau đó đến MACD line, cuối cùng là zero-line', 'Multi-timeframe MACD: HTF direction + LTF entry = setup tin cậy']
+    },
   },
   'fibonacci': {
     term: 'Fibonacci Retracement', english: 'Fibonacci Retracement', category: 'Phân tích kỹ thuật',
+    illustration: '/src/assets/dict/fibonacci.jpg',
     basic: { definition: 'Vẽ các mức thoái lui 23.6%, 38.2%, 50%, 61.8%, 78.6% từ swing low → swing high. Vùng 50%-61.8% = "Golden Zone" — nơi giá hay đảo chiều nhất.', example: 'BTC tăng từ $60K → $73K. Pullback về Fib 61.8% ($65K) rồi bật tăng.', howToApply: 'Vẽ Fib từ đáy đến đỉnh gần nhất. Tìm entry tại Golden Zone (50-61.8%) với nến xác nhận.', commonMistakes: 'Dùng Fibonacci đơn lẻ. Cần kết hợp với S/R, trendline để tìm confluence (hội tụ).' },
-    advanced: { definition: 'Fibonacci Extension (mục tiêu giá: 1.272, 1.618, 2.618), Fibonacci Time Zones, Fibonacci Clusters (khi nhiều mức Fib trùng nhau).', example: 'Entry tại Fib 61.8% → TP tại Fib Extension 1.618 ($82K). Risk:Reward = 1:4.', howToApply: 'Dùng Fib Clusters: khi mức Fib từ nhiều swing khác nhau trùng tại 1 vùng giá → S/R cực mạnh.', commonMistakes: 'Vẽ Fib trên timeframe quá nhỏ (M1, M5) — không đáng tin. Nên dùng H4+ trở lên.' },
+    advanced: {
+      definition: 'Fibonacci Extension (mục tiêu giá: 1.272, 1.618, 2.618) để đặt Take Profit. Fibonacci Clusters: khi nhiều mức Fib từ các swing khác nhau trùng tại 1 vùng → S/R cực mạnh. Auto-Fib dùng thuật toán pivot detection.',
+      example: 'Entry tại Golden Zone Fib 61.8% ($65K) → TP1 tại Fib Extension 1.272 ($76.5K), TP2 tại 1.618 ($82K). R:R = 1:4. Fib Cluster tại $64.5K-$65.5K (3 Fib levels trùng) = confluent demand zone.',
+      howToApply: 'Dùng Fib Clusters: khi mức Fib từ nhiều swing khác nhau trùng tại 1 vùng giá → S/R cực mạnh. Kết hợp Fib + EMA + S/R cho "triple confluence" entry.',
+      commonMistakes: 'Vẽ Fib trên timeframe quá nhỏ (M1, M5) — không đáng tin. Nên dùng H4+ trở lên. Không sử dụng Fib Extension cho TP — bỏ lỡ profit target chính xác.',
+      proTips: ['Golden Zone (50-61.8%) có xác suất bounce >70% trong trending market', 'Fib + round number ($65K) + EMA 200 = "Triple Confluence" — setup A+', 'Dùng Fib Extension cho TP thay vì guess — 1.618 là target phổ biến nhất'],
+      keyTakeaways: ['Fibonacci hoạt động vì nhiều trader cùng nhìn và giao dịch tại các mức này', 'Golden Zone (50-61.8%) là vùng entry tốt nhất', 'Luôn tìm confluence — Fib + S/R + EMA = xác suất cao nhất']
+    },
   },
   'bollinger-bands': {
     term: 'Bollinger Bands', english: 'Bollinger Bands', category: 'Chỉ báo kỹ thuật',
+    illustration: '/src/assets/dict/bollinger-bands.jpg',
     basic: { definition: '3 dải: SMA 20 ± 2 Standard Deviation. Giá chạm dải trên = quá mua, dải dưới = quá bán. BB Squeeze = dải siết lại, báo biến động lớn sắp tới.', example: 'BB siết lại 2 tuần → giá phá lên dải trên → Breakout xác nhận.', howToApply: 'Tìm BB Squeeze (bandwidth thấp) → chờ breakout. Trong ranging market: mua dải dưới, bán dải trên.', commonMistakes: 'Giá chạm dải trên ≠ bán ngay. Trong uptrend, giá "đi dạo" trên dải trên rất lâu.' },
-    advanced: { definition: 'BB %B indicator, Bandwidth indicator, Keltner Channel + BB Squeeze combo (TTM Squeeze).', example: 'BB nằm trong Keltner Channel = Squeeze cực mạnh. Phá ra ngoài = biến động cực lớn.', howToApply: 'Dùng TTM Squeeze (BB + Keltner) để phát hiện breakout sớm. Histogram xác nhận hướng.', commonMistakes: 'BB hoạt động kém trong trending market mạnh. Kết hợp với RSI/MACD để lọc tín hiệu.' },
+    advanced: {
+      definition: 'BB %B indicator (0-1) cho thấy vị trí giá trong dải. Bandwidth indicator đo độ rộng dải — cực thấp = Squeeze sắp nổ. TTM Squeeze: khi BB nằm trong Keltner Channel = Squeeze cực mạnh, xác suất breakout lớn >80%.',
+      example: 'BB nằm trong Keltner Channel (TTM Squeeze kích hoạt) → Squeeze 15 nến → phá ra + momentum histogram dương → Breakout tăng mạnh 12% trong 3 ngày.',
+      howToApply: 'Dùng TTM Squeeze (BB + Keltner) để phát hiện breakout sớm. BB %B > 1 = overbought extension, < 0 = oversold extension. Kết hợp RSI để xác nhận.',
+      commonMistakes: 'BB hoạt động kém trong trending market mạnh — giá "walk the band". Kết hợp với RSI/MACD để lọc tín hiệu. Squeeze không cho biết hướng — cần momentum indicator.',
+      proTips: ['TTM Squeeze là một trong những setup breakout đáng tin cậy nhất — học cách dùng', 'BB Bandwidth cực thấp (< 4%) = volatility sắp bùng nổ', 'Trong sideway: Mean Reversion strategy — mua dải dưới, bán dải trên, SL ngoài dải'],
+      keyTakeaways: ['Squeeze = biến động lớn sắp xảy ra, nhưng không cho biết hướng', 'TTM Squeeze (BB + Keltner) mạnh hơn BB Squeeze đơn thuần', 'Trend market: trade breakout. Range market: trade mean reversion']
+    },
   },
   'leverage': {
     term: 'Đòn Bẩy', english: 'Leverage', category: 'Giao dịch phái sinh',
+    illustration: '/src/assets/dict/leverage.jpg',
     basic: { definition: 'Vay vốn từ sàn để giao dịch lớn hơn vốn thực. 10x = kiểm soát vị thế gấp 10 lần. Lãi VÀ lỗ đều nhân lên.', example: 'Vốn $1,000 × 10x = vị thế $10,000. Giá tăng 5% → lãi $500 (50%). Giá giảm 10% → mất hết vốn.', howToApply: 'Người mới: tối đa 3-5x. Chuyên nghiệp: 5-20x với SL chặt. KHÔNG BAO GIỜ dùng 50-125x.', commonMistakes: 'Dùng đòn bẩy cao (50x+) → liquidation nhanh. Đòn bẩy không tăng lợi nhuận, nó tăng RỦI RO.' },
-    advanced: { definition: 'Cross Margin vs Isolated Margin. Cross: dùng toàn bộ balance làm margin. Isolated: chỉ dùng margin riêng cho mỗi vị thế.', example: 'Isolated 10x: chỉ mất $1K nếu liquidation. Cross 10x: có thể mất toàn bộ $10K balance.', howToApply: 'Dùng Isolated Margin để giới hạn rủi ro. Chỉ dùng Cross khi rất tự tin vào trade setup.', commonMistakes: 'Dùng Cross Margin mặc định mà không biết → liquidation 1 vị thế có thể mất toàn bộ tài khoản.' },
+    advanced: {
+      definition: 'Cross Margin vs Isolated Margin. Cross: toàn bộ balance làm margin — 1 vị thế liquidation có thể mất hết account. Isolated: chỉ dùng margin riêng cho mỗi vị thế — giới hạn rủi ro. Effective Leverage = Total Position / Total Equity.',
+      example: 'Isolated 10x: vốn $1K, chỉ mất tối đa $1K nếu liquidation. Cross 10x với balance $10K: liquidation 1 vị thế có thể kéo toàn bộ $10K. Pro trader: Isolated + SL = kiểm soát hoàn toàn.',
+      howToApply: 'LUÔN dùng Isolated Margin để giới hạn rủi ro mỗi trade. Effective Leverage nên < 5x. Tính position size: Risk Amount / (Entry - SL) = Size. Ví dụ: risk $100, SL 2% → size $5,000 = 5x leverage trên $1K.',
+      commonMistakes: 'Dùng Cross Margin mặc định mà không biết → liquidation 1 vị thế mất toàn bộ tài khoản. Nhầm lẫn giữa leverage cao = lợi nhuận cao — thực tế là risk cao.',
+      proTips: ['Effective Leverage < 5x là nguyên tắc vàng — ngay cả khi sàn cho phép 125x', 'Dùng Position Size Calculator: Risk% × Account / SL distance = Correct Size', 'Trailing Stop + Isolated Margin = combo an toàn nhất cho futures trading'],
+      keyTakeaways: ['Leverage KHÔNG tăng lợi nhuận — nó tăng SIZE và RỦI RO', 'Isolated Margin > Cross Margin trong 99% trường hợp', 'Tính position size dựa trên risk management, KHÔNG dựa trên leverage']
+    },
   },
   'scalping': {
     term: 'Scalping', english: 'Scalping', category: 'Chiến lược giao dịch',
+    illustration: '/src/assets/dict/scalping.jpg',
     basic: { definition: 'Giao dịch siêu ngắn (vài giây → vài phút), kiếm lợi nhuận nhỏ (0.1-0.5%) nhưng giao dịch rất nhiều lần/ngày.', example: 'Scalp BTC khung M1: entry → TP +0.2% → lặp lại 30 lần/ngày = ~6% tổng.', howToApply: 'Dùng khung M1-M5. Cần sàn phí thấp, internet tốc độ cao, và kỷ luật cắt lỗ nhanh.', commonMistakes: 'Để lệnh lỗ chạy (không cắt lỗ). Phí giao dịch ăn hết lợi nhuận nếu size quá nhỏ.' },
-    advanced: { definition: 'Order Book scalping, Tape Reading, Level 2 data. Scalping dựa trên order flow thay vì indicator.', example: 'Thấy sell wall lớn $68K bị rút → giá sẽ phá qua → Long scalp $68K → TP $68.3K.', howToApply: 'Học đọc Order Book, Footprint Chart. Dùng DOM (Depth of Market) để thấy lệnh chờ lớn.', commonMistakes: 'Scalping mà không tính phí + slippage. Cần winrate > 60% và R:R tối thiểu 1:1.5.' },
+    advanced: {
+      definition: 'Order Book Scalping: đọc DOM (Depth of Market) để thấy lệnh chờ lớn, spoofing, iceberg orders. Tape Reading: theo dõi Time & Sales để thấy giao dịch lớn real-time. Footprint Chart: kết hợp price + volume tại mỗi mức giá.',
+      example: 'DOM hiện sell wall 500 BTC tại $68K → wall bị rút (spoofing) → giá sẽ phá $68K → Long scalp entry $67.9K → TP $68.3K trong 2 phút. Profit $400 trên $10K position.',
+      howToApply: 'Học đọc Order Book và Footprint Chart. Dùng DOM để thấy lệnh chờ lớn. Setup: M1 chart + DOM + Time & Sales + Footprint. Cần VPS gần server sàn để giảm latency.',
+      commonMistakes: 'Scalping mà không tính phí + slippage — maker/taker fee ăn 50%+ profit. Cần winrate > 60% và R:R tối thiểu 1:1.5. Overtrade khi thua → revenge trading.',
+      proTips: ['Chỉ scalp trong giờ volume cao (London Open, NY Open) — thanh khoản tốt, spread thấp', 'Maker fee thấp hơn taker — dùng Limit Order thay Market Order khi có thể', 'Đặt daily loss limit (ví dụ: -2% account) — dừng scalp khi chạm limit'],
+      keyTakeaways: ['Scalping không dành cho người mới — cần kỹ năng đọc order flow', 'Phí giao dịch là "kẻ thù" #1 — chọn sàn có phí thấp nhất', 'Kỷ luật > kỹ thuật: daily loss limit và SL cứng là bắt buộc']
+    },
   },
   'dca': {
     term: 'DCA', english: 'Dollar Cost Averaging', category: 'Chiến lược giao dịch',
+    illustration: '/src/assets/dict/dca.jpg',
     basic: { definition: 'Mua đều đặn một lượng tiền cố định theo lịch trình, bất kể giá cao hay thấp. Giảm rủi ro "timing" sai.', example: 'Mua $200 BTC mỗi tuần trong 1 năm → giá entry trung bình $45K (tốt hơn all-in tại $60K).', howToApply: 'Đặt lịch mua tự động trên sàn (Binance Auto-Invest). Kiên trì ít nhất 6-12 tháng.', commonMistakes: 'DCA vào shitcoin. Chỉ nên DCA vào tài sản mình tin tưởng dài hạn (BTC, ETH).' },
-    advanced: { definition: 'Value Averaging: DCA thông minh — mua nhiều hơn khi giá thấp, ít hơn khi giá cao. Kết hợp với on-chain metrics.', example: 'BTC dưới 200-week MA → DCA gấp 3x. BTC trên NUPL 0.75 → ngưng DCA, chờ correction.', howToApply: 'Dùng on-chain indicators (MVRV, NUPL) để điều chỉnh lượng DCA. Tăng size ở accumulation zone.', commonMistakes: 'DCA mù quáng không bao giờ chốt lời. Cần kế hoạch exit rõ ràng bên cạnh DCA.' },
+    advanced: {
+      definition: 'Value Averaging (VA): DCA thông minh — mua nhiều hơn khi giá dưới giá trị mục tiêu, ít hơn khi giá trên. Kết hợp on-chain metrics (MVRV, NUPL, 200W MA) để điều chỉnh lượng DCA theo chu kỳ thị trường.',
+      example: 'BTC dưới 200-week MA → DCA gấp 3x ($600/tuần thay vì $200). BTC NUPL > 0.75 (Euphoria) → ngưng DCA, chờ correction. Kết quả: +40% ROI so với DCA cố định.',
+      howToApply: 'Dùng on-chain indicators (MVRV Z-Score, NUPL, Puell Multiple) để điều chỉnh DCA. Tăng size ở accumulation zone, giảm/ngưng ở distribution zone. Kết hợp exit plan: DCA ra (chốt lời từng phần) tại các mốc on-chain.',
+      commonMistakes: 'DCA mù quáng không bao giờ chốt lời — cần kế hoạch exit rõ ràng. DCA vào altcoin rủi ro — chỉ DCA vào top 5-10 assets theo market cap. Không điều chỉnh size theo chu kỳ.',
+      proTips: ['DCA + On-chain = Smart DCA — tăng size khi MVRV < 1, giảm khi MVRV > 3', 'Luôn có DCA-out plan (ví dụ: bán 10% mỗi khi giá tăng 50%)', 'BTC 200-week MA là "đường giá trị" lịch sử — dưới MA = accumulation zone'],
+      keyTakeaways: ['DCA đơn giản nhất nhưng hiệu quả nhất cho nhà đầu tư dài hạn', 'Value Averaging > DCA cố định khi kết hợp on-chain data', 'Luôn có kế hoạch chốt lời — DCA không có nghĩa là hold mãi mãi']
+    },
   },
 };
