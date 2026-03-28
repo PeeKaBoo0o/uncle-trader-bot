@@ -7,6 +7,7 @@ import type { Candle, Indicators, Zone } from '@/hooks/useMarketData';
 import { computeLiquidityZones } from '@/lib/liquidityHunter';
 import type { SmcAnalysis } from '@/hooks/useSmcAnalysis';
 import type { AlphaNetData } from '@/hooks/useAlphaNet';
+import type { MatrixData } from '@/hooks/useMatrixIndicator';
 
 export interface AITrendline {
   start: { time: number; price: number };
@@ -31,10 +32,11 @@ interface TradingChartProps {
   onTimeframeChange?: (tf: string) => void;
   smcAnalysis?: SmcAnalysis | null;
   alphaNetData?: AlphaNetData | null;
+  matrixData?: MatrixData | null;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiContainerRef = useRef<HTMLDivElement>(null);
@@ -503,6 +505,50 @@ const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
 
+    // ── Matrix NWE Envelope ──
+    if (matrixData && enabledIndicators.includes('matrix')) {
+      // Upper band (teal)
+      const upperSeries = chart.addSeries(LineSeries, {
+        color: '#00BCD4', lineWidth: 1, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'NWE Upper',
+      });
+      const upperData = matrixData.upper.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
+      if (upperData.length > 0) upperSeries.setData(upperData);
+
+      // Lower band (red)
+      const lowerSeries = chart.addSeries(LineSeries, {
+        color: '#ef5350', lineWidth: 1, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'NWE Lower',
+      });
+      const lowerData = matrixData.lower.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
+      if (lowerData.length > 0) lowerSeries.setData(lowerData);
+
+      // Fill between upper and lower with area series
+      const fillUpper = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(0,188,212,0.06)', bottomColor: 'transparent',
+        lineColor: 'transparent', lineWidth: 1 as 1,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      if (upperData.length > 0) fillUpper.setData(upperData);
+
+      const fillLower = chart.addSeries(AreaSeries, {
+        topColor: 'transparent', bottomColor: 'rgba(239,83,80,0.06)',
+        lineColor: 'transparent', lineWidth: 1 as 1,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      if (lowerData.length > 0) fillLower.setData(lowerData);
+
+      // Buy/Sell signal markers
+      matrixData.signals.forEach(sig => {
+        candleSeries.createPriceLine({
+          price: sig.price,
+          color: sig.type === 'buy' ? '#26a69a' : '#ef5350',
+          lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
+          title: sig.type === 'buy' ? '▲ MX Buy' : '▼ MX Sell',
+        } as any);
+      });
+    }
+
     // ── Crosshair data (OHLC legend) ──
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time) {
@@ -619,7 +665,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       chartRef.current = null;
       rsiChartRef.current = null;
     };
-  }, [candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis, alphaNetData]);
+  }, [candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis, alphaNetData, matrixData]);
 
   const lastCandle = candles[candles.length - 1];
   const isUp = crosshairData ? crosshairData.change >= 0 : (lastCandle ? lastCandle.close >= lastCandle.open : true);
