@@ -292,15 +292,7 @@ const Analysis: React.FC = () => {
         </div>
       </div>
 
-      {/* ── SCAN OVERLAY ── */}
-      {scanning && (
-        <div className="px-2 lg:px-4 pt-2">
-          <div className="relative overflow-hidden rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-scan-sweep" />
-            <span className="relative text-xs font-mono text-primary font-bold">{scanLabel}</span>
-          </div>
-        </div>
-      )}
+      {/* Scan overlay moved inside TradingChart */}
 
       {/* ── MAIN LAYOUT ── */}
       <div ref={dashboardRef} className="px-2 lg:px-4 py-2">
