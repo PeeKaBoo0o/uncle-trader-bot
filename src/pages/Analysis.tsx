@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import TradingChart from '@/components/indicators/TradingChart';
-import SubIndicators from '@/components/indicators/SubIndicators';
+// SubIndicators removed — RSI & Volume now built into TradingChart
 import SignalFeed from '@/components/indicators/SignalFeed';
 import { useMarketData, useSignals } from '@/hooks/useMarketData';
 import { useSmartSignals } from '@/hooks/useSmartSignal';
@@ -26,8 +26,7 @@ const ENABLED_INDICATORS = ['bb_squeeze', 'breakout', 'breakdown', 'confluence',
 
 const Analysis: React.FC = () => {
   const [activeTimeframe, setActiveTimeframe] = useState('H4');
-  const [subTabBTC, setSubTabBTC] = useState<'rsi' | 'volume' | 'macd'>('rsi');
-  const [subTabGold, setSubTabGold] = useState<'rsi' | 'volume' | 'macd'>('rsi');
+  // subTab states removed — RSI built into TradingChart
   const [logs, setLogs] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanLabel, setScanLabel] = useState('');
@@ -287,42 +286,27 @@ const Analysis: React.FC = () => {
 
               {/* ── BTC Column ── */}
               <div className="space-y-2">
-                <div className="glass-card rounded-xl overflow-hidden">
-                  {btcData.loading ? (
-                    <div className="flex items-center justify-center h-[340px]">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs text-muted-foreground font-mono">Loading BTC/USDT...</span>
-                      </div>
+                {btcData.loading ? (
+                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs text-muted-foreground font-mono">Loading BTC/USDT...</span>
                     </div>
-                  ) : btcData.error ? (
-                    <div className="flex items-center justify-center h-[340px]">
-                      <span className="text-destructive text-sm">⚠️ {btcData.error}</span>
-                    </div>
-                  ) : (
-                    <TradingChart
-                      candles={btcData.candles}
-                      indicators={btcData.indicators}
-                      zones={btcData.zones}
-                      enabledIndicators={ENABLED_INDICATORS}
-                      height={320}
-                      label="₿ BTC/USDT"
-                    />
-                  )}
-                  <div className="border-t border-foreground/5">
-                    <div className="flex gap-0.5 px-3 py-1 border-b border-foreground/5">
-                      {(['rsi', 'volume', 'macd'] as const).map(tab => (
-                        <button key={tab} onClick={() => setSubTabBTC(tab)}
-                          className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
-                            subTabBTC === tab ? 'bg-foreground/5 text-foreground' : 'text-muted-foreground/40'
-                          }`}>{tab}</button>
-                      ))}
-                    </div>
-                    {!btcData.loading && btcData.candles.length > 0 && (
-                      <SubIndicators candles={btcData.candles} indicators={btcData.indicators} activeTab={subTabBTC} />
-                    )}
                   </div>
-                </div>
+                ) : btcData.error ? (
+                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                    <span className="text-destructive text-sm">⚠️ {btcData.error}</span>
+                  </div>
+                ) : (
+                  <TradingChart
+                    candles={btcData.candles}
+                    indicators={btcData.indicators}
+                    zones={btcData.zones}
+                    enabledIndicators={ENABLED_INDICATORS}
+                    height={300}
+                    label="₿ BTC/USDT · H4 · Binance"
+                  />
+                )}
                 <AIActionCard ai={btcAI} symbol="₿ BTC/USDT" />
                 <a href="https://www.okx.com/join/UNCLETRADER" target="_blank" rel="noopener noreferrer"
                   className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-primary/30 transition-all group border border-foreground/5">
@@ -337,42 +321,27 @@ const Analysis: React.FC = () => {
 
               {/* ── GOLD Column ── */}
               <div className="space-y-2">
-                <div className="glass-card rounded-xl overflow-hidden">
-                  {goldData.loading ? (
-                    <div className="flex items-center justify-center h-[340px]">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs text-muted-foreground font-mono">Loading XAU/USD...</span>
-                      </div>
+                {goldData.loading ? (
+                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs text-muted-foreground font-mono">Loading XAU/USD...</span>
                     </div>
-                  ) : goldData.error ? (
-                    <div className="flex items-center justify-center h-[340px]">
-                      <span className="text-destructive text-sm">⚠️ {goldData.error}</span>
-                    </div>
-                  ) : (
-                    <TradingChart
-                      candles={goldData.candles}
-                      indicators={goldData.indicators}
-                      zones={goldData.zones}
-                      enabledIndicators={ENABLED_INDICATORS}
-                      height={320}
-                      label="🥇 XAU/USD (Gold)"
-                    />
-                  )}
-                  <div className="border-t border-foreground/5">
-                    <div className="flex gap-0.5 px-3 py-1 border-b border-foreground/5">
-                      {(['rsi', 'volume', 'macd'] as const).map(tab => (
-                        <button key={tab} onClick={() => setSubTabGold(tab)}
-                          className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase font-bold ${
-                            subTabGold === tab ? 'bg-foreground/5 text-foreground' : 'text-muted-foreground/40'
-                          }`}>{tab}</button>
-                      ))}
-                    </div>
-                    {!goldData.loading && goldData.candles.length > 0 && (
-                      <SubIndicators candles={goldData.candles} indicators={goldData.indicators} activeTab={subTabGold} />
-                    )}
                   </div>
-                </div>
+                ) : goldData.error ? (
+                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                    <span className="text-destructive text-sm">⚠️ {goldData.error}</span>
+                  </div>
+                ) : (
+                  <TradingChart
+                    candles={goldData.candles}
+                    indicators={goldData.indicators}
+                    zones={goldData.zones}
+                    enabledIndicators={ENABLED_INDICATORS}
+                    height={300}
+                    label="🥇 XAU/USD (Gold) · H4"
+                  />
+                )}
                 <AIActionCard ai={goldAI} symbol="🥇 XAU/USD" isGold />
                 <a href="https://www.okx.com/join/UNCLETRADER" target="_blank" rel="noopener noreferrer"
                   className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-yellow-500/30 transition-all group border border-foreground/5">
