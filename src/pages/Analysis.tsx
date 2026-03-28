@@ -104,7 +104,7 @@ const Analysis: React.FC = () => {
 
   // ── Auto H4 scan timer: trigger every 4 hours ──
   useEffect(() => {
-    if (activeTimeframe !== 'H4') return;
+    if (btcTimeframe !== 'H4' && goldTimeframe !== 'H4') return;
     const now = new Date();
     const nextH4 = new Date(now);
     // Round up to next 4-hour mark
