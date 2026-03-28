@@ -41,6 +41,11 @@ const SYMBOL_MAP: Record<string, string> = {
   'XAU/USDT': 'XAUUSDT',
   'SOL/USDT': 'SOLUSDT',
   'BNB/USDT': 'BNBUSDT',
+  'XRP/USDT': 'XRPUSDT',
+  'DOGE/USDT': 'DOGEUSDT',
+  'WLD/USDT': 'WLDUSDT',
+  'HYPE/USDT': 'HYPEUSDT',
+  'PEPE/USDT': 'PEPEUSDT',
 };
 
 export function useMarketData(pair: string, timeframe: string) {

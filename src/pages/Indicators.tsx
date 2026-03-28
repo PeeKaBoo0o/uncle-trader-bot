@@ -7,7 +7,18 @@ import IndicatorPanel, { IndicatorConfig } from '@/components/indicators/Indicat
 import SignalFeed from '@/components/indicators/SignalFeed';
 import { useMarketData, useSignals } from '@/hooks/useMarketData';
 
-const PAIRS = ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'SOL/USDT', 'BNB/USDT'];
+const PAIRS = [
+  { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
+  { symbol: 'ETH/USDT', label: 'ETH', color: '#627EEA' },
+  { symbol: 'SOL/USDT', label: 'SOL', color: '#9945FF' },
+  { symbol: 'XRP/USDT', label: 'XRP', color: '#23292F' },
+  { symbol: 'BNB/USDT', label: 'BNB', color: '#F3BA2F' },
+  { symbol: 'DOGE/USDT', label: 'DOGE', color: '#C2A633' },
+  { symbol: 'WLD/USDT', label: 'WLD', color: '#1DB4D5' },
+  { symbol: 'HYPE/USDT', label: 'HYPE', color: '#A855F7' },
+  { symbol: 'PEPE/USDT', label: 'PEPE', color: '#4CAF50' },
+];
+
 const TIMEFRAMES = ['M15', 'H1', 'H4', 'D1'];
 
 const DEFAULT_INDICATORS: IndicatorConfig[] = [
@@ -39,19 +50,18 @@ const Indicators: React.FC = () => {
   };
 
   const enabledIds = indicators.filter(i => i.enabled).map(i => i.id);
+  const activePairInfo = PAIRS.find(p => p.symbol === activePair) || PAIRS[0];
 
-  // Live price
   const lastCandle = marketData.candles[marketData.candles.length - 1];
   const livePrice = lastCandle ? lastCandle.close : 0;
   const prevCandle = marketData.candles[marketData.candles.length - 2];
   const priceChange = prevCandle ? ((livePrice - prevCandle.close) / prevCandle.close * 100) : 0;
 
-  // Log simulation
   useEffect(() => {
     if (!marketData.loading && marketData.candles.length > 0) {
       const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
       setLogs(prev => [
-        `[${now}] Scanning ${activeTimeframe} candle for ${activePair}...`,
+        `[${now}] Đang quét nến ${activeTimeframe} cho ${activePair}...`,
         ...prev.slice(0, 10),
       ]);
     }
@@ -61,48 +71,56 @@ const Indicators: React.FC = () => {
     <main className="min-h-screen bg-[#0b1120]">
       <Header />
 
-      {/* TOP BAR */}
+      {/* ═══ TOP BAR: Logo | Pair | Timeframe | Bot Status ═══ */}
       <div className="pt-20 px-2 lg:px-4">
         <div className="bg-[#0d1526] border border-white/5 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-3 text-xs">
-          {/* Pairs */}
-          <div className="flex gap-0.5">
-            {PAIRS.map(p => (
-              <button key={p} onClick={() => setActivePair(p)}
-                className={`px-2.5 py-1.5 rounded font-mono font-bold transition-all ${
-                  activePair === p
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                    : 'text-muted-foreground/60 hover:text-foreground'
-                }`}>
-                {p.split('/')[0]}
-              </button>
-            ))}
+          {/* Coin pair selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground/50 font-mono tracking-widest">PAIR</span>
+            <div className="flex gap-0.5 flex-wrap">
+              {PAIRS.map(p => (
+                <button key={p.symbol} onClick={() => setActivePair(p.symbol)}
+                  className={`px-2 py-1.5 rounded font-mono font-bold transition-all text-[11px] ${
+                    activePair === p.symbol
+                      ? 'text-foreground border border-white/20'
+                      : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
+                  }`}
+                  style={activePair === p.symbol ? { backgroundColor: `${p.color}15`, borderColor: `${p.color}40` } : {}}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="w-px h-5 bg-white/10" />
 
-          {/* Timeframes */}
-          <div className="flex gap-0.5">
-            {TIMEFRAMES.map(tf => (
-              <button key={tf} onClick={() => setActiveTimeframe(tf)}
-                className={`px-2 py-1.5 rounded font-mono transition-all ${
-                  activeTimeframe === tf
-                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                    : 'text-muted-foreground/60 hover:text-foreground'
-                }`}>
-                {tf}
-              </button>
-            ))}
+          {/* Timeframe */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground/50 font-mono tracking-widest">TF</span>
+            <div className="flex gap-0.5">
+              {TIMEFRAMES.map(tf => (
+                <button key={tf} onClick={() => setActiveTimeframe(tf)}
+                  className={`px-2 py-1.5 rounded font-mono transition-all ${
+                    activeTimeframe === tf
+                      ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                      : 'text-muted-foreground/60 hover:text-foreground'
+                  }`}>
+                  {tf}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="w-px h-5 bg-white/10" />
 
-          {/* Live Price */}
+          {/* Live price */}
           <div className="flex items-center gap-2">
             <span className="text-foreground font-mono font-bold text-sm">
               {marketData.loading ? '...' : `$${livePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </span>
             {!marketData.loading && (
-              <span className={`font-mono text-[10px] ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${priceChange >= 0 ? 'text-emerald-400 bg-emerald-400/10' : 'text-red-400 bg-red-400/10'}`}>
                 {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
               </span>
             )}
@@ -110,57 +128,79 @@ const Indicators: React.FC = () => {
 
           <div className="flex-1" />
 
-          {/* Bot Toggle */}
+          {/* Bot status */}
           <button
             onClick={() => setBotActive(!botActive)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all ${
               botActive
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                 : 'bg-red-500/10 text-red-400 border border-red-500/30'
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${botActive ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-            {botActive ? 'Bot: ON 🟢' : 'Bot: PAUSE ⏸'}
+            {botActive ? 'ĐANG CHẠY' : 'TẠM DỪNG'}
           </button>
         </div>
       </div>
 
-      {/* 3-PANEL LAYOUT */}
+      {/* ═══ 3-PANEL LAYOUT ═══ */}
       <div className="px-2 lg:px-4 py-2">
-        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-2 min-h-[70vh]">
-          {/* LEFT - Indicators */}
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_220px] gap-2 min-h-[70vh]">
+
+          {/* ── LEFT: Indicator Checklist ── */}
           <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">CHỈ BÁO</h3>
+              <span className="text-[9px] font-mono text-muted-foreground/40">{enabledIds.length}/{indicators.length}</span>
+            </div>
+            <p className="text-[9px] text-muted-foreground/40 mb-3 font-mono">Bật/Tắt để hiển thị lên đồ thị</p>
             <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
           </div>
 
-          {/* CENTER - Chart */}
-          <div className="bg-[#0d1526] border border-white/5 rounded-lg overflow-hidden">
-            {marketData.loading ? (
-              <div className="flex items-center justify-center h-[400px]">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs text-muted-foreground font-mono">Loading {activePair}...</span>
-                </div>
+          {/* ── CENTER: Chart Area ── */}
+          <div className="bg-[#0d1526] border border-white/5 rounded-lg overflow-hidden flex flex-col">
+            {/* Chart header with pair info */}
+            <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activePairInfo.color }} />
+                <span className="text-xs font-bold text-foreground font-mono">{activePair}</span>
               </div>
-            ) : marketData.error ? (
-              <div className="flex items-center justify-center h-[400px]">
-                <div className="text-center">
-                  <span className="text-red-400 text-sm">⚠️ {marketData.error}</span>
-                  <p className="text-muted-foreground text-xs mt-2">Đang sử dụng dữ liệu demo</p>
-                </div>
-              </div>
-            ) : (
-              <TradingChart
-                candles={marketData.candles}
-                indicators={marketData.indicators}
-                zones={marketData.zones}
-                enabledIndicators={enabledIds}
-              />
-            )}
+              <span className="text-[10px] text-muted-foreground/40 font-mono">Nến Nhật thời gian thực</span>
+              <div className="flex-1" />
+              <span className="text-[10px] text-muted-foreground/40 font-mono">Vẽ các Zone Kháng cự/Hỗ trợ AI</span>
+            </div>
 
-            {/* Sub-indicator tabs */}
+            {/* Main chart */}
+            <div className="flex-1">
+              {marketData.loading ? (
+                <div className="flex items-center justify-center h-[380px]">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-muted-foreground font-mono">Loading {activePair}...</span>
+                  </div>
+                </div>
+              ) : marketData.error ? (
+                <div className="flex items-center justify-center h-[380px]">
+                  <div className="text-center">
+                    <span className="text-red-400 text-sm">⚠️ {marketData.error}</span>
+                    <p className="text-muted-foreground text-xs mt-2">Đang sử dụng dữ liệu demo</p>
+                  </div>
+                </div>
+              ) : (
+                <TradingChart
+                  candles={marketData.candles}
+                  indicators={marketData.indicators}
+                  zones={marketData.zones}
+                  enabledIndicators={enabledIds}
+                  height={380}
+                />
+              )}
+            </div>
+
+            {/* Sub-indicator area */}
             <div className="border-t border-white/5">
-              <div className="flex gap-0.5 px-3 py-1.5 border-b border-white/5">
+              <div className="flex items-center gap-1 px-3 py-1.5 border-b border-white/5">
+                <span className="text-[9px] text-muted-foreground/40 font-mono tracking-widest mr-2">SUB</span>
                 {(['rsi', 'volume', 'macd'] as const).map(tab => (
                   <button key={tab} onClick={() => setSubTab(tab)}
                     className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase font-bold transition-all ${
@@ -176,25 +216,30 @@ const Indicators: React.FC = () => {
             </div>
           </div>
 
-          {/* RIGHT - Signal Feed */}
-          <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+          {/* ── RIGHT: Signal Feed ── */}
+          <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3 flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">SIGNAL FEED</h3>
+              <h3 className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">TÍN HIỆU GẦN ĐÂY</h3>
               <span className="text-[10px] font-mono text-muted-foreground/50">{signals.length}</span>
             </div>
-            <SignalFeed signals={signals} loading={signalsLoading} />
+            <p className="text-[9px] text-muted-foreground/40 mb-3 font-mono">Click để xem lại vị trí</p>
+            <div className="flex-1 overflow-hidden">
+              <SignalFeed signals={signals} loading={signalsLoading} />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* SYSTEM LOG */}
+      {/* ═══ SYSTEM LOG ═══ */}
       <div className="px-2 lg:px-4 pb-4">
         <div className="bg-[#0d1526] border border-white/5 rounded-lg px-4 py-2 flex items-center gap-3 overflow-x-auto">
-          <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest shrink-0">SYSTEM LOG</span>
+          <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest shrink-0">NHẬT KÝ HỆ THỐNG</span>
+          <div className="w-px h-3 bg-white/10" />
           <div className="flex gap-4 text-[10px] font-mono text-muted-foreground/60">
             {logs.slice(0, 4).map((log, i) => (
-              <span key={i} className={i === 0 ? 'text-cyan-400/60' : ''}>{log}</span>
+              <span key={i} className={i === 0 ? 'text-cyan-400/70' : ''}>{log}</span>
             ))}
+            {logs.length === 0 && <span>Chờ dữ liệu...</span>}
           </div>
         </div>
       </div>
