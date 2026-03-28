@@ -36,10 +36,11 @@ interface TradingChartProps {
   timeframe?: string;
   onTimeframeChange?: (tf: string) => void;
   smcAnalysis?: SmcAnalysis | null;
+  alphaNetData?: AlphaNetData | null;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiContainerRef = useRef<HTMLDivElement>(null);
