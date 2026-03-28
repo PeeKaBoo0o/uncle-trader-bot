@@ -9,7 +9,6 @@ import { useDXY } from '@/hooks/useDXY';
 import { supabase } from '@/integrations/supabase/client';
 import html2canvas from 'html2canvas';
 import { computeDualTrendlines } from '@/lib/computeTrendline';
-import { useTpSlIndicator } from '@/hooks/useTpSlIndicator';
 
 const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
 
@@ -23,7 +22,7 @@ const SIGNAL_COLORS: Record<string, { bg: string; border: string; text: string; 
   info: { bg: 'bg-blue-500/10', border: 'border-blue-500/25', text: 'text-blue-300', dot: 'bg-blue-400', label: 'INFO' },
 };
 
-const ENABLED_INDICATORS = ['bb_squeeze', 'breakout', 'breakdown', 'confluence', 'momentum', 'vol_spike', 'rsi_div', 'sup_bounce', 'macd_cross', 'tp_sl'];
+const ENABLED_INDICATORS = ['bb_squeeze', 'breakout', 'breakdown', 'confluence', 'momentum', 'vol_spike', 'rsi_div', 'sup_bounce', 'macd_cross'];
 
 const Analysis: React.FC = () => {
   const [btcTimeframe, setBtcTimeframe] = useState('H4');
@@ -43,8 +42,6 @@ const Analysis: React.FC = () => {
   const btcSignals = useSmartSignals(btcData.candles, btcData.indicators, btcData.zones, 'BTC/USDT', btcData.loading);
   const goldSignals = useSmartSignals(goldData.candles, goldData.indicators, goldData.zones, 'XAU/USDT', goldData.loading);
   const dxy = useDXY();
-  const btcTpSl = useTpSlIndicator(btcData.candles, !btcData.loading);
-  const goldTpSl = useTpSlIndicator(goldData.candles, !goldData.loading);
 
   // Merge signals for sidebar
   const allSignals = [...btcSignals, ...goldSignals]
@@ -317,7 +314,6 @@ const Analysis: React.FC = () => {
                     scanLabel={scanLabel}
                     timeframe={btcTimeframe}
                     onTimeframeChange={setBtcTimeframe}
-                    tpSlData={btcTpSl}
                   />
                 )}
                 <AIActionCard ai={btcAI} symbol="₿ BTC/USDT" />
@@ -359,7 +355,6 @@ const Analysis: React.FC = () => {
                     scanLabel={scanLabel}
                     timeframe={goldTimeframe}
                     onTimeframeChange={setGoldTimeframe}
-                    tpSlData={goldTpSl}
                   />
                 )}
                 <AIActionCard ai={goldAI} symbol="🥇 XAU/USD" isGold />
