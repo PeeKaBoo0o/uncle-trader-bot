@@ -142,7 +142,7 @@ const Analysis: React.FC = () => {
     const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     try {
       await supabase.functions.invoke('signal-bot', {
-        body: { mode: 'scan', symbols: [symbol], timeframe: activeTimeframe }
+        body: { mode: 'scan', symbols: [symbol], timeframe: symbol === 'BTCUSDT' ? btcTimeframe : goldTimeframe }
       });
       setLogs(prev => [`[${now}] ✅ Signal ${symbol} sent`, ...prev].slice(0, 15));
     } catch (e: any) {
