@@ -216,7 +216,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       ]);
     }
 
-    // ── Liquidity Hunter ──
+    // ── Liquidity Hunter (current/active only) ──
     if (enabledIndicators.includes('liq_hunter') && candles.length > 20) {
       const { zones: liqZones, grabs, trades } = computeLiquidityZones(candles, 10, 4, 'Wick');
 
@@ -231,7 +231,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
           series.setData([{ time: t1 as any, value: v2 }]);
           return;
         }
-
         if (t1 < t2) {
           series.setData([
             { time: t1 as any, value: v1 },
@@ -239,15 +238,22 @@ const TradingChart: React.FC<TradingChartProps> = ({
           ]);
           return;
         }
-
         series.setData([
           { time: t2 as any, value: v2 },
           { time: t1 as any, value: v1 },
         ]);
       };
 
-      // Target liquidity zones
-      liqZones.forEach(zone => {
+      // Only show the CURRENT trade (last open trade, or last completed + its zones)
+      // Filter: keep only the last trade (open or most recent closed)
+      const currentTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+
+      // Only show zones related to the current trade context
+      const activeZones = currentTrade
+        ? liqZones.filter(z => z.endIndex >= currentTrade.grabIndex)
+        : liqZones.slice(-2);
+
+      activeZones.forEach(zone => {
         const color = zone.type === 'high'
           ? (zone.swept ? 'rgba(239,83,80,0.65)' : 'rgba(239,83,80,0.3)')
           : (zone.swept ? 'rgba(38,166,154,0.65)' : 'rgba(38,166,154,0.3)');
@@ -268,20 +274,22 @@ const TradingChart: React.FC<TradingChartProps> = ({
         setSafeLineData(line, startTime, zone.price, endTime, zone.price);
       });
 
-      // Liquidity grabs
-      grabs.forEach(grab => {
+      // Only show the latest grab
+      if (grabs.length > 0) {
+        const latestGrab = grabs[grabs.length - 1];
         candleSeries.createPriceLine({
-          price: grab.price,
-          color: grab.type === 'sellside' ? '#26a69a' : '#ef5350',
+          price: latestGrab.price,
+          color: latestGrab.type === 'sellside' ? '#26a69a' : '#ef5350',
           lineWidth: 1,
           lineStyle: 2,
           axisLabelVisible: true,
-          title: grab.type === 'sellside' ? '● Liq Grab Low' : '● Liq Grab High',
+          title: latestGrab.type === 'sellside' ? '● Liq Grab Low' : '● Liq Grab High',
         } as any);
-      });
+      }
 
-      // Entries + TP/SL projections with labels
-      trades.forEach(trade => {
+      // Render only the current/last trade
+      if (currentTrade) {
+        const trade = currentTrade;
         const entryTime = Math.floor(candles[trade.entryIndex].time / 1000);
         const endIdx = trade.exitIndex ?? candles.length - 1;
         const endTime = Math.floor(candles[endIdx].time / 1000);
@@ -297,7 +305,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
           title: isLong ? '▲ Buy' : '▼ Sell',
         } as any);
 
-        // TP/SL dashed lines with label at the end
+        // TP/SL dashed lines with labels
         const addLabeledLine = (price: number, label: string, color: string) => {
           const series = chart.addSeries(LineSeries, {
             color,
@@ -327,7 +335,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
             title: `✓ ${trade.result}`,
           } as any);
         }
-      });
+      }
     }
 
     // ── AI SMC Analysis Overlay ──
