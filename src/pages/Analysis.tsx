@@ -78,6 +78,10 @@ const Analysis: React.FC = () => {
   const btcAI = getAIPoints(btcData, 'BTC');
   const goldAI = getAIPoints(goldData, 'XAU');
 
+  // ── Compute trendlines from candle data ──
+  const btcTrendlines = useMemo(() => computeDualTrendlines(btcData.candles), [btcData.candles]);
+  const goldTrendlines = useMemo(() => computeDualTrendlines(goldData.candles), [goldData.candles]);
+
   // Scan animation
   const triggerScan = useCallback(() => {
     setScanning(true);
@@ -86,17 +90,39 @@ const Analysis: React.FC = () => {
     setLogs(prev => [`[${now}] 🔄 Gemini AI scanning ${activeTimeframe}...`, ...prev].slice(0, 15));
     setTimeout(() => {
       setScanLabel('✅ Phân tích hoàn tất — Trendline & Zones đã cập nhật');
-      setLogs(prev => [`[${now}] ✅ AI scan complete — zones updated`, ...prev].slice(0, 15));
+      setLogs(prev => [`[${now}] ✅ AI scan complete — trendlines & zones updated`, ...prev].slice(0, 15));
     }, 2500);
     setTimeout(() => { setScanning(false); setScanLabel(''); }, 4000);
   }, [activeTimeframe]);
 
-  // Auto-refresh scan every H4 (simulate)
+  // Trigger scan on data load & timeframe change
   useEffect(() => {
     if (!btcData.loading && btcData.candles.length > 0) {
       triggerScan();
     }
-  }, [activeTimeframe]); // trigger on timeframe change
+  }, [activeTimeframe, btcData.loading]);
+
+  // ── Auto H4 scan timer: trigger every 4 hours ──
+  useEffect(() => {
+    if (activeTimeframe !== 'H4') return;
+    const now = new Date();
+    const nextH4 = new Date(now);
+    // Round up to next 4-hour mark
+    const h = nextH4.getUTCHours();
+    const nextH = Math.ceil((h + 1) / 4) * 4;
+    nextH4.setUTCHours(nextH, 0, 10, 0); // 10s after candle close
+    if (nextH4 <= now) nextH4.setUTCHours(nextH4.getUTCHours() + 4);
+    const msUntilNext = nextH4.getTime() - now.getTime();
+
+    const timeout = setTimeout(() => {
+      triggerScan();
+      // Then repeat every 4 hours
+      const interval = setInterval(triggerScan, 4 * 60 * 60 * 1000);
+      return () => clearInterval(interval);
+    }, msUntilNext);
+
+    return () => clearTimeout(timeout);
+  }, [activeTimeframe, triggerScan]);
 
   // Screenshot
   const handleScreenshot = useCallback(async () => {
