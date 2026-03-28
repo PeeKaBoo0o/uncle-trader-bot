@@ -686,12 +686,13 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── TP/SL Zones (only show current active trade) ──
-    if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.activeTrade) {
-      const trade = tpSlData.activeTrade;
+    // ── TP/SL Zones (show current or last trade) ──
+    if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.trades.length > 0) {
+      const trade = tpSlData.activeTrade ?? tpSlData.trades[tpSlData.trades.length - 1];
       const entryT = Math.floor(trade.entryTime / 1000);
       const endT = Math.floor(candles[candles.length - 1].time / 1000);
       const isLong = trade.type === 'long';
+      const isActive = trade.result === 'open';
 
       const setSafeData = (series: any, t1: number, v1: number, t2: number, v2: number) => {
         if (t1 === t2) { series.setData([{ time: t1 as any, value: v2 }]); return; }
@@ -707,18 +708,18 @@ const TradingChart: React.FC<TradingChartProps> = ({
         title: isLong ? '▲ LONG' : '▼ SHORT',
       } as any);
 
-      // TP line (green dashed) with label
+      // TP line with label
       candleSeries.createPriceLine({
         price: trade.tpPrice,
         color: '#4CAF50', lineWidth: 1, lineStyle: 2,
-        axisLabelVisible: true, title: 'TP',
+        axisLabelVisible: true, title: `TP (${isLong ? '+' : '-'}${((Math.abs(trade.tpPrice - trade.entryPrice) / trade.entryPrice) * 100).toFixed(1)}%)`,
       } as any);
 
-      // SL line (red dashed) with label
+      // SL line with label
       candleSeries.createPriceLine({
         price: trade.slPrice,
         color: '#F44336', lineWidth: 1, lineStyle: 2,
-        axisLabelVisible: true, title: 'SL',
+        axisLabelVisible: true, title: `SL (${isLong ? '-' : '+'}${((Math.abs(trade.slPrice - trade.entryPrice) / trade.entryPrice) * 100).toFixed(1)}%)`,
       } as any);
 
       // TP fill zone (green)
@@ -746,6 +747,17 @@ const TradingChart: React.FC<TradingChartProps> = ({
         .filter(c => { const t = Math.floor(c.time / 1000); return t >= entryT && t <= endT; })
         .map(c => ({ time: Math.floor(c.time / 1000) as any, value: slMid }));
       if (slFillData.length > 0) slFill.setData(slFillData);
+
+      // Result marker if closed
+      if (!isActive) {
+        const hitColor = trade.result === 'TP' ? '#9C27B0' : '#9E9E9E';
+        const hitLabel = trade.result === 'TP' ? '✓ Hit TP' : '✗ Hit SL';
+        candleSeries.createPriceLine({
+          price: trade.result === 'TP' ? trade.tpPrice : trade.slPrice,
+          color: hitColor, lineWidth: 2, lineStyle: 0,
+          axisLabelVisible: false, title: hitLabel,
+        } as any);
+      }
     }
 
     // ── Crosshair data (OHLC legend) ──
