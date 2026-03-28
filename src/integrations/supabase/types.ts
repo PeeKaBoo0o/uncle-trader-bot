@@ -158,6 +158,48 @@ export type Database = {
         }
         Relationships: []
       }
+      signals: {
+        Row: {
+          candle_time: string
+          conditions: string[]
+          created_at: string
+          id: string
+          price: number
+          rsi: number | null
+          sent_at: string
+          strength: string
+          symbol: string
+          timeframe: string
+          vol_ratio: number | null
+        }
+        Insert: {
+          candle_time: string
+          conditions?: string[]
+          created_at?: string
+          id?: string
+          price: number
+          rsi?: number | null
+          sent_at?: string
+          strength?: string
+          symbol: string
+          timeframe?: string
+          vol_ratio?: number | null
+        }
+        Update: {
+          candle_time?: string
+          conditions?: string[]
+          created_at?: string
+          id?: string
+          price?: number
+          rsi?: number | null
+          sent_at?: string
+          strength?: string
+          symbol?: string
+          timeframe?: string
+          vol_ratio?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
