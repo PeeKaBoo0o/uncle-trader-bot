@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, LineSeries, HistogramSeries } from 'lightweight-charts';
 import type { Candle, Indicators } from '@/hooks/useMarketData';
 
 interface SubIndicatorsProps {
@@ -40,20 +40,18 @@ const SubIndicators: React.FC<SubIndicatorsProps> = ({ candles, indicators, acti
     chartRef.current = chart;
 
     if (activeTab === 'rsi') {
-      const rsiSeries = chart.addLineSeries({ color: '#A855F7', lineWidth: 2, priceLineVisible: false });
+      const rsiSeries = chart.addSeries(LineSeries, { color: '#A855F7', lineWidth: 2, priceLineVisible: false });
       const data = indicators.rsi
         .map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
         .filter(d => !isNaN(d.value));
       if (data.length > 0) rsiSeries.setData(data);
-
-      // Overbought/oversold lines
       rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' } as any);
       rsiSeries.createPriceLine({ price: 30, color: 'rgba(16,185,129,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' } as any);
     }
 
     if (activeTab === 'volume') {
-      const volSeries = chart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
-      const data = candles.map((c, i) => ({
+      const volSeries = chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false });
+      const data = candles.map((c) => ({
         time: (c.time / 1000) as any,
         value: c.volume,
         color: c.close >= c.open ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)',
@@ -62,9 +60,9 @@ const SubIndicators: React.FC<SubIndicatorsProps> = ({ candles, indicators, acti
     }
 
     if (activeTab === 'macd') {
-      const macdSeries = chart.addLineSeries({ color: '#00D4FF', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-      const signalSeries = chart.addLineSeries({ color: '#F97316', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-      const histSeries = chart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
+      const macdSeries = chart.addSeries(LineSeries, { color: '#00D4FF', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+      const signalSeries = chart.addSeries(LineSeries, { color: '#F97316', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+      const histSeries = chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false });
 
       const macdData = indicators.macd.macdLine.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
       const signalData = indicators.macd.signalLine.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));

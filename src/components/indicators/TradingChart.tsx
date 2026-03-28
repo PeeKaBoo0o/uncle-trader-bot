@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, CrosshairMode, IChartApi, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import type { Candle, Indicators, Zone } from '@/hooks/useMarketData';
 
 interface TradingChartProps {
@@ -13,12 +13,10 @@ interface TradingChartProps {
 const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones, signals, enabledIndicators }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const [chartReady, setChartReady] = useState(false);
 
   useEffect(() => {
     if (!chartContainerRef.current || candles.length === 0) return;
 
-    // Clean up previous chart
     if (chartRef.current) {
       chartRef.current.remove();
       chartRef.current = null;
@@ -51,8 +49,7 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
 
     chartRef.current = chart;
 
-    // Candlestick series
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10B981',
       downColor: '#EF4444',
       borderUpColor: '#10B981',
@@ -72,8 +69,8 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
 
     // Bollinger Bands
     if (indicators && enabledIndicators.includes('bb_squeeze')) {
-      const addLine = (values: number[], color: string, lineWidth = 1) => {
-        const series = chart.addLineSeries({ color, lineWidth: lineWidth as any, priceLineVisible: false, lastValueVisible: false });
+      const addLine = (values: number[], color: string) => {
+        const series = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
         const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
         if (data.length > 0) series.setData(data);
       };
@@ -85,7 +82,7 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     // EMA lines
     if (indicators && enabledIndicators.includes('ema_cross')) {
       const addEMA = (values: number[], color: string) => {
-        const series = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+        const series = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
         const data = values.map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v })).filter(d => !isNaN(d.value));
         if (data.length > 0) series.setData(data);
       };
@@ -93,18 +90,17 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
       addEMA(indicators.ema50, '#8B5CF6');
     }
 
-    // Support/Resistance zones as horizontal lines
+    // S/R zones
     zones.forEach(zone => {
       const color = zone.type === 'support' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)';
-      const priceLine = {
+      candleSeries.createPriceLine({
         price: (zone.top + zone.bottom) / 2,
         color,
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
         title: zone.type === 'support' ? 'S' : 'R',
-      };
-      candleSeries.createPriceLine(priceLine as any);
+      } as any);
     });
 
     // Signal markers
@@ -120,20 +116,12 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     }
 
     chart.timeScale().fitContent();
-    setChartReady(true);
 
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
+      if (chartContainerRef.current) chart.applyOptions({ width: chartContainerRef.current.clientWidth });
     };
     window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-      chartRef.current = null;
-    };
+    return () => { window.removeEventListener('resize', handleResize); chart.remove(); };
   }, [candles, indicators, zones, signals, enabledIndicators]);
 
   return <div ref={chartContainerRef} className="w-full" style={{ minHeight: 400 }} />;
