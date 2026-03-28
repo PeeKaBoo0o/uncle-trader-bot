@@ -43,7 +43,7 @@ const SubIndicators: React.FC<SubIndicatorsProps> = ({ candles, indicators, acti
       const rsiSeries = chart.addSeries(LineSeries, { color: '#A855F7', lineWidth: 2, priceLineVisible: false });
       const data = indicators.rsi
         .map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
-        .filter(d => !isNaN(d.value));
+        .filter(d => typeof d.value === 'number' && !isNaN(d.value) && d.value !== null);
       if (data.length > 0) rsiSeries.setData(data);
       rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' } as any);
       rsiSeries.createPriceLine({ price: 30, color: 'rgba(16,185,129,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' } as any);
