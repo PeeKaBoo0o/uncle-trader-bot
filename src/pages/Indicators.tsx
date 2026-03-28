@@ -178,14 +178,14 @@ const Indicators: React.FC = () => {
             {/* Main chart */}
             <div className="flex-1">
               {marketData.loading ? (
-                <div className="flex items-center justify-center h-[380px]">
+                <div className="flex items-center justify-center h-[520px]">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs text-muted-foreground font-mono">Loading {activePair}...</span>
                   </div>
                 </div>
               ) : marketData.error ? (
-                <div className="flex items-center justify-center h-[380px]">
+                <div className="flex items-center justify-center h-[520px]">
                   <div className="text-center">
                     <span className="text-red-400 text-sm">⚠️ {marketData.error}</span>
                     <p className="text-muted-foreground text-xs mt-2">Đang sử dụng dữ liệu demo</p>
@@ -197,7 +197,7 @@ const Indicators: React.FC = () => {
                   indicators={marketData.indicators}
                   zones={marketData.zones}
                   enabledIndicators={enabledIds}
-                  height={380}
+                  height={520}
                   smcAnalysis={smcResult.analysis}
                 />
               )}

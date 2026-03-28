@@ -58,7 +58,7 @@ export function useMarketData(pair: string, timeframe: string) {
     try {
       const symbol = SYMBOL_MAP[pair] || pair.replace('/', '');
       const { data: result, error } = await supabase.functions.invoke('signal-bot', {
-        body: { mode: 'indicators', symbol, timeframe, limit: 100 }
+        body: { mode: 'indicators', symbol, timeframe, limit: 300 }
       });
 
       if (error) throw error;
