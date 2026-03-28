@@ -352,7 +352,7 @@ ${condList}
 }
 
 // ─── TIMEFRAME MAP ───
-const TF_MAP: Record<string, string> = { M15: "15m", H1: "1h", H4: "4h", D1: "1d" };
+const TF_MAP: Record<string, string> = { M5: "5m", M15: "15m", M30: "30m", H1: "1h", H4: "4h", D1: "1d", W1: "1w" };
 
 // ─── MAIN HANDLER ───
 serve(async (req) => {
