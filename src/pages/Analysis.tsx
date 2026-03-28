@@ -350,9 +350,11 @@ const Analysis: React.FC = () => {
                     trendlineResistance={goldTrendlines.resistance}
                     enabledIndicators={ENABLED_INDICATORS}
                     height={300}
-                    label={`🥇 XAU/USD (Gold) · ${goldTimeframe}`}
+                    label="🥇 XAU/USD (Gold)"
                     scanning={scanning}
                     scanLabel={scanLabel}
+                    timeframe={goldTimeframe}
+                    onTimeframeChange={setGoldTimeframe}
                   />
                 )}
                 <AIActionCard ai={goldAI} symbol="🥇 XAU/USD" isGold />
