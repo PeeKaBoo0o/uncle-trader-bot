@@ -12,6 +12,7 @@ import Indicators from "./pages/Indicators.tsx";
 import EconomicCalendar from "./pages/EconomicCalendar.tsx";
 import Dictionary from "./pages/Dictionary.tsx";
 import DictionaryDetail from "./pages/DictionaryDetail.tsx";
+import NewsDetail from "./pages/NewsDetail.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -27,8 +28,9 @@ const App = () => (
           <Route path="/homepage" element={<Index />} />
           <Route path="/services" element={<Services />} />
           <Route path="/tin-tuc" element={<News />} />
+          <Route path="/tin-tuc/:id" element={<NewsDetail />} />
           <Route path="/phan-tich" element={<Analysis />} />
-          <Route path="/indicators" element={<Indicators />} />
+          <Route path="/indicators" element={<Analysis />} />
           <Route path="/lich-kinh-te" element={<EconomicCalendar />} />
           <Route path="/tu-dien" element={<Dictionary />} />
           <Route path="/tu-dien/:slug" element={<DictionaryDetail />} />
