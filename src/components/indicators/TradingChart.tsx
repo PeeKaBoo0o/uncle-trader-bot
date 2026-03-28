@@ -619,7 +619,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       chartRef.current = null;
       rsiChartRef.current = null;
     };
-  }, [candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis]);
+  }, [candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis, alphaNetData]);
 
   const lastCandle = candles[candles.length - 1];
   const isUp = crosshairData ? crosshairData.change >= 0 : (lastCandle ? lastCandle.close >= lastCandle.open : true);
