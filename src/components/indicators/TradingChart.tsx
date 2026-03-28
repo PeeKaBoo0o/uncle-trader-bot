@@ -29,7 +29,7 @@ interface TradingChartProps {
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiContainerRef = useRef<HTMLDivElement>(null);
