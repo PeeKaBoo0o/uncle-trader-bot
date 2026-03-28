@@ -309,7 +309,7 @@ const Analysis: React.FC = () => {
                     trendlineResistance={btcTrendlines.resistance}
                     enabledIndicators={ENABLED_INDICATORS}
                     height={300}
-                    label={`₿ BTC/USDT · ${activeTimeframe} · Binance`}
+                    label={`₿ BTC/USDT · ${btcTimeframe} · Binance`}
                     scanning={scanning}
                     scanLabel={scanLabel}
                   />
