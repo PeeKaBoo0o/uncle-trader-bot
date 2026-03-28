@@ -477,59 +477,64 @@ serve(async (req) => {
     const results = [];
 
     for (const sym of symbols) {
-      const candles = await fetchCandles(sym, interval, limit);
-      const closes = candles.map(c => c.close);
-      const volumes = candles.map(c => c.volume);
-      const rsi = calcRSI(closes);
-      const volAvg = calcVolumeAvg(volumes);
-      const zones = await getAIZones(candles, sym);
+      try {
+        const candles = await fetchCandles(sym, interval, limit);
+        const closes = candles.map(c => c.close);
+        const volumes = candles.map(c => c.volume);
+        const rsi = calcRSI(closes);
+        const volAvg = calcVolumeAvg(volumes);
+        const zones = await getAIZones(candles, sym);
 
-      const conditions = checkAllConditions(candles, zones.zones);
-      const n = candles.length - 1;
-      const currRSI = rsi[n] || 50;
-      const currVolRatio = !isNaN(volAvg[n]) && volAvg[n] > 0 ? candles[n].volume / volAvg[n] : 1;
-      const strength = getStrength(conditions);
+        const conditions = checkAllConditions(candles, zones.zones);
+        const n = candles.length - 1;
+        const currRSI = rsi[n] || 50;
+        const currVolRatio = !isNaN(volAvg[n]) && volAvg[n] > 0 ? candles[n].volume / volAvg[n] : 1;
+        const strength = getStrength(conditions);
 
-      if (shouldSendSignal(conditions)) {
-        const candleTime = new Date(candles[n].time).toISOString();
-        const antiSpamKey = `${sym}_${candles[n].time}`;
+        if (shouldSendSignal(conditions)) {
+          const candleTime = new Date(candles[n].time).toISOString();
 
-        // Check anti-spam
-        const { data: existing } = await supabase
-          .from("signals")
-          .select("id")
-          .eq("symbol", sym)
-          .eq("candle_time", candleTime)
-          .eq("timeframe", timeframe)
-          .maybeSingle();
+          // Check anti-spam
+          const { data: existing } = await supabase
+            .from("signals")
+            .select("id")
+            .eq("symbol", sym)
+            .eq("candle_time", candleTime)
+            .eq("timeframe", timeframe)
+            .maybeSingle();
 
-        if (!existing) {
-          const triggeredNames = conditions.filter(c => c.triggered).map(c => c.name);
+          if (!existing) {
+            const triggeredNames = conditions.filter(c => c.triggered).map(c => c.name);
 
-          // Save to DB
-          await supabase.from("signals").insert({
-            symbol: sym,
-            timeframe,
-            conditions: triggeredNames,
-            strength,
-            price: candles[n].close,
-            rsi: currRSI,
-            vol_ratio: currVolRatio,
-            candle_time: candleTime,
-          });
+            // Save to DB
+            await supabase.from("signals").insert({
+              symbol: sym,
+              timeframe,
+              conditions: triggeredNames,
+              strength,
+              price: candles[n].close,
+              rsi: currRSI,
+              vol_ratio: currVolRatio,
+              candle_time: candleTime,
+            });
 
-          // Send Telegram
-          if (telegramChatId) {
-            const msg = formatTelegramMessage(sym, timeframe, conditions, candles[n].close, currRSI, currVolRatio, strength);
-            await sendTelegram(telegramChatId, msg);
+            // Send Telegram
+            if (telegramChatId) {
+              const msg = formatTelegramMessage(sym, timeframe, conditions, candles[n].close, currRSI, currVolRatio, strength);
+              await sendTelegram(telegramChatId, msg);
+            }
+
+            results.push({ symbol: sym, strength, conditions: triggeredNames, price: candles[n].close });
+          } else {
+            results.push({ symbol: sym, status: "already_sent", candleTime });
           }
-
-          results.push({ symbol: sym, strength, conditions: triggeredNames, price: candles[n].close });
         } else {
-          results.push({ symbol: sym, status: "already_sent", candleTime });
+          results.push({ symbol: sym, status: "no_signal", triggeredCount: conditions.filter(c => c.triggered).length });
         }
-      } else {
-        results.push({ symbol: sym, status: "no_signal", triggeredCount: conditions.filter(c => c.triggered).length });
+      } catch (symError) {
+        const errorMsg = symError instanceof Error ? symError.message : "Unknown symbol error";
+        console.error(`Scan failed for ${sym}:`, errorMsg);
+        results.push({ symbol: sym, status: "error", error: errorMsg });
       }
     }
 
