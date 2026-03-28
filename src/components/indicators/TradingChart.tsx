@@ -325,6 +325,105 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
+    // ── AI SMC Analysis Overlay ──
+    if (smcAnalysis && enabledIndicators.includes('liq_hunter')) {
+      const setSafeData = (series: any, t1: number, v1: number, t2: number, v2: number) => {
+        if (t1 === t2) { series.setData([{ time: t1 as any, value: v2 }]); return; }
+        if (t1 < t2) { series.setData([{ time: t1 as any, value: v1 }, { time: t2 as any, value: v2 }]); return; }
+        series.setData([{ time: t2 as any, value: v2 }, { time: t1 as any, value: v1 }]);
+      };
+
+      // Liquidity Boxes as shaded zones
+      smcAnalysis.liquidity_boxes.forEach(box => {
+        const isBuyside = box.type === 'Buyside';
+        const fillColor = isBuyside ? 'rgba(38,166,154,0.12)' : 'rgba(239,83,80,0.12)';
+        const lineColor = isBuyside ? 'rgba(38,166,154,0.5)' : 'rgba(239,83,80,0.5)';
+        const startT = Math.floor(box.start_time / 1000);
+        const endT = Math.floor(box.end_time / 1000);
+
+        // Top line
+        const topLine = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(topLine, startT, box.top_price, endT, box.top_price);
+
+        // Bottom line
+        const bottomLine = chart.addSeries(LineSeries, {
+          color: lineColor, lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        setSafeData(bottomLine, startT, box.bottom_price, endT, box.bottom_price);
+
+        // Fill area
+        const fillSeries = chart.addSeries(AreaSeries, {
+          topColor: fillColor, bottomColor: fillColor,
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const mid = (box.top_price + box.bottom_price) / 2;
+        const startCandle = candles.find(c => Math.floor(c.time / 1000) >= startT);
+        const endCandle = [...candles].reverse().find(c => Math.floor(c.time / 1000) <= endT);
+        if (startCandle && endCandle) {
+          const fillData = candles
+            .filter(c => {
+              const t = Math.floor(c.time / 1000);
+              return t >= startT && t <= endT;
+            })
+            .map(c => ({ time: Math.floor(c.time / 1000) as any, value: mid }));
+          if (fillData.length > 0) fillSeries.setData(fillData);
+        }
+      });
+
+      // Trade signal: Entry + TP1/TP2/TP3 + SL
+      if (smcAnalysis.trade_signal.has_signal && smcAnalysis.trade_signal.entry_price) {
+        const sig = smcAnalysis.trade_signal;
+        const isLong = sig.type === 'Long';
+        const entryT = Math.floor((sig.entry_time || candles[candles.length - 1].time) / 1000);
+        const endT = Math.floor(candles[candles.length - 1].time / 1000);
+
+        // Entry price line
+        candleSeries.createPriceLine({
+          price: sig.entry_price!,
+          color: isLong ? '#26a69a' : '#ef5350',
+          lineWidth: 2,
+          lineStyle: 0,
+          axisLabelVisible: true,
+          title: isLong ? '▲ AI Buy' : '▼ AI Sell',
+        } as any);
+
+        const addTPLine = (price: number | undefined, label: string) => {
+          if (!price) return;
+          const series = chart.addSeries(LineSeries, {
+            color: 'rgba(38,166,154,0.7)', lineWidth: 1, lineStyle: 2,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          setSafeData(series, entryT, price, endT, price);
+          candleSeries.createPriceLine({
+            price, color: '#26a69a', lineWidth: 1, lineStyle: 2,
+            axisLabelVisible: true, title: label,
+          } as any);
+        };
+
+        addTPLine(sig.TP1, 'TP1');
+        addTPLine(sig.TP2, 'TP2');
+        addTPLine(sig.TP3, 'TP3');
+
+        // SL
+        if (sig.SL) {
+          const slSeries = chart.addSeries(LineSeries, {
+            color: 'rgba(239,83,80,0.7)', lineWidth: 1, lineStyle: 2,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          setSafeData(slSeries, entryT, sig.SL, endT, sig.SL);
+          candleSeries.createPriceLine({
+            price: sig.SL, color: '#ef5350', lineWidth: 1, lineStyle: 2,
+            axisLabelVisible: true, title: 'SL',
+          } as any);
+        }
+      }
+    }
+
     // ── Signal arrows ──
     if (signals && signals.length > 0) {
       signals.forEach(s => {
