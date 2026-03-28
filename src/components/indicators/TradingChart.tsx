@@ -10,6 +10,8 @@ export interface AITrendline {
   end: { time: number; price: number };
 }
 
+const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
+
 interface TradingChartProps {
   candles: Candle[];
   indicators: Indicators | null;
@@ -22,6 +24,8 @@ interface TradingChartProps {
   label?: string;
   scanning?: boolean;
   scanLabel?: string;
+  timeframe?: string;
+  onTimeframeChange?: (tf: string) => void;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
