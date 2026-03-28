@@ -18,9 +18,11 @@ const TradingChart: React.FC<TradingChartProps> = ({ candles, indicators, zones,
     if (!chartContainerRef.current || candles.length === 0) return;
 
     if (chartRef.current) {
-      chartRef.current.remove();
+      try { chartRef.current.remove(); } catch { /* already disposed */ }
       chartRef.current = null;
     }
+
+    if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
