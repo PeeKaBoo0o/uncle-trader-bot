@@ -9,6 +9,7 @@ import type { SmcAnalysis } from '@/hooks/useSmcAnalysis';
 import type { AlphaNetData } from '@/hooks/useAlphaNet';
 import type { MatrixData } from '@/hooks/useMatrixIndicator';
 import type { EngineData } from '@/hooks/useEngineIndicator';
+import type { TpSlData } from '@/hooks/useTpSlIndicator';
 
 export interface AITrendline {
   start: { time: number; price: number };
