@@ -218,86 +218,104 @@ const TradingChart: React.FC<TradingChartProps> = ({
     if (enabledIndicators.includes('liq_hunter') && candles.length > 20) {
       const { zones: liqZones, grabs, trades } = computeLiquidityZones(candles, 10, 4, 'Wick');
 
-      // Draw liquidity grab circles (green below for sellside, red above for buyside)
+      // Target liquidity zones
+      liqZones.forEach(zone => {
+        const color = zone.type === 'high'
+          ? (zone.swept ? 'rgba(239,83,80,0.65)' : 'rgba(239,83,80,0.3)')
+          : (zone.swept ? 'rgba(38,166,154,0.65)' : 'rgba(38,166,154,0.3)');
+
+        const line = chart.addSeries(LineSeries, {
+          color,
+          lineWidth: 1,
+          lineStyle: zone.swept ? 0 : 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        });
+
+        const startIdx = Math.max(0, Math.min(zone.startIndex, candles.length - 1));
+        const endIdx = Math.max(0, Math.min(zone.endIndex, candles.length - 1));
+
+        line.setData([
+          { time: (candles[startIdx].time / 1000) as any, value: zone.price },
+          { time: (candles[endIdx].time / 1000) as any, value: zone.price },
+        ]);
+      });
+
+      // Liquidity grabs
       grabs.forEach(grab => {
-        const markerColor = grab.type === 'sellside' ? '#26a69a' : '#ef5350';
         candleSeries.createPriceLine({
           price: grab.price,
-          color: markerColor,
+          color: grab.type === 'sellside' ? '#26a69a' : '#ef5350',
           lineWidth: 1,
           lineStyle: 2,
-          axisLabelVisible: false,
-          title: grab.type === 'sellside' ? '● Liq Grab' : '● Liq Grab',
+          axisLabelVisible: true,
+          title: grab.type === 'sellside' ? '● Liq Grab Low' : '● Liq Grab High',
         } as any);
       });
 
-      // Draw trades: Buy/Sell entries + TP1/TP2/TP3 dashed lines + SL line
+      // Entries + TP/SL projections
       trades.forEach(trade => {
         const entryTime = (candles[trade.entryIndex].time / 1000) as any;
         const endIdx = trade.exitIndex ?? candles.length - 1;
         const endTime = (candles[endIdx].time / 1000) as any;
         const isLong = trade.type === 'Long';
-        const entryColor = isLong ? '#26a69a' : '#ef5350';
 
-        // Entry marker as price line
         candleSeries.createPriceLine({
           price: trade.entryPrice,
-          color: entryColor,
+          color: isLong ? '#26a69a' : '#ef5350',
           lineWidth: 1,
           lineStyle: 0,
           axisLabelVisible: true,
           title: isLong ? '▲ Buy' : '▼ Sell',
         } as any);
 
-        // TP1 line (dashed green)
-        const tp1Series = chart.addSeries(LineSeries, {
-          color: 'rgba(38,166,154,0.6)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        tp1Series.setData([{ time: entryTime, value: trade.tp1 }, { time: endTime, value: trade.tp1 }]);
+        const addProjectionLine = (price: number, color: string) => {
+          const series = chart.addSeries(LineSeries, {
+            color,
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          series.setData([
+            { time: entryTime, value: price },
+            { time: endTime, value: price },
+          ]);
+        };
 
-        // TP2 line
-        const tp2Series = chart.addSeries(LineSeries, {
-          color: 'rgba(38,166,154,0.6)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        tp2Series.setData([{ time: entryTime, value: trade.tp2 }, { time: endTime, value: trade.tp2 }]);
+        addProjectionLine(trade.tp1, 'rgba(38,166,154,0.62)');
+        addProjectionLine(trade.tp2, 'rgba(38,166,154,0.62)');
+        addProjectionLine(trade.tp3, 'rgba(38,166,154,0.62)');
+        addProjectionLine(trade.slTarget, 'rgba(239,83,80,0.62)');
 
-        // TP3 line
-        const tp3Series = chart.addSeries(LineSeries, {
-          color: 'rgba(38,166,154,0.6)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
+        const tpConnector = chart.addSeries(LineSeries, {
+          color: 'rgba(38,166,154,0.3)',
+          lineWidth: 1,
+          lineStyle: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
         });
-        tp3Series.setData([{ time: entryTime, value: trade.tp3 }, { time: endTime, value: trade.tp3 }]);
+        tpConnector.setData([
+          { time: entryTime, value: trade.entryPrice },
+          { time: entryTime, value: trade.tp3 },
+        ]);
 
-        // SL line (dashed red)
-        const slSeries = chart.addSeries(LineSeries, {
-          color: 'rgba(239,83,80,0.6)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
+        const slConnector = chart.addSeries(LineSeries, {
+          color: 'rgba(239,83,80,0.3)',
+          lineWidth: 1,
+          lineStyle: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
         });
-        slSeries.setData([{ time: entryTime, value: trade.slTarget }, { time: endTime, value: trade.slTarget }]);
+        slConnector.setData([
+          { time: entryTime, value: trade.entryPrice },
+          { time: entryTime, value: trade.slTarget },
+        ]);
 
-        // Entry → TP vertical connector line
-        const connTpSeries = chart.addSeries(LineSeries, {
-          color: 'rgba(38,166,154,0.3)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        connTpSeries.setData([{ time: entryTime, value: trade.entryPrice }, { time: entryTime, value: trade.tp3 }]);
-
-        // Entry → SL vertical connector line
-        const connSlSeries = chart.addSeries(LineSeries, {
-          color: 'rgba(239,83,80,0.3)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        connSlSeries.setData([{ time: entryTime, value: trade.entryPrice }, { time: entryTime, value: trade.slTarget }]);
-
-        // Result labels (TP1/TP2/TP3/SL) at exit
-        if (trade.result && trade.exitIndex !== undefined) {
-          const exitTime = (candles[trade.exitIndex].time / 1000) as any;
-          const resultColor = trade.result === 'SL' ? '#ef5350' : '#26a69a';
+        if (trade.result && trade.exitPrice !== undefined) {
           candleSeries.createPriceLine({
-            price: trade.exitPrice!,
-            color: resultColor,
+            price: trade.exitPrice,
+            color: trade.result === 'SL' ? '#ef5350' : '#26a69a',
             lineWidth: 1,
             lineStyle: 0,
             axisLabelVisible: true,
