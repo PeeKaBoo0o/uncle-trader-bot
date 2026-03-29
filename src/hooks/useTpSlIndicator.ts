@@ -108,13 +108,39 @@ export function useTpSlIndicator(
 
       // Update long_short (first pass — entry signals)
       if (longLast) {
+        // Close previous opposite open trade at previous bar to avoid overlap
+        const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+        if (lastTrade && lastTrade.result === 'open' && lastTrade.type === 'short') {
+          lastTrade.result = 'closed';
+          lastTrade.exitIndex = Math.max(i - 1, lastTrade.entryIndex);
+          lastTrade.exitTime = candles[Math.max(i - 1, lastTrade.entryIndex)].time;
+        }
+
         longShort = 1;
         longPrice = closes[i];
         barsSinceLong = 0;
+
+        trades.push({
+          type: 'long', entryIndex: i, entryTime: candles[i].time,
+          entryPrice: closes[i], slPrice: closes[i] * (1 - stopPer), tpPrice: closes[i] * (1 + takePer), result: 'open',
+        });
       } else if (shortLast) {
+        // Close previous opposite open trade at previous bar to avoid overlap
+        const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+        if (lastTrade && lastTrade.result === 'open' && lastTrade.type === 'long') {
+          lastTrade.result = 'closed';
+          lastTrade.exitIndex = Math.max(i - 1, lastTrade.entryIndex);
+          lastTrade.exitTime = candles[Math.max(i - 1, lastTrade.entryIndex)].time;
+        }
+
         longShort = -1;
         shortPrice = closes[i];
         barsSinceShort = 0;
+
+        trades.push({
+          type: 'short', entryIndex: i, entryTime: candles[i].time,
+          entryPrice: closes[i], slPrice: closes[i] * (1 + stopPer), tpPrice: closes[i] * (1 - takePer), result: 'open',
+        });
       } else {
         // Increment barsSince counters
         if (barsSinceLong < Infinity) barsSinceLong++;
@@ -122,35 +148,6 @@ export function useTpSlIndicator(
       }
 
       // Compute SL/TP prices
-      const longStop = longPrice * (1 - stopPer);
-      const shortStop = shortPrice * (1 + stopPer);
-      const longTake = longPrice * (1 + takePer);
-      const shortTake = shortPrice * (1 - takePer);
-
-      // Pine: longBar2 = barssince(long_last) >= 1 (skip entry bar)
-      const longBar2 = barsSinceLong >= 1;
-      const shortBar2 = barsSinceShort >= 1;
-
-      // Check SL/TP hits
-      const longSLhit = longShort === 1 && longBar2 && lows[i] < longStop;
-      const shortSLhit = longShort === -1 && shortBar2 && highs[i] > shortStop;
-      const longTPhit = longShort === 1 && longBar2 && highs[i] > longTake;
-      const shortTPhit = longShort === -1 && shortBar2 && lows[i] < shortTake;
-
-      // Record entry trades
-      if (longLast) {
-        trades.push({
-          type: 'long', entryIndex: i, entryTime: candles[i].time,
-          entryPrice: closes[i], slPrice: longStop, tpPrice: longTake, result: 'open',
-        });
-      } else if (shortLast) {
-        trades.push({
-          type: 'short', entryIndex: i, entryTime: candles[i].time,
-          entryPrice: closes[i], slPrice: shortStop, tpPrice: shortTake, result: 'open',
-        });
-      }
-
-      // Record TP/SL hits on open trades
       if (longTPhit || longSLhit || shortTPhit || shortSLhit) {
         const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
         if (lastTrade && lastTrade.result === 'open') {
