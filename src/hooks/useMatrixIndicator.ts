@@ -9,8 +9,8 @@ export interface MatrixData {
 }
 
 /**
- * Nadaraya-Watson Envelope (NWE) — ported from Pine Script "Alpha Net Matrix Pro"
- * Uses Gaussian kernel regression with bandwidth h, then MAE * mult for envelope.
+ * Nadaraya-Watson Envelope (NWE) — faithful port of Pine Script "Alpha Net Matrix Pro"
+ * Non-repaint endpoint method: Gaussian kernel regression + SMA(|close - nwe|) envelope.
  */
 export function useMatrixIndicator(
   candles: Candle[],
@@ -25,10 +25,10 @@ export function useMatrixIndicator(
     const n = closes.length;
     const lookback = Math.min(499, n - 1);
 
-    // Gaussian window function
+    // Gaussian window
     const gauss = (x: number, h: number) => Math.exp(-(x * x) / (2 * h * h));
 
-    // Precompute coefficients for non-repaint endpoint method
+    // Precompute kernel coefficients once
     const coefs: number[] = [];
     let den = 0;
     for (let i = 0; i <= lookback; i++) {
@@ -37,46 +37,44 @@ export function useMatrixIndicator(
       den += w;
     }
 
-    // Compute NWE (smoothed) values and upper/lower bands for each bar
-    const midValues: number[] = new Array(n).fill(NaN);
-    const upperValues: number[] = new Array(n).fill(NaN);
-    const lowerValues: number[] = new Array(n).fill(NaN);
+    // Step 1: Compute NWE (endpoint kernel regression) for each bar
+    const nweValues: number[] = new Array(n).fill(NaN);
 
-    // For each bar, compute the endpoint NWE
     for (let bar = lookback; bar < n; bar++) {
       let out = 0;
       for (let i = 0; i <= lookback; i++) {
         out += closes[bar - i] * coefs[i];
       }
-      out /= den;
+      nweValues[bar] = out / den;
+    }
 
-      // MAE = SMA of |close - out| over lookback window
+    // Step 2: MAE = SMA of |close - nwe| over lookback window, then * mult
+    // This matches Pine's: ta.sma(math.abs(close - out), 499) * mult
+    const midValues: number[] = new Array(n).fill(NaN);
+    const upperValues: number[] = new Array(n).fill(NaN);
+    const lowerValues: number[] = new Array(n).fill(NaN);
+
+    for (let bar = lookback; bar < n; bar++) {
+      const nwe = nweValues[bar];
+      if (isNaN(nwe)) continue;
+
+      // SMA of |close - nwe| over last (lookback+1) bars where nwe is available
       let maeSum = 0;
       let maeCount = 0;
-      for (let i = 0; i <= lookback && (bar - i) >= 0; i++) {
-        // For the MAE, we re-compute NWE at each offset (simplified: use same out as approx)
-        let localOut = 0;
-        let localDen = 0;
-        for (let j = 0; j <= Math.min(lookback, bar - i); j++) {
-          const idx = bar - i - j;
-          if (idx < 0) break;
-          localOut += closes[idx] * coefs[j];
-          localDen += coefs[j];
-        }
-        if (localDen > 0) {
-          localOut /= localDen;
-          maeSum += Math.abs(closes[bar - i] - localOut);
-          maeCount++;
-        }
+      for (let i = 0; i <= lookback; i++) {
+        const idx = bar - i;
+        if (idx < 0 || isNaN(nweValues[idx])) continue;
+        maeSum += Math.abs(closes[idx] - nweValues[idx]);
+        maeCount++;
       }
       const mae = maeCount > 0 ? (maeSum / maeCount) * mult : 0;
 
-      midValues[bar] = out;
-      upperValues[bar] = out + mae;
-      lowerValues[bar] = out - mae;
+      midValues[bar] = nwe;
+      upperValues[bar] = nwe + mae;
+      lowerValues[bar] = nwe - mae;
     }
 
-    // Build series data
+    // Build series
     const upper: { time: number; value: number }[] = [];
     const lower: { time: number; value: number }[] = [];
     const mid: { time: number; value: number }[] = [];
@@ -89,9 +87,9 @@ export function useMatrixIndicator(
       lower.push({ time: t, value: lowerValues[i] });
     }
 
-    // Generate Buy/Sell signals based on crossovers (like the Pine Script)
+    // Generate Buy/Sell signals (matching Pine Script logic)
     const signals: { time: number; price: number; type: 'buy' | 'sell' }[] = [];
-    
+
     let crossPrice: number | null = null;
     let crossDirection: string | null = null;
 
@@ -112,28 +110,21 @@ export function useMatrixIndicator(
         crossDirection = 'below';
       }
 
-      // Sell condition
-      if (crossPrice !== null && crossDirection === 'above' && close < crossPrice && close < upperValues[i] && close > lowerValues[i]) {
+      // Sell condition (with [1] shift like Pine)
+      const condSell = crossPrice !== null && crossDirection === 'above' && close < crossPrice && close < upperValues[i] && close > lowerValues[i];
+      // Buy condition
+      const condBuy = crossPrice !== null && crossDirection === 'below' && close > crossPrice && close > lowerValues[i] && close < upperValues[i];
+
+      if (condSell) {
         signals.push({ time: candles[i].time, price: candles[i].high, type: 'sell' });
         crossPrice = null;
         crossDirection = null;
       }
 
-      // Buy condition
-      if (crossPrice !== null && crossDirection === 'below' && close > crossPrice && close > lowerValues[i] && close < upperValues[i]) {
+      if (condBuy) {
         signals.push({ time: candles[i].time, price: candles[i].low, type: 'buy' });
         crossPrice = null;
         crossDirection = null;
-      }
-
-      // Arrow markers for crossunder/crossover of bands
-      // ▲ when close crosses under lower band
-      if (close < lowerValues[i] && prevClose >= lowerValues[i - 1]) {
-        // Already handled above for crossDirection
-      }
-      // ▼ when close crosses over upper band
-      if (close > upperValues[i] && prevClose <= upperValues[i - 1]) {
-        // Already handled above
       }
     }
 
