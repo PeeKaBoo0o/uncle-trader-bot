@@ -135,6 +135,9 @@ function analyzeAlphaNet(candles: Candle[]) {
   const step = 0.5;
   const perfAlpha = 10;
   const rzLength = 100;
+  const rzInnerMult = 1.618;
+  const rzOuterMult = 2.415;
+  const rzGradSize = 0.5;
 
   const atr = calcATR(candles, atrLen);
 
