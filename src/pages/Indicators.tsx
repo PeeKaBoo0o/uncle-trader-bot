@@ -344,6 +344,41 @@ const Indicators: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Pro Support/Resistance Dashboard */}
+            {srEnabled && srData && (
+              <div className="mt-3 border border-white/5 rounded-lg overflow-hidden">
+                <div className="bg-[#1B1F2B] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                  PRO S/R
+                </div>
+                <div className="bg-[#0d1526] p-2 space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Stoch K</span>
+                    <span className={`font-bold ${srData.lastK < 30 ? 'text-emerald-400' : srData.lastK > 70 ? 'text-red-400' : 'text-yellow-400'}`}>
+                      {srData.lastK.toFixed(1)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Stoch D</span>
+                    <span className={`font-bold ${srData.lastD < 30 ? 'text-emerald-400' : srData.lastD > 70 ? 'text-red-400' : 'text-yellow-400'}`}>
+                      {srData.lastD.toFixed(1)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">S/R Zones</span>
+                    <span className="text-foreground font-bold">{srData.channels.length}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Signals</span>
+                    <span className="text-foreground font-bold">{srData.signals.length}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Broken</span>
+                    <span className="text-foreground font-bold">{srData.broken.length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="bg-[#0d1526] border border-white/5 rounded-lg overflow-hidden flex flex-col">
             {/* Chart header with pair info */}
