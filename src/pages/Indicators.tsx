@@ -70,6 +70,8 @@ const Indicators: React.FC = () => {
   const oscillatorData = useOscillatorMatrix(marketData.candles, oscillatorEnabled && !marketData.loading);
   const proEmaEnabled = indicators.find(i => i.id === 'pro_ema')?.enabled ?? false;
   const proEmaData = useProEma(marketData.candles, proEmaEnabled && !marketData.loading);
+  const srEnabled = indicators.find(i => i.id === 'support_resistance')?.enabled ?? false;
+  const srData = useSupportResistance(marketData.candles, srEnabled && !marketData.loading);
 
   const toggleIndicator = (id: string) => {
     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
