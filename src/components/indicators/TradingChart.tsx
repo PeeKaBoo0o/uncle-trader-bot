@@ -639,7 +639,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       const lowerData = matrixData.lower.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
       if (lowerData.length > 0) lowerSeries.setData(lowerData);
 
-      // Buy/Sell signals — group into 2 series (buy + sell)
+      // Buy/Sell signals — group into 2 series (buy + sell) with labels
       const buySignals = matrixData.signals.filter(s => s.type === 'buy');
       const sellSignals = matrixData.signals.filter(s => s.type === 'sell');
 
@@ -648,8 +648,20 @@ const TradingChart: React.FC<TradingChartProps> = ({
           color: '#26a69a', lineWidth: 0,
           pointMarkersVisible: true, pointMarkersRadius: 6,
           priceLineVisible: false, lastValueVisible: false,
+          title: 'Buy',
         } as any);
         buySeries.setData(buySignals.map(s => ({ time: (s.time / 1000) as any, value: s.price })));
+        // Add "Buy" labels
+        buySignals.forEach(s => {
+          buySeries.createPriceLine({
+            price: s.price,
+            color: 'transparent',
+            lineWidth: 0,
+            lineStyle: 0,
+            axisLabelVisible: false,
+            title: 'Buy',
+          } as any);
+        });
       }
 
       if (sellSignals.length > 0) {
@@ -657,8 +669,20 @@ const TradingChart: React.FC<TradingChartProps> = ({
           color: '#ef5350', lineWidth: 0,
           pointMarkersVisible: true, pointMarkersRadius: 6,
           priceLineVisible: false, lastValueVisible: false,
+          title: 'Sell',
         } as any);
         sellSeries.setData(sellSignals.map(s => ({ time: (s.time / 1000) as any, value: s.price })));
+        // Add "Sell" labels
+        sellSignals.forEach(s => {
+          sellSeries.createPriceLine({
+            price: s.price,
+            color: 'transparent',
+            lineWidth: 0,
+            lineStyle: 0,
+            axisLabelVisible: false,
+            title: 'Sell',
+          } as any);
+        });
       }
     }
 
