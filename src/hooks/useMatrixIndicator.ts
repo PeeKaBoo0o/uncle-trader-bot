@@ -4,7 +4,7 @@ import type { Candle } from '@/hooks/useMarketData';
 export interface MatrixSignal {
   time: number;
   price: number;
-  type: 'buy' | 'sell';
+  type: 'buy' | 'sell' | 'crossUp' | 'crossDown';
 }
 
 export interface MatrixData {
