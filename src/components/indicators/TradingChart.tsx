@@ -639,19 +639,19 @@ const TradingChart: React.FC<TradingChartProps> = ({
       const lowerData = matrixData.lower.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
       if (lowerData.length > 0) lowerSeries.setData(lowerData);
 
-      // Buy/Sell signal markers directly on candles
-      if (matrixData.signals.length > 0) {
-        const matrixMarkers = matrixData.signals
-          .map(sig => ({
-            time: (sig.time / 1000) as any,
-            position: sig.type === 'buy' ? 'belowBar' as const : 'aboveBar' as const,
-            color: sig.type === 'buy' ? '#26a69a' : '#ef5350',
-            shape: sig.type === 'buy' ? 'arrowUp' as const : 'arrowDown' as const,
-            text: sig.type === 'buy' ? 'Buy' : 'Sell',
-          }))
-          .sort((a, b) => (a.time as number) - (b.time as number));
-        (candleSeries as any).setMarkers(matrixMarkers);
-      }
+      // Buy/Sell signals as dedicated line series markers
+      matrixData.signals.forEach(sig => {
+        const markerSeries = chart.addSeries(LineSeries, {
+          color: sig.type === 'buy' ? '#26a69a' : '#ef5350',
+          lineWidth: 0,
+          pointMarkersVisible: true,
+          pointMarkersRadius: 5,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: sig.type === 'buy' ? 'Buy' : 'Sell',
+        } as any);
+        markerSeries.setData([{ time: (sig.time / 1000) as any, value: sig.price }]);
+      });
     }
 
     // ── Market Structure Engine ──
