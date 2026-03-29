@@ -110,7 +110,20 @@ const Services: React.FC = () => {
 
       {/* Hero */}
       <section className="relative pt-32 pb-20 overflow-hidden line-grid">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[400px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.1) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        {/* Background Video */}
+        <div className="absolute inset-0 z-0">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover opacity-20"
+          >
+            <source src="/videos/services-bg.mp4" type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-gradient-to-b from-navy/60 via-navy/80 to-navy" />
+        </div>
+        <div className="absolute top-0 left-1/4 w-[500px] h-[400px] pointer-events-none z-[1]" style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.1) 0%, transparent 70%)', filter: 'blur(80px)' }} />
         <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center relative z-10">
           <div className="reveal-hidden page-reveal inline-flex items-center gap-2 glass-card rounded-full px-4 py-2 mb-8">
             <span className="font-mono-custom text-xs text-cyan-brand tracking-wider">DỊCH VỤ</span>
