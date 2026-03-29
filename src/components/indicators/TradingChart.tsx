@@ -782,120 +782,135 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── TP/SL Zones — continuous lines matching Pine Script ──
+    // ── TP/SL Zones — per-trade rendering matching Pine Script fill() ──
     if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.barData.length > 0) {
       const tpSlMarkers: any[] = [];
 
-      // Build continuous line data from barData (like Pine plot with na gaps)
-      const longSLLine: any[] = [];
-      const longTPLine: any[] = [];
-      const longEntryLine: any[] = [];
-      const shortSLLine: any[] = [];
-      const shortTPLine: any[] = [];
-      const shortEntryLine: any[] = [];
-
-      tpSlData.barData.forEach(bar => {
-        const t = (bar.time / 1000) as any;
-        if (bar.longStop !== null) {
-          longSLLine.push({ time: t, value: bar.longStop });
-          longTPLine.push({ time: t, value: bar.longTake });
-          longEntryLine.push({ time: t, value: bar.longEntry });
-        }
-        if (bar.shortStop !== null) {
-          shortSLLine.push({ time: t, value: bar.shortStop });
-          shortTPLine.push({ time: t, value: bar.shortTake });
-          shortEntryLine.push({ time: t, value: bar.shortEntry });
-        }
-      });
-
-      // Long SL line (red)
-      if (longSLLine.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: '#ef5350', lineWidth: 1, lineStyle: 0,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        s.setData(longSLLine);
-      }
-      // Long TP line (green)
-      if (longTPLine.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: '#26a69a', lineWidth: 1, lineStyle: 0,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        s.setData(longTPLine);
-      }
-      // Short SL line (red)
-      if (shortSLLine.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: '#ef5350', lineWidth: 1, lineStyle: 0,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        s.setData(shortSLLine);
-      }
-      // Short TP line (green)
-      if (shortTPLine.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: '#26a69a', lineWidth: 1, lineStyle: 0,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        s.setData(shortTPLine);
-      }
-
-      // TP fill zones (green, 80% transparent like Pine color.new(green, 80))
-      if (longEntryLine.length > 0 && longTPLine.length > 0) {
-        const tpFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(76,175,80,0.20)', bottomColor: 'rgba(76,175,80,0.05)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        tpFill.setData(longTPLine);
-        const slFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.20)', bottomColor: 'rgba(239,83,80,0.05)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        slFill.setData(longSLLine);
-      }
-      if (shortEntryLine.length > 0 && shortTPLine.length > 0) {
-        const tpFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(76,175,80,0.20)', bottomColor: 'rgba(76,175,80,0.05)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        tpFill.setData(shortTPLine);
-        const slFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.20)', bottomColor: 'rgba(239,83,80,0.05)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        slFill.setData(shortSLLine);
-      }
-
-      // Markers: LONG/SHORT entries, TP/SL hits
-      tpSlData.trades.forEach(trade => {
+      // Render per-trade: each trade gets its own bounded series
+      tpSlData.trades.forEach((trade) => {
+        const entryT = Math.floor(trade.entryTime / 1000);
+        const exitT = trade.exitTime
+          ? Math.floor(trade.exitTime / 1000)
+          : Math.floor(candles[candles.length - 1].time / 1000);
         const isLong = trade.type === 'long';
+
+        // Get candle times within this trade's range
+        const tradeCandleTimes = candles
+          .filter(c => {
+            const t = Math.floor(c.time / 1000);
+            return t >= entryT && t <= exitT;
+          })
+          .map(c => Math.floor(c.time / 1000));
+
+        if (tradeCandleTimes.length === 0) return;
+
+        // TP line (green)
+        const tpSeries = chart.addSeries(LineSeries, {
+          color: '#26a69a', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        tpSeries.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice })));
+
+        // SL line (red)
+        const slSeries = chart.addSeries(LineSeries, {
+          color: '#ef5350', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        slSeries.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice })));
+
+        // Entry line (dashed, semi-transparent)
+        const entrySeries = chart.addSeries(LineSeries, {
+          color: 'rgba(255,255,255,0.3)', lineWidth: 1, lineStyle: 2,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        entrySeries.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
+
+        // Fill simulation: TP zone (green fill from TP toward entry)
+        // Use AreaSeries at TP level filling toward entry, and another at Entry masking below
+        // For LONG: TP is above entry, SL is below entry
+        // For SHORT: TP is below entry, SL is above entry
+
+        // TP fill area (green band)
+        const tpFillUpper = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(38,166,154,0.25)',
+          bottomColor: 'rgba(38,166,154,0.25)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        // SL fill area (red band)  
+        const slFillUpper = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(239,83,80,0.25)',
+          bottomColor: 'rgba(239,83,80,0.25)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+
+        if (isLong) {
+          // LONG: TP above entry (green), SL below entry (red)
+          // Green fill: TP level fills down, masked at entry level
+          tpFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice })));
+          // Red fill: Entry level fills down, visually covers SL zone  
+          slFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
+
+          // Mask below TP zone: area at entry with chart bg color
+          const tpMask = chart.addSeries(AreaSeries, {
+            topColor: chartBg, bottomColor: chartBg,
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          tpMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
+
+          // SL zone: red fill at entry, masked at SL level
+          const slMask = chart.addSeries(AreaSeries, {
+            topColor: chartBg, bottomColor: chartBg,
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          slMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice })));
+        } else {
+          // SHORT: TP below entry (green), SL above entry (red)
+          // Red fill from SL level down, masked at entry
+          slFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice })));
+          const slMask = chart.addSeries(AreaSeries, {
+            topColor: chartBg, bottomColor: chartBg,
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          slMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
+
+          // Green fill from entry level down, masked at TP
+          tpFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
+          const tpMask = chart.addSeries(AreaSeries, {
+            topColor: chartBg, bottomColor: chartBg,
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          tpMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice })));
+        }
+
         // Entry marker
         tpSlMarkers.push({
-          time: (trade.entryTime / 1000) as any,
+          time: entryT as any,
           position: isLong ? 'belowBar' : 'aboveBar',
           color: isLong ? '#26a69a' : '#ef5350',
           shape: isLong ? 'arrowUp' : 'arrowDown',
           text: isLong ? 'LONG' : 'SHORT',
         });
-        // TP hit
+
+        // TP hit marker
         if (trade.result === 'TP' && trade.exitTime) {
           tpSlMarkers.push({
-            time: (trade.exitTime / 1000) as any,
+            time: Math.floor(trade.exitTime / 1000) as any,
             position: isLong ? 'aboveBar' : 'belowBar',
             color: '#9C27B0',
             shape: isLong ? 'arrowDown' : 'arrowUp',
             text: isLong ? 'Long TP' : 'Short TP',
           });
         }
-        // SL hit
+        // SL hit marker
         if (trade.result === 'SL' && trade.exitTime) {
           tpSlMarkers.push({
-            time: (trade.exitTime / 1000) as any,
+            time: Math.floor(trade.exitTime / 1000) as any,
             position: isLong ? 'belowBar' : 'aboveBar',
             color: '#9E9E9E',
             shape: isLong ? 'arrowUp' : 'arrowDown',
