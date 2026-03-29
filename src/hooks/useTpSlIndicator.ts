@@ -115,8 +115,8 @@ export function useTpSlIndicator(
             longShort = 0;
           }
         } else {
-          const slHit = highs[i] >= lastTrade.slPrice;
-          const tpHit = lows[i] <= lastTrade.tpPrice;
+          const slHit = highs[i] > lastTrade.slPrice;
+          const tpHit = lows[i] < lastTrade.tpPrice;
           // Pessimistic: if both hit on same candle, count as SL
           if (slHit) {
             lastTrade.result = 'SL';
