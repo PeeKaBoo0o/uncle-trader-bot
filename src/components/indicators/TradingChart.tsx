@@ -1215,15 +1215,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
     // Apply all collected markers to candle series (one call to avoid overwriting)
     if (allMarkers.length > 0) {
-      // Deduplicate: keep only one marker per timestamp (prevent stacking)
-      const seen = new Map<number, any>();
-      allMarkers.forEach(m => {
-        const key = m.time as number;
-        if (!seen.has(key)) seen.set(key, m);
-      });
-      const dedupedMarkers = Array.from(seen.values());
-      dedupedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
-      createSeriesMarkers(candleSeries, dedupedMarkers);
+      allMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+      createSeriesMarkers(candleSeries, allMarkers);
     }
 
     // Always fit all candle data so there are no empty gaps
