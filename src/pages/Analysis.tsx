@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import TradingChart from '@/components/indicators/TradingChart';
@@ -25,6 +26,7 @@ const SIGNAL_COLORS: Record<string, { bg: string; border: string; text: string; 
 const ENABLED_INDICATORS = ['bb_squeeze', 'breakout', 'breakdown', 'confluence', 'momentum', 'vol_spike', 'rsi_div', 'sup_bounce', 'macd_cross'];
 
 const Analysis: React.FC = () => {
+  const navigate = useNavigate();
   const [btcTimeframe, setBtcTimeframe] = useState('H4');
   const [goldTimeframe, setGoldTimeframe] = useState('H4');
   const [logs, setLogs] = useState<string[]>([]);
@@ -236,8 +238,8 @@ const Analysis: React.FC = () => {
         <div className="glass-card rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-3 text-xs">
           {/* Pair badges */}
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20">₿ BTC/USDT</span>
-            <span className="px-2.5 py-1 rounded font-mono font-bold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20">🥇 XAU/USD</span>
+            <span onClick={() => navigate('/phan-tich/btc')} className="px-2.5 py-1 rounded font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-all">₿ BTC/USDT</span>
+            <span onClick={() => navigate('/phan-tich/xau')} className="px-2.5 py-1 rounded font-mono font-bold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/20 transition-all">🥇 XAU/USD</span>
           </div>
 
 
@@ -288,7 +290,7 @@ const Analysis: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
 
               {/* ── BTC Column ── */}
-              <div className="space-y-2">
+              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/btc')} title="Nhấp để xem chi tiết BTC/USDT">
                 {btcData.loading ? (
                   <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
@@ -329,7 +331,7 @@ const Analysis: React.FC = () => {
               </div>
 
               {/* ── GOLD Column ── */}
-              <div className="space-y-2">
+              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/xau')} title="Nhấp để xem chi tiết XAU/USD">
                 {goldData.loading ? (
                   <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">

@@ -13,6 +13,7 @@ import EconomicCalendar from "./pages/EconomicCalendar.tsx";
 import Dictionary from "./pages/Dictionary.tsx";
 import DictionaryDetail from "./pages/DictionaryDetail.tsx";
 import NewsDetail from "./pages/NewsDetail.tsx";
+import AnalysisDetail from "./pages/AnalysisDetail.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/tin-tuc" element={<News />} />
           <Route path="/tin-tuc/:id" element={<NewsDetail />} />
           <Route path="/phan-tich" element={<Analysis />} />
+          <Route path="/phan-tich/:symbol" element={<AnalysisDetail />} />
           <Route path="/indicators" element={<Indicators />} />
           <Route path="/chi-bao" element={<Indicators />} />
           <Route path="/lich-kinh-te" element={<EconomicCalendar />} />
