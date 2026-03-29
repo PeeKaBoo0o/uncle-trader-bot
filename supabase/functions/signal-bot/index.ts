@@ -35,57 +35,66 @@ async function fetchCandles(symbol: string, interval: string, limit = 100): Prom
   const safeInterval = allowedIntervals.has(interval) ? interval : "4h";
   const safeLimit = Number.isFinite(Number(limit)) ? Math.min(Math.max(Number(limit), 20), 1000) : 100;
 
-  const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${safeInterval}&limit=${safeLimit}`;
-  const res = await fetch(url);
-  const bodyText = await res.text();
+  // Try multiple Binance endpoints to avoid geo-blocking (451)
+  const endpoints = [
+    `https://data-api.binance.vision/api/v3/klines`,
+    `https://api1.binance.com/api/v3/klines`,
+    `https://api2.binance.com/api/v3/klines`,
+    `https://api3.binance.com/api/v3/klines`,
+    `https://api.binance.com/api/v3/klines`,
+  ];
 
-  if (!res.ok) {
-    console.error(`Binance error for ${binanceSymbol}: ${res.status} | ${bodyText.slice(0, 180)}`);
+  let lastError = "";
+  for (const base of endpoints) {
+    try {
+      const url = `${base}?symbol=${binanceSymbol}&interval=${safeInterval}&limit=${safeLimit}`;
+      const res = await fetch(url);
+      const bodyText = await res.text();
 
-    // Gold fallback
-    if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
-      console.log("Falling back to synthetic gold data from BTCUSDT");
-      return fetchSyntheticGold(safeInterval, safeLimit);
+      if (!res.ok) {
+        lastError = `${base}: ${res.status} ${bodyText.slice(0, 100)}`;
+        console.warn(`Binance endpoint failed: ${lastError}`);
+        continue; // try next endpoint
+      }
+
+      let data: any;
+      try { data = JSON.parse(bodyText); } catch { continue; }
+
+      if (!Array.isArray(data) || data.length === 0) continue;
+
+      return data.map((k: any[]) => ({
+        time: k[0],
+        open: parseFloat(k[1]),
+        high: parseFloat(k[2]),
+        low: parseFloat(k[3]),
+        close: parseFloat(k[4]),
+        volume: parseFloat(k[5]),
+      }));
+    } catch (e) {
+      lastError = `${base}: ${e instanceof Error ? e.message : "fetch error"}`;
+      continue;
     }
-
-    // Generic fallback for unknown symbols to avoid hard 500 in UI
-    if (binanceSymbol !== "BTCUSDT") {
-      console.warn(`Falling back to BTCUSDT for unsupported symbol: ${binanceSymbol}`);
-      return fetchCandles("BTCUSDT", safeInterval, safeLimit);
-    }
-
-    throw new Error(`Binance API error: ${res.status}`);
   }
 
-  let data: any;
-  try {
-    data = JSON.parse(bodyText);
-  } catch {
-    if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
-      return fetchSyntheticGold(safeInterval, safeLimit);
-    }
-    throw new Error("Binance response parse error");
+  // All endpoints failed — try fallbacks
+  console.error(`All Binance endpoints failed for ${binanceSymbol}. Last error: ${lastError}`);
+
+  // Gold fallback
+  if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
+    console.log("Falling back to synthetic gold data from BTCUSDT");
+    return fetchSyntheticGold(safeInterval, safeLimit);
   }
 
-  if (!Array.isArray(data) || data.length === 0) {
-    if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
-      return fetchSyntheticGold(safeInterval, safeLimit);
-    }
-    if (binanceSymbol !== "BTCUSDT") {
-      return fetchCandles("BTCUSDT", safeInterval, safeLimit);
-    }
-    throw new Error("Binance returned empty kline data");
+  // Generic fallback for unknown symbols
+  if (binanceSymbol !== "BTCUSDT") {
+    console.warn(`Falling back to BTCUSDT for unsupported symbol: ${binanceSymbol}`);
+    return fetchCandles("BTCUSDT", safeInterval, safeLimit);
   }
 
-  return data.map((k: any[]) => ({
-    time: k[0],
-    open: parseFloat(k[1]),
-    high: parseFloat(k[2]),
-    low: parseFloat(k[3]),
-    close: parseFloat(k[4]),
-    volume: parseFloat(k[5]),
-  }));
+  throw new Error(`All Binance API endpoints failed: ${lastError}`);
 }
+
+
 
 // Synthetic gold OHLCV — scales BTC price to approximate XAU range
 async function fetchSyntheticGold(interval: string, limit: number): Promise<Candle[]> {
