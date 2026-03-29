@@ -285,8 +285,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
     });
     }
 
-    // ── AI Trendlines (Support = green dashed, Resistance = red dashed) ──
-    if (trendline && enabledIndicators.includes('breakout')) {
+    // ── AI Trendlines (only with MS Engine) ──
+    if (trendline && enabledIndicators.includes('engine')) {
       const trendSeries = chart.addSeries(LineSeries, {
         color: '#26a69a', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false,
@@ -297,7 +297,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
         { time: (trendline.end.time / 1000) as any, value: trendline.end.price },
       ]);
     }
-    if (trendlineResistance && enabledIndicators.includes('breakdown')) {
+    if (trendlineResistance && enabledIndicators.includes('engine')) {
       const resSeries = chart.addSeries(LineSeries, {
         color: '#ef5350', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false,

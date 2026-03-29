@@ -79,15 +79,15 @@ const Indicators: React.FC = () => {
   const wyckoffData = useWyckoff(marketData.candles, wyckoffEnabled && !marketData.loading);
 
   const trendlines = useMemo(() => {
-    if (marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
+    if (!engineEnabled || marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
     return computeDualTrendlines(marketData.candles);
-  }, [marketData.candles, marketData.loading]);
+  }, [marketData.candles, marketData.loading, engineEnabled]);
 
   const toggleIndicator = (id: string) => {
     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, enabled: !ind.enabled } : ind));
   };
 
-  const enabledIds = [...indicators.filter(i => i.enabled).map(i => i.id), 'breakout', 'breakdown'];
+  const enabledIds = indicators.filter(i => i.enabled).map(i => i.id);
   const activePairInfo = PAIRS.find(p => p.symbol === activePair) || PAIRS[0];
 
   const lastCandle = marketData.candles[marketData.candles.length - 1];
