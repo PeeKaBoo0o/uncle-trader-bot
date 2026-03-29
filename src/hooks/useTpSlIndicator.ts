@@ -100,8 +100,8 @@ export function useTpSlIndicator(
       const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
       if (lastTrade && lastTrade.result === 'open' && i > lastTrade.entryIndex) {
         if (lastTrade.type === 'long') {
-          const slHit = lows[i] <= lastTrade.slPrice;
-          const tpHit = highs[i] >= lastTrade.tpPrice;
+          const slHit = lows[i] < lastTrade.slPrice;
+          const tpHit = highs[i] > lastTrade.tpPrice;
           // Pessimistic: if both hit on same candle, count as SL
           if (slHit) {
             lastTrade.result = 'SL';
