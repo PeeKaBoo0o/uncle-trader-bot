@@ -136,6 +136,29 @@ const Services: React.FC = () => {
         </div>
       </section>
 
+      {/* Video giới thiệu */}
+      <section className="py-16">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <div className="section-label mb-4">VIDEO HƯỚNG DẪN</div>
+            <h2 className="font-display font-bold text-3xl sm:text-4xl text-foreground tracking-tight">
+              Thiết Lập <span className="text-gradient-cyan italic">Chuyên Nghiệp</span>
+            </h2>
+          </div>
+          <div className="glass-card rounded-2xl overflow-hidden cyber-border">
+            <video
+              controls
+              className="w-full aspect-video"
+              poster=""
+              preload="metadata"
+            >
+              <source src="/videos/thiet-lap-laptop.mp4" type="video/mp4" />
+              Trình duyệt không hỗ trợ video.
+            </video>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing tiers */}
       <section ref={sectionRef} className="py-16 pb-24 relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
