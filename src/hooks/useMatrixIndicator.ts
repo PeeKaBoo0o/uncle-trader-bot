@@ -1,11 +1,17 @@
 import { useMemo } from 'react';
 import type { Candle } from '@/hooks/useMarketData';
 
+export interface MatrixSignal {
+  time: number;
+  price: number;
+  type: 'buy' | 'sell';
+}
+
 export interface MatrixData {
   upper: { time: number; value: number }[];
   lower: { time: number; value: number }[];
   mid: { time: number; value: number }[];
-  signals: { time: number; price: number; type: 'buy' | 'sell' }[];
+  signals: MatrixSignal[];
 }
 
 /**
