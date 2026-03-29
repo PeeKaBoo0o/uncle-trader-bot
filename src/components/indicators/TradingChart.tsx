@@ -548,7 +548,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
         meanSeries.setData(alphaNetData.rz_mean.map(toChartPt));
       }
 
-      // SuperTrend line — continuous with color change at transitions
+      // SuperTrend line — split into bull/bear, deduplicated
       if (alphaNetData.supertrend_line?.length > 0) {
         const stData = alphaNetData.supertrend_line;
         const bullPoints: { time: any; value: number }[] = [];
@@ -559,12 +559,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
           const v = stData[i].value;
           const isBull = stData[i].trend === 1;
 
-          // Add transition point to both series at crossover
-          if (i > 0 && stData[i].trend !== stData[i - 1].trend) {
-            bullPoints.push({ time: t, value: v });
-            bearPoints.push({ time: t, value: v });
-          }
-
           if (isBull) {
             bullPoints.push({ time: t, value: v });
           } else {
@@ -572,19 +566,31 @@ const TradingChart: React.FC<TradingChartProps> = ({
           }
         }
 
-        if (bullPoints.length > 0) {
+        // Deduplicate by time (keep last value for each timestamp)
+        const dedup = (pts: { time: any; value: number }[]) => {
+          const map = new Map<any, number>();
+          pts.forEach(p => map.set(p.time, p.value));
+          return Array.from(map.entries())
+            .map(([time, value]) => ({ time, value }))
+            .sort((a, b) => a.time - b.time);
+        };
+
+        const dedupBull = dedup(bullPoints);
+        const dedupBear = dedup(bearPoints);
+
+        if (dedupBull.length > 0) {
           const bullST = chart.addSeries(LineSeries, {
             color: '#26a69a', lineWidth: 2, priceLineVisible: false,
             lastValueVisible: false,
           });
-          bullST.setData(bullPoints);
+          bullST.setData(dedupBull);
         }
-        if (bearPoints.length > 0) {
+        if (dedupBear.length > 0) {
           const bearST = chart.addSeries(LineSeries, {
             color: '#ef5350', lineWidth: 2, priceLineVisible: false,
             lastValueVisible: false,
           });
-          bearST.setData(bearPoints);
+          bearST.setData(dedupBear);
         }
       }
 
