@@ -639,51 +639,19 @@ const TradingChart: React.FC<TradingChartProps> = ({
       const lowerData = matrixData.lower.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
       if (lowerData.length > 0) lowerSeries.setData(lowerData);
 
-      // Buy/Sell signals — group into 2 series (buy + sell) with labels
-      const buySignals = matrixData.signals.filter(s => s.type === 'buy');
-      const sellSignals = matrixData.signals.filter(s => s.type === 'sell');
-
-      if (buySignals.length > 0) {
-        const buySeries = chart.addSeries(LineSeries, {
-          color: '#26a69a', lineWidth: 0,
-          pointMarkersVisible: true, pointMarkersRadius: 6,
-          priceLineVisible: false, lastValueVisible: false,
-          title: 'Buy',
+      // Buy/Sell signals — render on the upper/lower series using price lines
+      // This avoids creating extra series that can affect chart scaling
+      matrixData.signals.forEach(sig => {
+        const targetSeries = sig.type === 'sell' ? upperSeries : lowerSeries;
+        targetSeries.createPriceLine({
+          price: sig.price,
+          color: sig.type === 'buy' ? '#26a69a' : '#ef5350',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: sig.type === 'buy' ? '▲ Buy' : '▼ Sell',
         } as any);
-        buySeries.setData(buySignals.map(s => ({ time: (s.time / 1000) as any, value: s.price })));
-        // Add "Buy" labels
-        buySignals.forEach(s => {
-          buySeries.createPriceLine({
-            price: s.price,
-            color: 'transparent',
-            lineWidth: 0,
-            lineStyle: 0,
-            axisLabelVisible: false,
-            title: 'Buy',
-          } as any);
-        });
-      }
-
-      if (sellSignals.length > 0) {
-        const sellSeries = chart.addSeries(LineSeries, {
-          color: '#ef5350', lineWidth: 0,
-          pointMarkersVisible: true, pointMarkersRadius: 6,
-          priceLineVisible: false, lastValueVisible: false,
-          title: 'Sell',
-        } as any);
-        sellSeries.setData(sellSignals.map(s => ({ time: (s.time / 1000) as any, value: s.price })));
-        // Add "Sell" labels
-        sellSignals.forEach(s => {
-          sellSeries.createPriceLine({
-            price: s.price,
-            color: 'transparent',
-            lineWidth: 0,
-            lineStyle: 0,
-            axisLabelVisible: false,
-            title: 'Sell',
-          } as any);
-        });
-      }
+      });
     }
 
     // ── Market Structure Engine ──
