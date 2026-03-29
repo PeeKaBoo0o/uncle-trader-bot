@@ -650,7 +650,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
             text: sig.type === 'buy' ? 'Buy' : 'Sell',
           }))
           .sort((a, b) => (a.time as number) - (b.time as number));
-        candleSeries.setMarkers(matrixMarkers as any);
+        (candleSeries as any).setMarkers(matrixMarkers);
       }
     }
 
