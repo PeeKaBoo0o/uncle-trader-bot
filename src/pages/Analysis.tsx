@@ -427,7 +427,12 @@ const Analysis: React.FC = () => {
                   const style = SIGNAL_COLORS[signal.type] || SIGNAL_COLORS.alert;
                   return (
                     <div key={signal.id}
-                      className={`p-2.5 rounded-lg border-l-2 transition-all duration-500 ${style.bg} ${style.border} ${
+                      onClick={() => {
+                        const sym = signal.symbol?.toLowerCase();
+                        if (sym?.includes('btc')) navigate('/phan-tich/btc');
+                        else if (sym?.includes('xau') || sym?.includes('gold')) navigate('/phan-tich/xau');
+                      }}
+                      className={`p-2.5 rounded-lg border-l-2 transition-all duration-500 cursor-pointer hover:scale-[1.02] ${style.bg} ${style.border} ${
                         signal.isNew ? 'ring-1 ring-primary/30 bg-primary/5' : ''
                       }`}>
                       <div className="flex items-center justify-between mb-0.5">
