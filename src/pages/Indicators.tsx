@@ -43,6 +43,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'oscillator', label: 'Oscillator Matrix', enabled: false, color: '#FF5722', category: 'Oscillator' },
   { id: 'pro_ema', label: 'Pro EMA', enabled: false, color: '#FFA726', category: 'Trend' },
   { id: 'support_resistance', label: 'Pro S/R', enabled: false, color: '#00E676', category: 'S/R' },
+  { id: 'wyckoff', label: 'Wyckoff', enabled: false, color: '#B388FF', category: 'Structure' },
 ];
 
 const Indicators: React.FC = () => {
