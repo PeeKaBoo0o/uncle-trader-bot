@@ -31,6 +31,7 @@ const App = () => (
           <Route path="/tin-tuc" element={<News />} />
           <Route path="/tin-tuc/:id" element={<NewsDetail />} />
           <Route path="/phan-tich" element={<Analysis />} />
+          <Route path="/phan-tich/:symbol" element={<AnalysisDetail />} />
           <Route path="/indicators" element={<Indicators />} />
           <Route path="/chi-bao" element={<Indicators />} />
           <Route path="/lich-kinh-te" element={<EconomicCalendar />} />
