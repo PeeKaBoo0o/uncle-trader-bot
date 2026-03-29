@@ -9,8 +9,8 @@ export interface MatrixData {
 }
 
 /**
- * Nadaraya-Watson Envelope (NWE) — faithful port of Pine Script "Alpha Net Matrix Pro"
- * Non-repaint endpoint method: Gaussian kernel regression + SMA(|close - nwe|) envelope.
+ * Nadaraya-Watson Envelope — faithful port of Pine Script "Alpha Net Matrix Pro"
+ * Repaint mode: full kernel regression computed on last 500 bars.
  */
 export function useMatrixIndicator(
   candles: Candle[],
@@ -21,112 +21,103 @@ export function useMatrixIndicator(
   return useMemo(() => {
     if (!enabled || candles.length < 30) return null;
 
-    const closes = candles.map(c => c.close);
-    const n = closes.length;
-    const lookback = Math.min(499, n - 1);
+    const n = candles.length;
+    const len = Math.min(500, n);
+    // priceLoseBars[i] = close of (i bars ago from last bar)
+    // i=0 is the most recent bar, i=len-1 is oldest
+    const src: number[] = [];
+    for (let i = 0; i < len; i++) {
+      src.push(candles[n - 1 - i].close);
+    }
 
-    // Gaussian window
     const gauss = (x: number, h: number) => Math.exp(-(x * x) / (2 * h * h));
 
-    // Precompute kernel coefficients once
-    const coefs: number[] = [];
-    let den = 0;
-    for (let i = 0; i <= lookback; i++) {
-      const w = gauss(i, bandwidth);
-      coefs.push(w);
-      den += w;
-    }
+    // Compute NWE values for each point using full kernel regression
+    const nwe: number[] = new Array(len).fill(0);
+    let sae = 0;
 
-    // Step 1: Compute NWE (endpoint kernel regression) for each bar
-    const nweValues: number[] = new Array(n).fill(NaN);
-
-    for (let bar = lookback; bar < n; bar++) {
-      let out = 0;
-      for (let i = 0; i <= lookback; i++) {
-        out += closes[bar - i] * coefs[i];
+    for (let i = 0; i < len; i++) {
+      let sum = 0;
+      let sumw = 0;
+      for (let j = 0; j < len; j++) {
+        const w = gauss(i - j, bandwidth);
+        sum += src[j] * w;
+        sumw += w;
       }
-      nweValues[bar] = out / den;
+      nwe[i] = sum / sumw;
+      sae += Math.abs(src[i] - nwe[i]);
     }
 
-    // Step 2: MAE = SMA of |close - nwe| over lookback window, then * mult
-    // This matches Pine's: ta.sma(math.abs(close - out), 499) * mult
-    const midValues: number[] = new Array(n).fill(NaN);
-    const upperValues: number[] = new Array(n).fill(NaN);
-    const lowerValues: number[] = new Array(n).fill(NaN);
+    // SAE envelope width
+    sae = (sae / (len - 1)) * mult;
 
-    for (let bar = lookback; bar < n; bar++) {
-      const nwe = nweValues[bar];
-      if (isNaN(nwe)) continue;
-
-      // SMA of |close - nwe| over last (lookback+1) bars where nwe is available
-      let maeSum = 0;
-      let maeCount = 0;
-      for (let i = 0; i <= lookback; i++) {
-        const idx = bar - i;
-        if (idx < 0 || isNaN(nweValues[idx])) continue;
-        maeSum += Math.abs(closes[idx] - nweValues[idx]);
-        maeCount++;
-      }
-      const mae = maeCount > 0 ? (maeSum / maeCount) * mult : 0;
-
-      midValues[bar] = nwe;
-      upperValues[bar] = nwe + mae;
-      lowerValues[bar] = nwe - mae;
-    }
-
-    // Build series
+    // Build series data (reverse back to chronological order)
     const upper: { time: number; value: number }[] = [];
     const lower: { time: number; value: number }[] = [];
     const mid: { time: number; value: number }[] = [];
 
-    for (let i = 0; i < n; i++) {
-      if (isNaN(midValues[i])) continue;
-      const t = candles[i].time;
-      mid.push({ time: t, value: midValues[i] });
-      upper.push({ time: t, value: upperValues[i] });
-      lower.push({ time: t, value: lowerValues[i] });
+    for (let i = len - 1; i >= 0; i--) {
+      const candleIdx = n - 1 - i;
+      const t = candles[candleIdx].time;
+      mid.push({ time: t, value: nwe[i] });
+      upper.push({ time: t, value: nwe[i] + sae });
+      lower.push({ time: t, value: nwe[i] - sae });
     }
 
-    // Generate Buy/Sell signals (matching Pine Script logic)
+    // Generate signals matching Pine Script logic
+    // Pine iterates i=0..len-1 where i=0 is most recent
+    // ▼ when src[i] > nwe[i]+sae AND src[i+1] < nwe[i]+sae (cross above upper)
+    // ▲ when src[i] < nwe[i]-sae AND src[i+1] > nwe[i]-sae (cross below lower)
+    // Sell: after ▼, if src[i-1] < src[i] and src[i-1] between bands
+    // Buy: after ▲, if src[i-1] > src[i] and src[i-1] between bands
     const signals: { time: number; price: number; type: 'buy' | 'sell' }[] = [];
 
-    let crossPrice: number | null = null;
-    let crossDirection: string | null = null;
+    for (let i = 0; i < len - 1; i++) {
+      const upperVal = nwe[i] + sae;
+      const lowerVal = nwe[i] - sae;
 
-    for (let i = lookback + 1; i < n; i++) {
-      if (isNaN(upperValues[i]) || isNaN(lowerValues[i]) || isNaN(upperValues[i - 1]) || isNaN(lowerValues[i - 1])) continue;
-
-      const close = closes[i];
-      const prevClose = closes[i - 1];
-
-      // Crossover: close crosses above upper
-      if (close > upperValues[i] && prevClose <= upperValues[i - 1]) {
-        crossPrice = close;
-        crossDirection = 'above';
-      }
-      // Crossunder: close crosses below lower
-      if (close < lowerValues[i] && prevClose >= lowerValues[i - 1]) {
-        crossPrice = close;
-        crossDirection = 'below';
-      }
-
-      // Sell condition (with [1] shift like Pine)
-      const condSell = crossPrice !== null && crossDirection === 'above' && close < crossPrice && close < upperValues[i] && close > lowerValues[i];
-      // Buy condition
-      const condBuy = crossPrice !== null && crossDirection === 'below' && close > crossPrice && close > lowerValues[i] && close < upperValues[i];
-
-      if (condSell) {
-        signals.push({ time: candles[i].time, price: candles[i].high, type: 'sell' });
-        crossPrice = null;
-        crossDirection = null;
+      // Cross above upper band: src[i] > upper AND src[i+1] < upper
+      if (src[i] > upperVal && src[i + 1] < (nwe[i + 1] + sae)) {
+        // Check sell condition: i > 1, src[i-1] < src[i], src[i-1] between bands
+        if (i > 0) {
+          const prevUpper = nwe[i - 1] + sae;
+          const prevLower = nwe[i - 1] - sae;
+          if (src[i - 1] < src[i] && src[i - 1] < prevUpper && src[i - 1] > prevLower) {
+            // Pine: label at n-i+2 which is 2 bars after the signal in Pine's reverse indexing
+            const candleIdx = n - 1 - i;
+            if (candleIdx >= 0 && candleIdx < n) {
+              signals.push({
+                time: candles[candleIdx].time,
+                price: candles[candleIdx].high,
+                type: 'sell',
+              });
+            }
+          }
+        }
       }
 
-      if (condBuy) {
-        signals.push({ time: candles[i].time, price: candles[i].low, type: 'buy' });
-        crossPrice = null;
-        crossDirection = null;
+      // Cross below lower band: src[i] < lower AND src[i+1] > lower
+      if (src[i] < lowerVal && src[i + 1] > (nwe[i + 1] - sae)) {
+        // Check buy condition: i > 1, src[i-1] > src[i], src[i-1] between bands
+        if (i > 0) {
+          const prevUpper = nwe[i - 1] + sae;
+          const prevLower = nwe[i - 1] - sae;
+          if (src[i - 1] > src[i] && src[i - 1] < prevUpper && src[i - 1] > prevLower) {
+            const candleIdx = n - 1 - i;
+            if (candleIdx >= 0 && candleIdx < n) {
+              signals.push({
+                time: candles[candleIdx].time,
+                price: candles[candleIdx].low,
+                type: 'buy',
+              });
+            }
+          }
+        }
       }
     }
+
+    // Sort signals chronologically
+    signals.sort((a, b) => a.time - b.time);
 
     return { upper, lower, mid, signals };
   }, [candles, enabled, bandwidth, mult]);
