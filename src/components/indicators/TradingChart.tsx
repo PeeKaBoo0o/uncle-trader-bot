@@ -1211,7 +1211,19 @@ const TradingChart: React.FC<TradingChartProps> = ({
       }
     });
 
-    // Show last ~120 bars by default (like TradingView), avoid big empty gaps
+    // Apply all collected markers to candle series (one call to avoid overwriting)
+    if (allMarkers.length > 0) {
+      // Deduplicate: keep only one marker per timestamp (prevent stacking)
+      const seen = new Map<number, any>();
+      allMarkers.forEach(m => {
+        const key = m.time as number;
+        if (!seen.has(key)) seen.set(key, m);
+      });
+      const dedupedMarkers = Array.from(seen.values());
+      dedupedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+      createSeriesMarkers(candleSeries, dedupedMarkers);
+    }
+
     // Always fit all candle data so there are no empty gaps
     chart.timeScale().fitContent();
 
