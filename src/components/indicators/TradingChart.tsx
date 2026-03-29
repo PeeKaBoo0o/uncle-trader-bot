@@ -864,6 +864,31 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
+    // ── Oscillator Matrix Buy/Sell + Reversal Signals on price chart ──
+    if (oscillatorData && enabledIndicators.includes('oscillator')) {
+      // Buy/Sell signals
+      oscillatorData.buySellSignals.forEach(sig => {
+        if (sig.index < 0 || sig.index >= candles.length) return;
+        candleSeries.createPriceLine({
+          price: sig.price,
+          color: sig.type === 'BUY' ? '#4CAF50' : '#F44336',
+          lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
+          title: sig.type === 'BUY' ? '▲ OSC Buy' : '▼ OSC Sell',
+        } as any);
+      });
+
+      // Major reversal signals
+      oscillatorData.reversals.filter(r => r.type === 'majorBuy' || r.type === 'majorSell').slice(-5).forEach(rev => {
+        if (rev.index < 0 || rev.index >= candles.length) return;
+        candleSeries.createPriceLine({
+          price: rev.price,
+          color: rev.type === 'majorBuy' ? '#089981' : '#f23645',
+          lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
+          title: rev.type === 'majorBuy' ? '▲ Rev' : '▼ Rev',
+        } as any);
+      });
+    }
+
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time) {
         const last = candles[candles.length - 1];
