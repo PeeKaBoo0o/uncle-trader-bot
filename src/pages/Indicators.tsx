@@ -250,7 +250,7 @@ const Indicators: React.FC = () => {
                   matrixData={matrixData}
                   engineData={engineData}
                   tpSlData={tpSlData}
-                />
+                  buySellData={buySellData}
               )}
             </div>
 
