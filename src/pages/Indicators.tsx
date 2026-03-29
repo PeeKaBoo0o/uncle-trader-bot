@@ -471,6 +471,7 @@ const Indicators: React.FC = () => {
                   oscillatorData={oscillatorData}
                   proEmaData={proEmaData}
                   srData={srData}
+                  wyckoffData={wyckoffData}
                 />
               )}
             </div>
