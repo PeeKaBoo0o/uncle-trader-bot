@@ -103,7 +103,7 @@ const HeroSection: React.FC = () => {
       <div className="animate-blob-3 absolute top-[40%] left-[30%] w-[400px] h-[400px] rounded-full pointer-events-none z-[2]" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)', filter: 'blur(50px)' }} />
 
       {/* Chart SVG */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none opacity-20">
+      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none opacity-20 z-[3]">
         <svg viewBox="0 0 1440 200" fill="none" className="w-full h-full">
           <path d="M0 180 L80 160 L160 170 L240 140 L320 150 L400 120 L480 130 L560 90 L640 100 L720 70 L800 80 L880 50 L960 60 L1040 30 L1120 40 L1200 20 L1280 30 L1360 10 L1440 0" stroke="url(#chartGrad)" strokeWidth="2" fill="none" />
           <path d="M0 180 L80 160 L160 170 L240 140 L320 150 L400 120 L480 130 L560 90 L640 100 L720 70 L800 80 L880 50 L960 60 L1040 30 L1120 40 L1200 20 L1280 30 L1360 10 L1440 0 L1440 200 L0 200 Z" fill="url(#chartFill)" />
