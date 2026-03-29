@@ -48,7 +48,7 @@ export function useTpSlIndicator(
   candles: Candle[],
   enabled: boolean,
   slPercent: number = 3.0,
-  tpPercent: number = 9.0,
+  tpPercent: number = 3.0,
 ): TpSlData | null {
   return useMemo(() => {
     if (!enabled || candles.length < 35) return null;
