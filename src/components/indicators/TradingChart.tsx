@@ -782,56 +782,98 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── TP/SL Zones — cleaner rendering (recent trades only) ──
-    if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.trades.length > 0) {
+    // ── TP/SL Zones — continuous lines matching Pine Script ──
+    if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.barData.length > 0) {
       const tpSlMarkers: any[] = [];
-      const tradesToRender = tpSlData.trades.slice(-8); // reduce visual clutter
 
-      tradesToRender.forEach((trade) => {
-        const entryT = Math.floor(trade.entryTime / 1000);
-        const exitT = trade.exitTime
-          ? Math.floor(trade.exitTime / 1000)
-          : Math.floor(candles[candles.length - 1].time / 1000);
-        const isLong = trade.type === 'long';
+      // Build continuous line data from barData (like Pine plot with na gaps)
+      const longSLLine: any[] = [];
+      const longTPLine: any[] = [];
+      const longEntryLine: any[] = [];
+      const shortSLLine: any[] = [];
+      const shortTPLine: any[] = [];
+      const shortEntryLine: any[] = [];
 
-        const tradeCandles = candles.filter(c => {
-          const t = Math.floor(c.time / 1000);
-          return t >= entryT && t <= exitT;
+      tpSlData.barData.forEach(bar => {
+        const t = (bar.time / 1000) as any;
+        if (bar.longStop !== null) {
+          longSLLine.push({ time: t, value: bar.longStop });
+          longTPLine.push({ time: t, value: bar.longTake });
+          longEntryLine.push({ time: t, value: bar.longEntry });
+        }
+        if (bar.shortStop !== null) {
+          shortSLLine.push({ time: t, value: bar.shortStop });
+          shortTPLine.push({ time: t, value: bar.shortTake });
+          shortEntryLine.push({ time: t, value: bar.shortEntry });
+        }
+      });
+
+      // Long SL line (red)
+      if (longSLLine.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: '#ef5350', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
         });
-        if (tradeCandles.length === 0) return;
+        s.setData(longSLLine);
+      }
+      // Long TP line (green)
+      if (longTPLine.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: '#26a69a', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        s.setData(longTPLine);
+      }
+      // Short SL line (red)
+      if (shortSLLine.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: '#ef5350', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        s.setData(shortSLLine);
+      }
+      // Short TP line (green)
+      if (shortTPLine.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: '#26a69a', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        s.setData(shortTPLine);
+      }
 
-        const tradeTimes = tradeCandles.map(c => Math.floor(c.time / 1000) as any);
-        const tradeStart = tradeTimes[0];
-        const tradeEnd = tradeTimes[tradeTimes.length - 1];
-
-        // TP filled zone (green tint)
+      // TP fill zones (green, 80% transparent like Pine color.new(green, 80))
+      if (longEntryLine.length > 0 && longTPLine.length > 0) {
         const tpFill = chart.addSeries(AreaSeries, {
-          topColor: isLong ? 'rgba(38,166,154,0.18)' : 'rgba(38,166,154,0.18)',
-          bottomColor: 'rgba(38,166,154,0.04)',
-          lineColor: 'rgba(76,175,80,0.8)', lineWidth: 1 as 1,
+          topColor: 'rgba(76,175,80,0.20)', bottomColor: 'rgba(76,175,80,0.05)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
           priceLineVisible: false, lastValueVisible: false,
         });
-        tpFill.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.tpPrice })));
-
-        // SL filled zone (red tint)
+        tpFill.setData(longTPLine);
         const slFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.18)',
-          bottomColor: 'rgba(239,83,80,0.04)',
-          lineColor: 'rgba(244,67,54,0.8)', lineWidth: 1 as 1,
+          topColor: 'rgba(239,83,80,0.20)', bottomColor: 'rgba(239,83,80,0.05)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
           priceLineVisible: false, lastValueVisible: false,
         });
-        slFill.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.slPrice })));
-
-        // Entry line (dashed white)
-        const entryLine = chart.addSeries(LineSeries, {
-          color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 2,
+        slFill.setData(longSLLine);
+      }
+      if (shortEntryLine.length > 0 && shortTPLine.length > 0) {
+        const tpFill = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(76,175,80,0.20)', bottomColor: 'rgba(76,175,80,0.05)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
           priceLineVisible: false, lastValueVisible: false,
         });
-        entryLine.setData([
-          { time: tradeStart, value: trade.entryPrice },
-          { time: tradeEnd, value: trade.entryPrice },
-        ]);
+        tpFill.setData(shortTPLine);
+        const slFill = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(239,83,80,0.20)', bottomColor: 'rgba(239,83,80,0.05)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        slFill.setData(shortSLLine);
+      }
 
+      // Markers: LONG/SHORT entries, TP/SL hits
+      tpSlData.trades.forEach(trade => {
+        const isLong = trade.type === 'long';
         // Entry marker
         tpSlMarkers.push({
           time: (trade.entryTime / 1000) as any,
@@ -840,24 +882,24 @@ const TradingChart: React.FC<TradingChartProps> = ({
           shape: isLong ? 'arrowUp' : 'arrowDown',
           text: isLong ? 'LONG' : 'SHORT',
         });
-
-        // Exit marker (TP/SL)
+        // TP hit
         if (trade.result === 'TP' && trade.exitTime) {
           tpSlMarkers.push({
             time: (trade.exitTime / 1000) as any,
             position: isLong ? 'aboveBar' : 'belowBar',
             color: '#9C27B0',
             shape: isLong ? 'arrowDown' : 'arrowUp',
-            text: 'TP',
+            text: isLong ? 'Long TP' : 'Short TP',
           });
         }
+        // SL hit
         if (trade.result === 'SL' && trade.exitTime) {
           tpSlMarkers.push({
             time: (trade.exitTime / 1000) as any,
             position: isLong ? 'belowBar' : 'aboveBar',
             color: '#9E9E9E',
             shape: isLong ? 'arrowUp' : 'arrowDown',
-            text: 'SL',
+            text: isLong ? ' Long SL' : ' Short SL',
           });
         }
       });
