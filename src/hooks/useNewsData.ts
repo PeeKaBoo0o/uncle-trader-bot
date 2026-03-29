@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export interface NewsArticle {
   id: string;
@@ -44,12 +43,6 @@ export function useNewsData(stream: string) {
 
   const fetchNews = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('news-aggregator', {
-        body: null,
-        method: 'GET',
-      });
-
-      // Use query params via direct fetch since invoke doesn't support GET params well
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-aggregator?stream=${stream}`;
       const res = await fetch(url, {
         headers: {
