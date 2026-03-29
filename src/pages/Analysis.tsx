@@ -331,8 +331,7 @@ const Analysis: React.FC = () => {
               </div>
 
               {/* ── GOLD Column ── */}
-              <div className="space-y-2">
-                {goldData.loading ? (
+              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/xau')} title="Nhấp để xem chi tiết XAU/USD">
                   <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
