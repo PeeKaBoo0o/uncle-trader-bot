@@ -264,11 +264,9 @@ function analyzeAlphaNet(candles: Candle[]) {
       lo_band: Math.round(loBand * 100) / 100,
       mean: Math.round(lastMean * 100) / 100,
     },
-    rz_upper_outer: rzUpperOuter.slice(-200),
-    rz_upper_inner: rzUpperInner.slice(-200),
+    rz_upper_layers: rzUpper.map(l => l.slice(-200)),
+    rz_lower_layers: rzLower.map(l => l.slice(-200)),
     rz_mean: rzMeanLine.slice(-200),
-    rz_lower_inner: rzLowerInner.slice(-200),
-    rz_lower_outer: rzLowerOuter.slice(-200),
   };
 }
 
