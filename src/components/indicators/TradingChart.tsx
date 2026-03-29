@@ -782,11 +782,10 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── TP/SL Zones — per-trade rendering matching Pine Script fill() ──
+    // ── TP/SL Zones — per-trade lines + transparent fills (no masking) ──
     if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.barData.length > 0) {
       const tpSlMarkers: any[] = [];
 
-      // Render per-trade: each trade gets its own bounded series
       tpSlData.trades.forEach((trade) => {
         const entryT = Math.floor(trade.entryTime / 1000);
         const exitT = trade.exitTime
@@ -794,7 +793,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
           : Math.floor(candles[candles.length - 1].time / 1000);
         const isLong = trade.type === 'long';
 
-        // Get candle times within this trade's range
         const tradeCandleTimes = candles
           .filter(c => {
             const t = Math.floor(c.time / 1000);
@@ -804,89 +802,30 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
         if (tradeCandleTimes.length === 0) return;
 
+        const tpData = tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice }));
+        const slData = tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice }));
+        const entryData = tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice }));
+
         // TP line (green)
-        const tpSeries = chart.addSeries(LineSeries, {
+        const tpLine = chart.addSeries(LineSeries, {
           color: '#26a69a', lineWidth: 1, lineStyle: 0,
           priceLineVisible: false, lastValueVisible: false,
         });
-        tpSeries.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice })));
+        tpLine.setData(tpData);
 
         // SL line (red)
-        const slSeries = chart.addSeries(LineSeries, {
+        const slLine = chart.addSeries(LineSeries, {
           color: '#ef5350', lineWidth: 1, lineStyle: 0,
           priceLineVisible: false, lastValueVisible: false,
         });
-        slSeries.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice })));
+        slLine.setData(slData);
 
-        // Entry line (dashed, semi-transparent)
-        const entrySeries = chart.addSeries(LineSeries, {
-          color: 'rgba(255,255,255,0.3)', lineWidth: 1, lineStyle: 2,
+        // Entry line (dashed white)
+        const entryLine = chart.addSeries(LineSeries, {
+          color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 2,
           priceLineVisible: false, lastValueVisible: false,
         });
-        entrySeries.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
-
-        // Fill simulation: TP zone (green fill from TP toward entry)
-        // Use AreaSeries at TP level filling toward entry, and another at Entry masking below
-        // For LONG: TP is above entry, SL is below entry
-        // For SHORT: TP is below entry, SL is above entry
-
-        // TP fill area (green band)
-        const tpFillUpper = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(38,166,154,0.25)',
-          bottomColor: 'rgba(38,166,154,0.25)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        // SL fill area (red band)  
-        const slFillUpper = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.25)',
-          bottomColor: 'rgba(239,83,80,0.25)',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-
-        if (isLong) {
-          // LONG: TP above entry (green), SL below entry (red)
-          // Green fill: TP level fills down, masked at entry level
-          tpFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice })));
-          // Red fill: Entry level fills down, visually covers SL zone  
-          slFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
-
-          // Mask below TP zone: area at entry with chart bg color
-          const tpMask = chart.addSeries(AreaSeries, {
-            topColor: chartBg, bottomColor: chartBg,
-            lineColor: 'transparent', lineWidth: 1 as 1,
-            priceLineVisible: false, lastValueVisible: false,
-          });
-          tpMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
-
-          // SL zone: red fill at entry, masked at SL level
-          const slMask = chart.addSeries(AreaSeries, {
-            topColor: chartBg, bottomColor: chartBg,
-            lineColor: 'transparent', lineWidth: 1 as 1,
-            priceLineVisible: false, lastValueVisible: false,
-          });
-          slMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice })));
-        } else {
-          // SHORT: TP below entry (green), SL above entry (red)
-          // Red fill from SL level down, masked at entry
-          slFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice })));
-          const slMask = chart.addSeries(AreaSeries, {
-            topColor: chartBg, bottomColor: chartBg,
-            lineColor: 'transparent', lineWidth: 1 as 1,
-            priceLineVisible: false, lastValueVisible: false,
-          });
-          slMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
-
-          // Green fill from entry level down, masked at TP
-          tpFillUpper.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice })));
-          const tpMask = chart.addSeries(AreaSeries, {
-            topColor: chartBg, bottomColor: chartBg,
-            lineColor: 'transparent', lineWidth: 1 as 1,
-            priceLineVisible: false, lastValueVisible: false,
-          });
-          tpMask.setData(tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice })));
-        }
+        entryLine.setData(entryData);
 
         // Entry marker
         tpSlMarkers.push({
@@ -897,7 +836,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
           text: isLong ? 'LONG' : 'SHORT',
         });
 
-        // TP hit marker
+        // TP hit marker (purple)
         if (trade.result === 'TP' && trade.exitTime) {
           tpSlMarkers.push({
             time: Math.floor(trade.exitTime / 1000) as any,
@@ -907,7 +846,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
             text: isLong ? 'Long TP' : 'Short TP',
           });
         }
-        // SL hit marker
+        // SL hit marker (gray)
         if (trade.result === 'SL' && trade.exitTime) {
           tpSlMarkers.push({
             time: Math.floor(trade.exitTime / 1000) as any,
