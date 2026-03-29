@@ -783,7 +783,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── TP/SL Zones — per-trade lines + transparent fills (no masking) ──
+    // ── TP/SL Zones — rectangle primitives matching TradingView fill() ──
     if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.barData.length > 0) {
       const tpSlMarkers: any[] = [];
 
@@ -794,39 +794,25 @@ const TradingChart: React.FC<TradingChartProps> = ({
           : Math.floor(candles[candles.length - 1].time / 1000);
         const isLong = trade.type === 'long';
 
-        const tradeCandleTimes = candles
-          .filter(c => {
-            const t = Math.floor(c.time / 1000);
-            return t >= entryT && t <= exitT;
-          })
-          .map(c => Math.floor(c.time / 1000));
-
-        if (tradeCandleTimes.length === 0) return;
-
-        const tpData = tradeCandleTimes.map(t => ({ time: t as any, value: trade.tpPrice }));
-        const slData = tradeCandleTimes.map(t => ({ time: t as any, value: trade.slPrice }));
-        const entryData = tradeCandleTimes.map(t => ({ time: t as any, value: trade.entryPrice }));
-
-        // TP line (green)
-        const tpLine = chart.addSeries(LineSeries, {
-          color: '#26a69a', lineWidth: 1, lineStyle: 0,
-          priceLineVisible: false, lastValueVisible: false,
+        // TP zone rectangle (green, 80% transparent like Pine color.new(green, 80))
+        const tpRect = new RectanglePrimitive({
+          p1: { time: entryT, price: trade.entryPrice },
+          p2: { time: exitT, price: trade.tpPrice },
+          fillColor: 'rgba(38,166,154,0.20)',
+          borderColor: '#26a69a',
+          borderWidth: 1,
         });
-        tpLine.setData(tpData);
+        candleSeries.attachPrimitive(tpRect);
 
-        // SL line (red)
-        const slLine = chart.addSeries(LineSeries, {
-          color: '#ef5350', lineWidth: 1, lineStyle: 0,
-          priceLineVisible: false, lastValueVisible: false,
+        // SL zone rectangle (red, 80% transparent)
+        const slRect = new RectanglePrimitive({
+          p1: { time: entryT, price: trade.entryPrice },
+          p2: { time: exitT, price: trade.slPrice },
+          fillColor: 'rgba(239,83,80,0.20)',
+          borderColor: '#ef5350',
+          borderWidth: 1,
         });
-        slLine.setData(slData);
-
-        // Entry line (dashed white)
-        const entryLine = chart.addSeries(LineSeries, {
-          color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 2,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        entryLine.setData(entryData);
+        candleSeries.attachPrimitive(slRect);
 
         // Entry marker
         tpSlMarkers.push({
