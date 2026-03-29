@@ -290,7 +290,7 @@ const Analysis: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
 
               {/* ── BTC Column ── */}
-              <div className="space-y-2">
+              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/btc')} title="Nhấp để xem chi tiết BTC/USDT">
                 {btcData.loading ? (
                   <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
