@@ -789,10 +789,16 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
       tpSlData.trades.forEach((trade) => {
         const entryT = Math.floor(trade.entryTime / 1000);
+        // Only extend to exitTime if closed; if still open, show up to current bar
         const exitT = trade.exitTime
           ? Math.floor(trade.exitTime / 1000)
-          : Math.floor(candles[candles.length - 1].time / 1000);
+          : (trade.result === 'open'
+              ? Math.floor(candles[candles.length - 1].time / 1000)
+              : entryT); // should not happen, but fallback
         const isLong = trade.type === 'long';
+
+        // Skip rendering if entry and exit are the same (no duration)
+        if (entryT >= exitT) return;
 
         // TP zone rectangle (green, 80% transparent like Pine color.new(green, 80))
         const tpRect = new RectanglePrimitive({
