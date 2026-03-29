@@ -1205,12 +1205,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
     });
 
     // Show last ~120 bars by default (like TradingView), avoid big empty gaps
-    const totalBars = candles.length;
-    if (totalBars > 120) {
-      chart.timeScale().setVisibleLogicalRange({ from: totalBars - 120, to: totalBars + 3 });
-    } else {
-      chart.timeScale().fitContent();
-    }
+    // Always fit all candle data so there are no empty gaps
+    chart.timeScale().fitContent();
 
     // ═══════════ RSI CHART (synced) ═══════════
     const rsiChart = createChart(rsiContainerRef.current, {
