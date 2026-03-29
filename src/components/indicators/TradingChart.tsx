@@ -13,6 +13,7 @@ import type { TpSlData } from '@/hooks/useTpSlIndicator';
 import type { BuySellData } from '@/hooks/useBuySellSignal';
 import type { OscillatorMatrixData } from '@/hooks/useOscillatorMatrix';
 import type { ProEmaData } from '@/hooks/useProEma';
+import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 
 export interface AITrendline {
   start: { time: number; price: number };
