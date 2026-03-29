@@ -473,45 +473,51 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── AlphaNet AI: RZ Bands (gradient zones like reference image) ──
+    // ── AlphaNet AI: RZ Bands (multi-layer gradient like TradingView) ──
     if (alphaNetData && enabledIndicators.includes('alphanet')) {
       const toChartPt = (p: { time: number; value: number }) => ({
         time: (p.time / 1000) as any,
         value: p.value,
       });
 
-      // Upper resistance zone (red gradient): outer → inner
-      if (alphaNetData.rz_upper_outer?.length > 0 && alphaNetData.rz_upper_inner?.length > 0) {
-        const upperOuter = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.25)', bottomColor: 'rgba(239,83,80,0.08)',
-          lineColor: 'rgba(239,83,80,0.4)', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
+      // Upper resistance zone — 5 gradient layers (outer=darkest → inner=lightest)
+      const upperLayers = alphaNetData.rz_upper_layers;
+      if (upperLayers?.length > 0) {
+        const opacities = [0.30, 0.22, 0.15, 0.10, 0.05];
+        const lineOps  = [0.45, 0.30, 0.18, 0.10, 0.00];
+        upperLayers.forEach((layer, idx) => {
+          if (layer.length === 0) return;
+          const op = opacities[idx] ?? 0.05;
+          const lop = lineOps[idx] ?? 0;
+          const s = chart.addSeries(AreaSeries, {
+            topColor: `rgba(239,83,80,${op})`,
+            bottomColor: `rgba(239,83,80,${Math.max(0, op - 0.08)})`,
+            lineColor: idx === 0 ? `rgba(239,83,80,${lop})` : 'transparent',
+            lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          s.setData(layer.map(toChartPt));
         });
-        upperOuter.setData(alphaNetData.rz_upper_outer.map(toChartPt));
-
-        const upperInner = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.12)', bottomColor: 'transparent',
-          lineColor: 'rgba(239,83,80,0.25)', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        upperInner.setData(alphaNetData.rz_upper_inner.map(toChartPt));
       }
 
-      // Lower support zone (teal gradient): inner → outer
-      if (alphaNetData.rz_lower_outer?.length > 0 && alphaNetData.rz_lower_inner?.length > 0) {
-        const lowerInner = chart.addSeries(AreaSeries, {
-          topColor: 'transparent', bottomColor: 'rgba(38,166,154,0.12)',
-          lineColor: 'rgba(38,166,154,0.25)', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
+      // Lower support zone — 5 gradient layers (outer=darkest → inner=lightest)
+      const lowerLayers = alphaNetData.rz_lower_layers;
+      if (lowerLayers?.length > 0) {
+        const opacities = [0.30, 0.22, 0.15, 0.10, 0.05];
+        const lineOps  = [0.45, 0.30, 0.18, 0.10, 0.00];
+        lowerLayers.forEach((layer, idx) => {
+          if (layer.length === 0) return;
+          const op = opacities[idx] ?? 0.05;
+          const lop = lineOps[idx] ?? 0;
+          const s = chart.addSeries(AreaSeries, {
+            topColor: `rgba(38,166,154,${Math.max(0, op - 0.08)})`,
+            bottomColor: `rgba(38,166,154,${op})`,
+            lineColor: idx === 0 ? `rgba(38,166,154,${lop})` : 'transparent',
+            lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          s.setData(layer.map(toChartPt));
         });
-        lowerInner.setData(alphaNetData.rz_lower_inner.map(toChartPt));
-
-        const lowerOuter = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(38,166,154,0.08)', bottomColor: 'rgba(38,166,154,0.25)',
-          lineColor: 'rgba(38,166,154,0.4)', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        lowerOuter.setData(alphaNetData.rz_lower_outer.map(toChartPt));
       }
 
       // Mean line (dashed gray)

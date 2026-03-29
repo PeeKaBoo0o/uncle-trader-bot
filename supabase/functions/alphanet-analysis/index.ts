@@ -185,26 +185,29 @@ function analyzeAlphaNet(candles: Candle[]) {
   const rzMult2 = Math.PI * rzOuterMult;
   const rzGradSize = 0.5;
 
-  // Per-candle RZ band arrays for chart rendering
-  const rzUpperOuter: { time: number; value: number }[] = [];
-  const rzUpperInner: { time: number; value: number }[] = [];
+  // Per-candle RZ band arrays — 5 gradient layers per side
+  // Layers go from outer (strongest) to inner (weakest), evenly spaced
+  const gradLayers = 5;
+  const rzUpper: { time: number; value: number }[][] = Array.from({ length: gradLayers }, () => []);
+  const rzLower: { time: number; value: number }[][] = Array.from({ length: gradLayers }, () => []);
   const rzMeanLine: { time: number; value: number }[] = [];
-  const rzLowerInner: { time: number; value: number }[] = [];
-  const rzLowerOuter: { time: number; value: number }[] = [];
 
   for (let i = 0; i < n; i++) {
     const m = ssMean[i];
     const r = ssRange[i];
     const up = m + r * rzMult2;
     const lo = m - r * rzMult2;
-    const upInner = up + r * rzGradSize * -4;
-    const loInner = lo - r * rzGradSize * -4;
     const t = candles[i].time;
-    rzUpperOuter.push({ time: t, value: up });
-    rzUpperInner.push({ time: t, value: upInner });
     rzMeanLine.push({ time: t, value: m });
-    rzLowerInner.push({ time: t, value: loInner });
-    rzLowerOuter.push({ time: t, value: lo });
+
+    // Create layers from outer edge towards mean
+    for (let layer = 0; layer < gradLayers; layer++) {
+      const frac = layer / gradLayers; // 0, 0.2, 0.4, 0.6, 0.8
+      const upVal = up - (up - m) * frac * 0.6; // squeeze towards mean
+      const loVal = lo + (m - lo) * frac * 0.6;
+      rzUpper[layer].push({ time: t, value: upVal });
+      rzLower[layer].push({ time: t, value: loVal });
+    }
   }
 
   const lastMean = ssMean[n - 1];
@@ -261,11 +264,9 @@ function analyzeAlphaNet(candles: Candle[]) {
       lo_band: Math.round(loBand * 100) / 100,
       mean: Math.round(lastMean * 100) / 100,
     },
-    rz_upper_outer: rzUpperOuter.slice(-200),
-    rz_upper_inner: rzUpperInner.slice(-200),
+    rz_upper_layers: rzUpper.map(l => l.slice(-200)),
+    rz_lower_layers: rzLower.map(l => l.slice(-200)),
     rz_mean: rzMeanLine.slice(-200),
-    rz_lower_inner: rzLowerInner.slice(-200),
-    rz_lower_outer: rzLowerOuter.slice(-200),
   };
 }
 
