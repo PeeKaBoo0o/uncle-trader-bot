@@ -62,9 +62,54 @@ export function useTpSlIndicator(
 
     const trades: TpSlTrade[] = [];
     let longShort = 0; // 1=long, -1=short, 0=flat
+    let cooldown = 0;  // bars to skip after SL/TP hit
 
     for (let i = 1; i < n; i++) {
       if (isNaN(ema5[i]) || isNaN(ema32[i]) || isNaN(ema5[i - 1]) || isNaN(ema32[i - 1])) continue;
+
+      // Check SL/TP hits FIRST (before entry), matching Pine order
+      const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+      if (lastTrade && lastTrade.result === 'open' && i > lastTrade.entryIndex) {
+        if (lastTrade.type === 'long') {
+          const slHit = lows[i] < lastTrade.slPrice;
+          const tpHit = highs[i] > lastTrade.tpPrice;
+          if (slHit) {
+            lastTrade.result = 'SL';
+            lastTrade.exitIndex = i;
+            lastTrade.exitTime = candles[i].time;
+            longShort = 0;
+            cooldown = 2; // skip next 2 bars to avoid immediate re-entry
+          } else if (tpHit) {
+            lastTrade.result = 'TP';
+            lastTrade.exitIndex = i;
+            lastTrade.exitTime = candles[i].time;
+            longShort = 0;
+            cooldown = 2;
+          }
+        } else {
+          const slHit = highs[i] > lastTrade.slPrice;
+          const tpHit = lows[i] < lastTrade.tpPrice;
+          if (slHit) {
+            lastTrade.result = 'SL';
+            lastTrade.exitIndex = i;
+            lastTrade.exitTime = candles[i].time;
+            longShort = 0;
+            cooldown = 2;
+          } else if (tpHit) {
+            lastTrade.result = 'TP';
+            lastTrade.exitIndex = i;
+            lastTrade.exitTime = candles[i].time;
+            longShort = 0;
+            cooldown = 2;
+          }
+        }
+      }
+
+      // Cooldown: skip entry signals for a few bars after exit
+      if (cooldown > 0) {
+        cooldown--;
+        continue;
+      }
 
       const crossover = ema5[i] > ema32[i] && ema5[i - 1] <= ema32[i - 1];
       const crossunder = ema5[i] < ema32[i] && ema5[i - 1] >= ema32[i - 1];
@@ -94,42 +139,6 @@ export function useTpSlIndicator(
           tpPrice: closes[i] * (1 - tpFrac),
           result: 'open',
         });
-      }
-
-      // Check SL/TP hits for current open trade
-      const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
-      if (lastTrade && lastTrade.result === 'open' && i > lastTrade.entryIndex) {
-        if (lastTrade.type === 'long') {
-          const slHit = lows[i] < lastTrade.slPrice;
-          const tpHit = highs[i] > lastTrade.tpPrice;
-          // Pessimistic: if both hit on same candle, count as SL
-          if (slHit) {
-            lastTrade.result = 'SL';
-            lastTrade.exitIndex = i;
-            lastTrade.exitTime = candles[i].time;
-            longShort = 0;
-          } else if (tpHit) {
-            lastTrade.result = 'TP';
-            lastTrade.exitIndex = i;
-            lastTrade.exitTime = candles[i].time;
-            longShort = 0;
-          }
-        } else {
-          const slHit = highs[i] > lastTrade.slPrice;
-          const tpHit = lows[i] < lastTrade.tpPrice;
-          // Pessimistic: if both hit on same candle, count as SL
-          if (slHit) {
-            lastTrade.result = 'SL';
-            lastTrade.exitIndex = i;
-            lastTrade.exitTime = candles[i].time;
-            longShort = 0;
-          } else if (tpHit) {
-            lastTrade.result = 'TP';
-            lastTrade.exitIndex = i;
-            lastTrade.exitTime = candles[i].time;
-            longShort = 0;
-          }
-        }
       }
     }
 
