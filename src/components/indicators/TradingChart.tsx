@@ -786,7 +786,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
     if (tpSlData && enabledIndicators.includes('tp_sl') && tpSlData.trades.length > 0) {
       const tpSlMarkers: any[] = [];
 
-      tpSlData.trades.forEach((trade, idx) => {
+      tpSlData.trades.forEach((trade) => {
         const entryT = Math.floor(trade.entryTime / 1000);
         const exitT = trade.exitTime
           ? Math.floor(trade.exitTime / 1000)
@@ -800,44 +800,46 @@ const TradingChart: React.FC<TradingChartProps> = ({
         });
         if (tradeCandles.length === 0) return;
 
-        // TP zone (green fill between entry and TP)
-        const tpTop = Math.max(trade.entryPrice, trade.tpPrice);
-        const tpBot = Math.min(trade.entryPrice, trade.tpPrice);
-        const tpUpper = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(38,166,154,0.20)', bottomColor: 'rgba(38,166,154,0.20)',
-          lineColor: 'rgba(38,166,154,0.5)', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        tpUpper.setData(tradeCandles.map(c => ({ time: Math.floor(c.time / 1000) as any, value: tpTop })));
-        const tpLower = chart.addSeries(AreaSeries, {
-          topColor: '#0d1117', bottomColor: '#0d1117',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        tpLower.setData(tradeCandles.map(c => ({ time: Math.floor(c.time / 1000) as any, value: tpBot })));
+        const tradeTimes = tradeCandles.map(c => Math.floor(c.time / 1000) as any);
 
-        // SL zone (red fill between entry and SL)
-        const slTop = Math.max(trade.entryPrice, trade.slPrice);
-        const slBot = Math.min(trade.entryPrice, trade.slPrice);
-        const slUpper = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(239,83,80,0.20)', bottomColor: 'rgba(239,83,80,0.20)',
-          lineColor: 'rgba(239,83,80,0.5)', lineWidth: 1 as 1,
+        // TP line (green solid)
+        const tpLine = chart.addSeries(LineSeries, {
+          color: '#4CAF50', lineWidth: 1, lineStyle: 0,
           priceLineVisible: false, lastValueVisible: false,
         });
-        slUpper.setData(tradeCandles.map(c => ({ time: Math.floor(c.time / 1000) as any, value: slTop })));
-        const slLower = chart.addSeries(AreaSeries, {
-          topColor: '#0d1117', bottomColor: '#0d1117',
-          lineColor: 'transparent', lineWidth: 1 as 1,
-          priceLineVisible: false, lastValueVisible: false,
-        });
-        slLower.setData(tradeCandles.map(c => ({ time: Math.floor(c.time / 1000) as any, value: slBot })));
+        tpLine.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.tpPrice })));
 
-        // Entry line (dashed)
+        // SL line (red solid)
+        const slLine = chart.addSeries(LineSeries, {
+          color: '#F44336', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        slLine.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.slPrice })));
+
+        // Entry line (white dashed)
         const entryLine = chart.addSeries(LineSeries, {
-          color: 'rgba(255,255,255,0.3)', lineWidth: 1, lineStyle: 2,
+          color: 'rgba(255,255,255,0.4)', lineWidth: 1, lineStyle: 2,
           priceLineVisible: false, lastValueVisible: false,
         });
-        entryLine.setData(tradeCandles.map(c => ({ time: Math.floor(c.time / 1000) as any, value: trade.entryPrice })));
+        entryLine.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.entryPrice })));
+
+        // TP fill zone (entry↔TP): green tinted area between entry and TP
+        const tpFillSeries = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(38,166,154,0.15)', bottomColor: 'rgba(38,166,154,0.05)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+          priceScaleId: '',
+        });
+        tpFillSeries.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.tpPrice })));
+
+        // SL fill zone (entry↔SL): red tinted area between entry and SL
+        const slFillSeries = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(239,83,80,0.15)', bottomColor: 'rgba(239,83,80,0.05)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+          priceScaleId: '',
+        });
+        slFillSeries.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.slPrice })));
 
         // LONG/SHORT entry marker
         tpSlMarkers.push({
@@ -1213,15 +1215,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
     // Apply all collected markers to candle series (one call to avoid overwriting)
     if (allMarkers.length > 0) {
-      // Deduplicate: keep only one marker per timestamp (prevent stacking)
-      const seen = new Map<number, any>();
-      allMarkers.forEach(m => {
-        const key = m.time as number;
-        if (!seen.has(key)) seen.set(key, m);
-      });
-      const dedupedMarkers = Array.from(seen.values());
-      dedupedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
-      createSeriesMarkers(candleSeries, dedupedMarkers);
+      allMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+      createSeriesMarkers(candleSeries, allMarkers);
     }
 
     // Always fit all candle data so there are no empty gaps
