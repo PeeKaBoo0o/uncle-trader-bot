@@ -121,7 +121,20 @@ const Services: React.FC = () => {
           <p className="reveal-hidden page-reveal text-muted-foreground text-lg leading-relaxed max-w-2xl mx-auto mb-8">
             Từ tín hiệu giao dịch hàng ngày đến mentorship 1-1 chuyên sâu, UNCLETRADER có đủ công cụ để đưa bạn từ thua lỗ sang có lợi nhuận ổn định.
           </p>
-          <div className="reveal-hidden page-reveal flex items-center justify-center gap-8 mt-10">
+
+          {/* Video */}
+          <div className="reveal-hidden page-reveal glass-card rounded-2xl overflow-hidden cyber-border max-w-3xl mx-auto mb-10">
+            <video
+              controls
+              className="w-full aspect-video"
+              preload="metadata"
+            >
+              <source src="/videos/thiet-lap-laptop.mp4" type="video/mp4" />
+              Trình duyệt không hỗ trợ video.
+            </video>
+          </div>
+
+          <div className="reveal-hidden page-reveal flex items-center justify-center gap-8">
             {[
               { label: 'Signals', count: '400+', color: 'text-cyan-brand' },
               { label: 'Học viên', count: '2,400+', color: 'text-violet-light' },
@@ -132,29 +145,6 @@ const Services: React.FC = () => {
                 <div className="font-mono-custom text-xs text-muted-foreground tracking-wide">{item.label}</div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Video giới thiệu */}
-      <section className="py-16">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <div className="section-label mb-4">VIDEO HƯỚNG DẪN</div>
-            <h2 className="font-display font-bold text-3xl sm:text-4xl text-foreground tracking-tight">
-              Thiết Lập <span className="text-gradient-cyan italic">Chuyên Nghiệp</span>
-            </h2>
-          </div>
-          <div className="glass-card rounded-2xl overflow-hidden cyber-border">
-            <video
-              controls
-              className="w-full aspect-video"
-              poster=""
-              preload="metadata"
-            >
-              <source src="/videos/thiet-lap-laptop.mp4" type="video/mp4" />
-              Trình duyệt không hỗ trợ video.
-            </video>
           </div>
         </div>
       </section>
