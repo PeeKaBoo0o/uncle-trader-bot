@@ -466,6 +466,8 @@ const Indicators: React.FC = () => {
                   candles={marketData.candles}
                   indicators={marketData.indicators}
                   zones={marketData.zones}
+                  trendline={trendlines.support}
+                  trendlineResistance={trendlines.resistance}
                   enabledIndicators={enabledIds}
                   height={520}
                   smcAnalysis={smcResult.analysis}
