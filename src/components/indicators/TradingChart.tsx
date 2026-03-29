@@ -606,12 +606,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
           });
         });
         if (markers.length > 0) {
-          // Sort markers by time (required by lightweight-charts)
-          markers.sort((a, b) => {
+          markers.sort((a: any, b: any) => {
             if (typeof a.time === 'number' && typeof b.time === 'number') return a.time - b.time;
             return 0;
           });
-          candleSeries.setMarkers(markers);
+          createSeriesMarkers(candleSeries, markers);
         }
       }
     }
