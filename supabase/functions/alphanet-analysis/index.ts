@@ -185,6 +185,28 @@ function analyzeAlphaNet(candles: Candle[]) {
   const rzMult2 = Math.PI * rzOuterMult;
   const rzGradSize = 0.5;
 
+  // Per-candle RZ band arrays for chart rendering
+  const rzUpperOuter: { time: number; value: number }[] = [];
+  const rzUpperInner: { time: number; value: number }[] = [];
+  const rzMeanLine: { time: number; value: number }[] = [];
+  const rzLowerInner: { time: number; value: number }[] = [];
+  const rzLowerOuter: { time: number; value: number }[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const m = ssMean[i];
+    const r = ssRange[i];
+    const up = m + r * rzMult2;
+    const lo = m - r * rzMult2;
+    const upInner = up + r * rzGradSize * -4;
+    const loInner = lo - r * rzGradSize * -4;
+    const t = candles[i].time;
+    rzUpperOuter.push({ time: t, value: up });
+    rzUpperInner.push({ time: t, value: upInner });
+    rzMeanLine.push({ time: t, value: m });
+    rzLowerInner.push({ time: t, value: loInner });
+    rzLowerOuter.push({ time: t, value: lo });
+  }
+
   const lastMean = ssMean[n - 1];
   const lastRange = ssRange[n - 1];
   const upBand = lastMean + lastRange * rzMult2;
@@ -197,14 +219,28 @@ function analyzeAlphaNet(candles: Candle[]) {
   if (lastClose > up9) rzState = "⚠ BEAR ZONE";
   else if (lastClose < lo9) rzState = "⚠ BULL ZONE";
 
-  // Detect signal changes
+  // Detect ALL signal changes (not just the last one)
+  const signalPoints: { time: number; type: "BUY" | "SELL"; price: number; strength: number }[] = [];
+  let consecutiveCount = 0;
+  let lastSignalDir = 0;
+  for (let i = 1; i < n; i++) {
+    if (trend[i] === 1 && trend[i - 1] === -1) {
+      if (lastSignalDir === 1) consecutiveCount++; else { consecutiveCount = 1; lastSignalDir = 1; }
+      signalPoints.push({ time: candles[i].time, type: "BUY", price: candles[i].low, strength: consecutiveCount });
+    } else if (trend[i] === -1 && trend[i - 1] === 1) {
+      if (lastSignalDir === -1) consecutiveCount++; else { consecutiveCount = 1; lastSignalDir = -1; }
+      signalPoints.push({ time: candles[i].time, type: "SELL", price: candles[i].high, strength: consecutiveCount });
+    }
+  }
+
+  // Current signal (last bar)
   let signal: "BUY" | "SELL" | "HOLD" = "HOLD";
   if (n >= 2) {
     if (trend[n - 1] === 1 && trend[n - 2] === -1) signal = "BUY";
     else if (trend[n - 1] === -1 && trend[n - 2] === 1) signal = "SELL";
   }
 
-  // SuperTrend line for chart overlay
+  // SuperTrend line for chart overlay - return ALL points
   const stLine = candles.map((c, i) => ({
     time: c.time,
     value: trend[i] === 1 ? lowerBand[i] : upperBand[i],
@@ -218,12 +254,18 @@ function analyzeAlphaNet(candles: Candle[]) {
     ai_state: currentTrend === 1 ? "TRENDING" : "BEARISH",
     rz_state: rzState,
     signal,
-    supertrend_line: stLine.slice(-60), // last 60 points for chart
+    supertrend_line: stLine,
+    signal_points: signalPoints,
     rz_bands: {
       up_band: Math.round(upBand * 100) / 100,
       lo_band: Math.round(loBand * 100) / 100,
       mean: Math.round(lastMean * 100) / 100,
     },
+    rz_upper_outer: rzUpperOuter.slice(-200),
+    rz_upper_inner: rzUpperInner.slice(-200),
+    rz_mean: rzMeanLine.slice(-200),
+    rz_lower_inner: rzLowerInner.slice(-200),
+    rz_lower_outer: rzLowerOuter.slice(-200),
   };
 }
 
