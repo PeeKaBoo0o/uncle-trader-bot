@@ -102,7 +102,7 @@ class RectanglePaneView {
     );
   }
 
-  zOrder(): string {
+  zOrder(): 'bottom' {
     return 'bottom';
   }
 }
