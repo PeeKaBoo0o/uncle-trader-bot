@@ -1044,11 +1044,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
         const borderColor = ch.type === 'resistance' ? 'rgba(239,83,80,0.5)' :
                             ch.type === 'support' ? 'rgba(0,230,118,0.5)' : 'rgba(158,158,158,0.3)';
 
-        candleSeries.attachPrimitive(new RectanglePrimitive(
-          farLeft as any, ch.top,
-          farRight as any, ch.bottom,
-          { fillColor, borderColor, borderWidth: 1 }
-        ));
+        candleSeries.attachPrimitive(new RectanglePrimitive({
+          p1: { time: farLeft, price: ch.top },
+          p2: { time: farRight, price: ch.bottom },
+          fillColor, borderColor, borderWidth: 1,
+        }));
       });
 
       // Bar coloring based on StochRSI K value (matching Pine barcolor)
