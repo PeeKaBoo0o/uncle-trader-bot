@@ -40,6 +40,7 @@ interface TradingChartProps {
   engineData?: EngineData | null;
   tpSlData?: TpSlData | null;
   buySellData?: BuySellData | null;
+  oscillatorData?: OscillatorMatrixData | null;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
