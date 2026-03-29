@@ -94,35 +94,7 @@ async function fetchCandles(symbol: string, interval: string, limit = 100): Prom
   throw new Error(`All Binance API endpoints failed: ${lastError}`);
 }
 
-  let data: any;
-  try {
-    data = JSON.parse(bodyText);
-  } catch {
-    if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
-      return fetchSyntheticGold(safeInterval, safeLimit);
-    }
-    throw new Error("Binance response parse error");
-  }
 
-  if (!Array.isArray(data) || data.length === 0) {
-    if (cleaned.includes("XAU") || cleaned.includes("PAXG")) {
-      return fetchSyntheticGold(safeInterval, safeLimit);
-    }
-    if (binanceSymbol !== "BTCUSDT") {
-      return fetchCandles("BTCUSDT", safeInterval, safeLimit);
-    }
-    throw new Error("Binance returned empty kline data");
-  }
-
-  return data.map((k: any[]) => ({
-    time: k[0],
-    open: parseFloat(k[1]),
-    high: parseFloat(k[2]),
-    low: parseFloat(k[3]),
-    close: parseFloat(k[4]),
-    volume: parseFloat(k[5]),
-  }));
-}
 
 // Synthetic gold OHLCV — scales BTC price to approximate XAU range
 async function fetchSyntheticGold(interval: string, limit: number): Promise<Candle[]> {
