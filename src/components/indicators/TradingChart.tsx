@@ -623,44 +623,37 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
     // ── Matrix NWE Envelope ──
     if (matrixData && enabledIndicators.includes('matrix')) {
-      // Upper band (teal)
+      // Upper band (teal dashed)
       const upperSeries = chart.addSeries(LineSeries, {
-        color: '#00BCD4', lineWidth: 1, lineStyle: 0,
+        color: '#26a69a', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false, title: 'NWE Upper',
       });
       const upperData = matrixData.upper.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
       if (upperData.length > 0) upperSeries.setData(upperData);
 
-      // Lower band (red)
+      // Lower band (red dashed)
       const lowerSeries = chart.addSeries(LineSeries, {
-        color: '#ef5350', lineWidth: 1, lineStyle: 0,
+        color: '#ef5350', lineWidth: 2, lineStyle: 2,
         priceLineVisible: false, lastValueVisible: false, title: 'NWE Lower',
       });
       const lowerData = matrixData.lower.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
       if (lowerData.length > 0) lowerSeries.setData(lowerData);
 
-      // Fill between upper and lower with area series
-      const fillUpper = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(0,188,212,0.06)', bottomColor: 'transparent',
-        lineColor: 'transparent', lineWidth: 1 as 1,
-        priceLineVisible: false, lastValueVisible: false,
-      });
-      if (upperData.length > 0) fillUpper.setData(upperData);
-
-      const fillLower = chart.addSeries(AreaSeries, {
-        topColor: 'transparent', bottomColor: 'rgba(239,83,80,0.06)',
-        lineColor: 'transparent', lineWidth: 1 as 1,
-        priceLineVisible: false, lastValueVisible: false,
-      });
-      if (lowerData.length > 0) fillLower.setData(lowerData);
-
-      // Buy/Sell signal markers
+      // Buy/Sell signal markers on candle series
       matrixData.signals.forEach(sig => {
+        const markers = [{
+          time: (sig.time / 1000) as any,
+          position: sig.type === 'buy' ? 'belowBar' as const : 'aboveBar' as const,
+          color: sig.type === 'buy' ? '#26a69a' : '#ef5350',
+          shape: sig.type === 'buy' ? 'arrowUp' as const : 'arrowDown' as const,
+          text: sig.type === 'buy' ? 'Buy' : 'Sell',
+        }];
+        // Use price lines as fallback
         candleSeries.createPriceLine({
           price: sig.price,
           color: sig.type === 'buy' ? '#26a69a' : '#ef5350',
-          lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
-          title: sig.type === 'buy' ? '▲ MX Buy' : '▼ MX Sell',
+          lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+          title: sig.type === 'buy' ? 'Buy' : 'Sell',
         } as any);
       });
     }
