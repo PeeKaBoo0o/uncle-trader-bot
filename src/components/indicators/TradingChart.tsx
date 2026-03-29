@@ -594,16 +594,14 @@ const TradingChart: React.FC<TradingChartProps> = ({
         }
       }
 
-      // Signal markers as candle markers (like TradingView label boxes)
+      // Signal markers — collect into shared array (applied at the end)
       if (alphaNetData.signal_points?.length > 0) {
-        const markers: any[] = [];
         alphaNetData.signal_points.forEach(sp => {
           const stars = '★'.repeat(Math.min(sp.strength, 4));
           const isBuy = sp.type === 'BUY';
-          // Find matching candle
           const candle = candles.find(c => c.time === sp.time);
           if (!candle) return;
-          markers.push({
+          allMarkers.push({
             time: (sp.time / 1000) as any,
             position: isBuy ? 'belowBar' : 'aboveBar',
             color: isBuy ? '#26a69a' : '#ef5350',
@@ -611,13 +609,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
             text: `AI ${sp.strength}${stars}`,
           });
         });
-        if (markers.length > 0) {
-          markers.sort((a: any, b: any) => {
-            if (typeof a.time === 'number' && typeof b.time === 'number') return a.time - b.time;
-            return 0;
-          });
-          createSeriesMarkers(candleSeries, markers);
-        }
       }
     }
 
