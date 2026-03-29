@@ -303,9 +303,44 @@ const Indicators: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* ── CENTER: Chart Area ── */}
+            {/* Pro EMA Dashboard */}
+            {proEmaEnabled && proEmaData && (
+              <div className="mt-3 border border-white/5 rounded-lg overflow-hidden">
+                <div className="bg-[#1B1F2B] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                  PRO EMA
+                </div>
+                <div className="bg-[#0d1526] p-2 space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-orange-400/60">EMA 20</span>
+                    <span className="text-orange-400 font-bold">{proEmaData.lastEma20.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-yellow-400/60">EMA 50</span>
+                    <span className="text-yellow-400 font-bold">{proEmaData.lastEma50.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-teal-400/60">EMA 100</span>
+                    <span className="text-teal-400 font-bold">{proEmaData.lastEma100.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-purple-400/60">EMA 200</span>
+                    <span className="text-purple-400 font-bold">{proEmaData.lastEma200.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Ribbon</span>
+                    <span className={`font-bold ${proEmaData.ribbon === 'bullish' ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {proEmaData.ribbon === 'bullish' ? '🟢 BULLISH' : '🔴 BEARISH'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-muted-foreground/60">Crosses</span>
+                    <span className="text-foreground font-bold">{proEmaData.crosses.length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="bg-[#0d1526] border border-white/5 rounded-lg overflow-hidden flex flex-col">
             {/* Chart header with pair info */}
             <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5">

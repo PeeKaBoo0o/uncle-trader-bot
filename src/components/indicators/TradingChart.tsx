@@ -891,6 +891,55 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
+    // ── Pro EMA (EMA 20/50/100/200 + Golden/Death Cross) ──
+    if (proEmaData && enabledIndicators.includes('pro_ema')) {
+      const mapTs = (arr: { time: number; value: number }[]) =>
+        arr.map(p => ({ time: (p.time / 1000) as any, value: p.value }));
+
+      // EMA 20 (orange, dotted/circles style)
+      const ema20S = chart.addSeries(LineSeries, {
+        color: '#FF9800', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'EMA 20',
+      });
+      const e20 = mapTs(proEmaData.ema20);
+      if (e20.length > 0) ema20S.setData(e20);
+
+      // EMA 50 (yellow)
+      const ema50S = chart.addSeries(LineSeries, {
+        color: '#FFEB3B', lineWidth: 2, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'EMA 50',
+      });
+      const e50 = mapTs(proEmaData.ema50);
+      if (e50.length > 0) ema50S.setData(e50);
+
+      // EMA 100 (teal, dotted)
+      const ema100S = chart.addSeries(LineSeries, {
+        color: '#009688', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'EMA 100',
+      });
+      const e100 = mapTs(proEmaData.ema100);
+      if (e100.length > 0) ema100S.setData(e100);
+
+      // EMA 200 (purple)
+      const ema200S = chart.addSeries(LineSeries, {
+        color: '#9C27B0', lineWidth: 2, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'EMA 200',
+      });
+      const e200 = mapTs(proEmaData.ema200);
+      if (e200.length > 0) ema200S.setData(e200);
+
+      // Golden Cross / Death Cross markers
+      proEmaData.crosses.forEach(cross => {
+        if (cross.index < 0 || cross.index >= candles.length) return;
+        candleSeries.createPriceLine({
+          price: cross.price,
+          color: cross.type === 'golden' ? '#4CAF50' : '#F44336',
+          lineWidth: 1, lineStyle: 0, axisLabelVisible: false,
+          title: cross.type === 'golden' ? '▲ Golden' : '▼ Death',
+        } as any);
+      });
+    }
+
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time) {
         const last = candles[candles.length - 1];
