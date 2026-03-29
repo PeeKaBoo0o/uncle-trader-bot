@@ -34,6 +34,7 @@ const DictionaryDetail: React.FC = () => {
   const illustration = slug ? ILLUSTRATIONS[slug] : undefined;
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     const els = document.querySelectorAll('.page-reveal');
     els.forEach((el, i) => setTimeout(() => el.classList.add('revealed'), 200 + i * 150));
   }, [slug]);
@@ -61,6 +62,14 @@ const DictionaryDetail: React.FC = () => {
       { level: 'Nâng Cao', icon: '📕', data: detail.advanced, color: 'border-violet-400/30 bg-violet-400/5', isAdvanced: true },
     ];
 
+    // Get related terms info
+    const relatedTermsList = (detail.relatedTerms || [])
+      .map(id => {
+        const t = TERMS.find(term => term.id === id);
+        return t ? { ...t } : null;
+      })
+      .filter(Boolean) as typeof TERMS;
+
     return (
       <main className="min-h-screen bg-navy grain-overlay">
         <Header />
@@ -81,6 +90,26 @@ const DictionaryDetail: React.FC = () => {
                 <img src={illustration} alt={`Minh họa ${detail.term}`} loading="lazy" width={800} height={512} className="w-full h-auto object-cover" />
                 <div className="bg-foreground/[0.03] px-4 py-2 border-t border-foreground/5">
                   <p className="text-xs text-muted-foreground/60 font-mono-custom">📊 Biểu đồ minh họa — {detail.term}</p>
+                </div>
+              </div>
+            )}
+
+            {/* YouTube Video Embed */}
+            {detail.videoId && (
+              <div className="reveal-hidden page-reveal mt-8">
+                <h2 className="font-display font-bold text-lg text-foreground mb-3 flex items-center gap-2">
+                  <span>🎬</span> Video Hướng Dẫn
+                </h2>
+                <div className="rounded-2xl overflow-hidden border border-foreground/10 bg-foreground/[0.02]">
+                  <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                    <iframe
+                      className="absolute inset-0 w-full h-full"
+                      src={`https://www.youtube.com/embed/${detail.videoId}`}
+                      title={`Video hướng dẫn ${detail.term}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -108,14 +137,13 @@ const DictionaryDetail: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-cyan-400/80 uppercase tracking-wider mb-2 font-mono-custom">CÁCH ÁP DỤNG</h3>
-                    <p className="text-muted-foreground leading-relaxed">{data.howToApply}</p>
+                    <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{data.howToApply}</p>
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-red-400/80 uppercase tracking-wider mb-2 font-mono-custom">⚠️ LỖI THƯỜNG GẶP</h3>
                     <p className="text-muted-foreground leading-relaxed">{data.commonMistakes}</p>
                   </div>
 
-                  {/* Pro Tips - only for advanced section */}
                   {isAdvanced && 'proTips' in data && (data as any).proTips && (
                     <div className="mt-4 pt-4 border-t border-foreground/5">
                       <h3 className="text-xs font-bold text-amber-400/80 uppercase tracking-wider mb-3 font-mono-custom">💡 PRO TIPS</h3>
@@ -130,7 +158,6 @@ const DictionaryDetail: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Key Takeaways - only for advanced section */}
                   {isAdvanced && 'keyTakeaways' in data && (data as any).keyTakeaways && (
                     <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
                       <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 font-mono-custom">🎯 KEY TAKEAWAYS</h3>
@@ -147,6 +174,30 @@ const DictionaryDetail: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* Related Terms */}
+            {relatedTermsList.length > 0 && (
+              <div className="glass-card rounded-2xl p-6 lg:p-8 border border-foreground/10">
+                <h2 className="font-display font-bold text-xl text-foreground mb-4 flex items-center gap-2">
+                  <span>🔗</span> Thuật Ngữ Liên Quan
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {relatedTermsList.map(rt => (
+                    <Link
+                      key={rt.id}
+                      to={`/tu-dien/${rt.id}`}
+                      className="group flex items-center gap-3 p-3 rounded-xl border border-foreground/5 bg-foreground/[0.02] hover:bg-foreground/[0.05] hover:border-cyan-400/20 transition-all"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground group-hover:text-cyan-400 transition-colors truncate">{rt.term}</p>
+                        <p className="text-xs text-muted-foreground/60 font-mono-custom truncate">{rt.english}</p>
+                      </div>
+                      <span className="text-muted-foreground/40 group-hover:text-cyan-400 transition-colors text-lg">→</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
         <Footer />
