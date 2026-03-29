@@ -135,6 +135,9 @@ function analyzeAlphaNet(candles: Candle[]) {
   const step = 0.5;
   const perfAlpha = 10;
   const rzLength = 100;
+  const rzInnerMult = 1.618;
+  const rzOuterMult = 2.415;
+  const rzGradSize = 0.5;
 
   const atr = calcATR(candles, atrLen);
 
@@ -181,33 +184,39 @@ function analyzeAlphaNet(candles: Candle[]) {
   const ssMean = superSmoother(hlc3, rzLength);
   const ssRange = superSmoother(tr, rzLength);
 
-  const rzOuterMult = 2.415;
-  const rzMult2 = Math.PI * rzOuterMult;
-  const rzGradSize = 0.5;
+  const pi = Math.PI;
+  const rzMult  = pi * rzInnerMult;  // inner band multiplier
+  const rzMult2 = pi * rzOuterMult;  // outer band multiplier
 
-  // Per-candle RZ band arrays — 5 gradient layers per side
-  // Layers go from outer (strongest) to inner (weakest), evenly spaced
-  const gradLayers = 5;
-  const rzUpper: { time: number; value: number }[][] = Array.from({ length: gradLayers }, () => []);
-  const rzLower: { time: number; value: number }[][] = Array.from({ length: gradLayers }, () => []);
+  // Per-candle: 3 lines per side (up1/up5/up9, lo1/lo5/lo9)
+  // Pine: rz_upband2 = meanline + meanrange * rz_mult2
+  //        rz_up1 = rz_upband2 + meanrange * gradsize *  4  (outermost)
+  //        rz_up5 = rz_upband2 + meanrange * gradsize *  0  (= upband2)
+  //        rz_up9 = rz_upband2 + meanrange * gradsize * -4  (innermost)
+  const rzUp1: { time: number; value: number }[] = [];
+  const rzUp5: { time: number; value: number }[] = [];
+  const rzUp9: { time: number; value: number }[] = [];
+  const rzLo1: { time: number; value: number }[] = [];
+  const rzLo5: { time: number; value: number }[] = [];
+  const rzLo9: { time: number; value: number }[] = [];
   const rzMeanLine: { time: number; value: number }[] = [];
 
   for (let i = 0; i < n; i++) {
     const m = ssMean[i];
     const r = ssRange[i];
-    const up = m + r * rzMult2;
-    const lo = m - r * rzMult2;
     const t = candles[i].time;
-    rzMeanLine.push({ time: t, value: m });
+    const upband2 = m + r * rzMult2;
+    const loband2 = m - r * rzMult2;
 
-    // Create layers from outer edge towards mean
-    for (let layer = 0; layer < gradLayers; layer++) {
-      const frac = layer / gradLayers; // 0, 0.2, 0.4, 0.6, 0.8
-      const upVal = up - (up - m) * frac * 0.6; // squeeze towards mean
-      const loVal = lo + (m - lo) * frac * 0.6;
-      rzUpper[layer].push({ time: t, value: upVal });
-      rzLower[layer].push({ time: t, value: loVal });
-    }
+    rzUp1.push({ time: t, value: upband2 + r * rzGradSize * 4 });
+    rzUp5.push({ time: t, value: upband2 });  // gradsize * 0
+    rzUp9.push({ time: t, value: upband2 + r * rzGradSize * -4 });
+
+    rzLo1.push({ time: t, value: loband2 - r * rzGradSize * 4 });
+    rzLo5.push({ time: t, value: loband2 });  // gradsize * 0
+    rzLo9.push({ time: t, value: loband2 - r * rzGradSize * -4 });
+
+    rzMeanLine.push({ time: t, value: m });
   }
 
   const lastMean = ssMean[n - 1];
@@ -264,8 +273,12 @@ function analyzeAlphaNet(candles: Candle[]) {
       lo_band: Math.round(loBand * 100) / 100,
       mean: Math.round(lastMean * 100) / 100,
     },
-    rz_upper_layers: rzUpper.map(l => l.slice(-200)),
-    rz_lower_layers: rzLower.map(l => l.slice(-200)),
+    rz_up1: rzUp1.slice(-200),
+    rz_up5: rzUp5.slice(-200),
+    rz_up9: rzUp9.slice(-200),
+    rz_lo1: rzLo1.slice(-200),
+    rz_lo5: rzLo5.slice(-200),
+    rz_lo9: rzLo9.slice(-200),
     rz_mean: rzMeanLine.slice(-200),
   };
 }

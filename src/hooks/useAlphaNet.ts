@@ -12,8 +12,12 @@ export interface AlphaNetData {
   supertrend_line: { time: number; value: number; trend: number }[];
   signal_points: { time: number; type: 'BUY' | 'SELL'; price: number; strength: number }[];
   rz_bands: { up_band: number; lo_band: number; mean: number };
-  rz_upper_layers: { time: number; value: number }[][];
-  rz_lower_layers: { time: number; value: number }[][];
+  rz_up1: { time: number; value: number }[];
+  rz_up5: { time: number; value: number }[];
+  rz_up9: { time: number; value: number }[];
+  rz_lo1: { time: number; value: number }[];
+  rz_lo5: { time: number; value: number }[];
+  rz_lo9: { time: number; value: number }[];
   rz_mean: { time: number; value: number }[];
 }
 
