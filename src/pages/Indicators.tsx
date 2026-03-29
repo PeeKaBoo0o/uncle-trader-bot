@@ -362,7 +362,7 @@ const Indicators: React.FC = () => {
                 ))}
               </div>
               {!marketData.loading && marketData.candles.length > 0 && (
-                <SubIndicators candles={marketData.candles} indicators={marketData.indicators} activeTab={subTab} />
+                <SubIndicators candles={marketData.candles} indicators={marketData.indicators} activeTab={subTab} oscillatorData={oscillatorData} />
               )}
             </div>
           </div>
