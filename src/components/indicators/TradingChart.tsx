@@ -804,29 +804,27 @@ const TradingChart: React.FC<TradingChartProps> = ({
         const tradeStart = tradeTimes[0];
         const tradeEnd = tradeTimes[tradeTimes.length - 1];
 
-        // TP line
-        const tpLine = chart.addSeries(LineSeries, {
-          color: 'rgba(76,175,80,0.75)', lineWidth: 1, lineStyle: 0,
+        // TP filled zone (green tint)
+        const tpFill = chart.addSeries(AreaSeries, {
+          topColor: isLong ? 'rgba(38,166,154,0.18)' : 'rgba(38,166,154,0.18)',
+          bottomColor: 'rgba(38,166,154,0.04)',
+          lineColor: 'rgba(76,175,80,0.8)', lineWidth: 1 as 1,
           priceLineVisible: false, lastValueVisible: false,
         });
-        tpLine.setData([
-          { time: tradeStart, value: trade.tpPrice },
-          { time: tradeEnd, value: trade.tpPrice },
-        ]);
+        tpFill.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.tpPrice })));
 
-        // SL line
-        const slLine = chart.addSeries(LineSeries, {
-          color: 'rgba(244,67,54,0.75)', lineWidth: 1, lineStyle: 0,
+        // SL filled zone (red tint)
+        const slFill = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(239,83,80,0.18)',
+          bottomColor: 'rgba(239,83,80,0.04)',
+          lineColor: 'rgba(244,67,54,0.8)', lineWidth: 1 as 1,
           priceLineVisible: false, lastValueVisible: false,
         });
-        slLine.setData([
-          { time: tradeStart, value: trade.slPrice },
-          { time: tradeEnd, value: trade.slPrice },
-        ]);
+        slFill.setData(tradeTimes.map((t: any) => ({ time: t, value: trade.slPrice })));
 
-        // Entry line (dashed)
+        // Entry line (dashed white)
         const entryLine = chart.addSeries(LineSeries, {
-          color: 'rgba(255,255,255,0.28)', lineWidth: 1, lineStyle: 2,
+          color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 2,
           priceLineVisible: false, lastValueVisible: false,
         });
         entryLine.setData([
