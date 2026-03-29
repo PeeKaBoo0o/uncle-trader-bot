@@ -83,13 +83,27 @@ const HeroSection: React.FC = () => {
   }, []);
 
   return (
-    <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden hero-bg-layer line-grid">
-      <div ref={blob1Ref} className="animate-blob-1 absolute top-[-10%] right-[-5%] w-[700px] h-[700px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', filter: 'blur(80px)', transition: 'transform 0.8s cubic-bezier(0.16,1,0.3,1)' }} />
-      <div ref={blob2Ref} className="animate-blob-2 absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.12) 0%, transparent 70%)', filter: 'blur(60px)', transition: 'transform 0.8s cubic-bezier(0.16,1,0.3,1)' }} />
-      <div className="animate-blob-3 absolute top-[40%] left-[30%] w-[400px] h-[400px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)', filter: 'blur(50px)' }} />
+    <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+        poster=""
+      >
+        <source src="/videos/hero-bg.mp4" type="video/mp4" />
+      </video>
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-[#0b1120]/70 z-[1]" />
+
+      <div ref={blob1Ref} className="animate-blob-1 absolute top-[-10%] right-[-5%] w-[700px] h-[700px] rounded-full pointer-events-none z-[2]" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)', filter: 'blur(80px)', transition: 'transform 0.8s cubic-bezier(0.16,1,0.3,1)' }} />
+      <div ref={blob2Ref} className="animate-blob-2 absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full pointer-events-none z-[2]" style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.12) 0%, transparent 70%)', filter: 'blur(60px)', transition: 'transform 0.8s cubic-bezier(0.16,1,0.3,1)' }} />
+      <div className="animate-blob-3 absolute top-[40%] left-[30%] w-[400px] h-[400px] rounded-full pointer-events-none z-[2]" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)', filter: 'blur(50px)' }} />
 
       {/* Chart SVG */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none opacity-20">
+      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none opacity-20 z-[3]">
         <svg viewBox="0 0 1440 200" fill="none" className="w-full h-full">
           <path d="M0 180 L80 160 L160 170 L240 140 L320 150 L400 120 L480 130 L560 90 L640 100 L720 70 L800 80 L880 50 L960 60 L1040 30 L1120 40 L1200 20 L1280 30 L1360 10 L1440 0" stroke="url(#chartGrad)" strokeWidth="2" fill="none" />
           <path d="M0 180 L80 160 L160 170 L240 140 L320 150 L400 120 L480 130 L560 90 L640 100 L720 70 L800 80 L880 50 L960 60 L1040 30 L1120 40 L1200 20 L1280 30 L1360 10 L1440 0 L1440 200 L0 200 Z" fill="url(#chartFill)" />
