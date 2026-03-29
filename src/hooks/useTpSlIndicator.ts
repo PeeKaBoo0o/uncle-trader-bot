@@ -148,6 +148,22 @@ export function useTpSlIndicator(
       }
 
       // Compute SL/TP prices
+      const longStop = longPrice * (1 - stopPer);
+      const shortStop = shortPrice * (1 + stopPer);
+      const longTake = longPrice * (1 + takePer);
+      const shortTake = shortPrice * (1 - takePer);
+
+      // Pine: skip hit-check on entry bar
+      const longBar2 = barsSinceLong >= 1;
+      const shortBar2 = barsSinceShort >= 1;
+
+      // Check SL/TP hits
+      const longSLhit = longShort === 1 && longBar2 && lows[i] < longStop;
+      const shortSLhit = longShort === -1 && shortBar2 && highs[i] > shortStop;
+      const longTPhit = longShort === 1 && longBar2 && highs[i] > longTake;
+      const shortTPhit = longShort === -1 && shortBar2 && lows[i] < shortTake;
+
+      // Record TP/SL hits on open trades
       if (longTPhit || longSLhit || shortTPhit || shortSLhit) {
         const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
         if (lastTrade && lastTrade.result === 'open') {
