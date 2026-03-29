@@ -14,6 +14,7 @@ import { useEngineIndicator } from '@/hooks/useEngineIndicator';
 import { useTpSlIndicator } from '@/hooks/useTpSlIndicator';
 import { useBuySellSignal } from '@/hooks/useBuySellSignal';
 import { useOscillatorMatrix } from '@/hooks/useOscillatorMatrix';
+import { useProEma } from '@/hooks/useProEma';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
