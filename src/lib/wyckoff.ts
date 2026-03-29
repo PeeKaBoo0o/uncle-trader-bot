@@ -2,14 +2,11 @@ import type { Candle } from '@/hooks/useMarketData';
 
 /**
  * Alphanet Wyckoff Premium
- * Ported from Pine Script v5
+ * Exact port of Pine Script v5 by faytterro
  *
- * Detects Wyckoff phases:
- * - Accumulation / Distribution boxes (sideways ranges)
- * - SC (Selling Climax), AR (Automatic Rally), ST (Secondary Test)
- * - BC (Buying Climax), DAR (Automatic Reaction), DST (Distribution ST)
- * - Spring / UTAD events
- * - BUY/SELL breakout signals after sideways
+ * RSI-based trend detection → sideways boxes → Wyckoff phase events
+ * SC, AR, ST (accumulation) / BC, DAR, DST (distribution)
+ * BUY/SELL breakout after sideways
  */
 
 // ── RSI ──
@@ -33,27 +30,27 @@ function computeRSI(closes: number[], period: number): number[] {
   return rsi;
 }
 
-// ── Pivot detection ──
-function pivotHigh(highs: number[], left: number, right: number): (number | null)[] {
+// ── Pivot detection (left/right bars) ──
+function pivotHighArr(highs: number[], left: number, right: number): (number | null)[] {
   const result: (number | null)[] = new Array(highs.length).fill(null);
   for (let i = left; i < highs.length - right; i++) {
-    let is = true;
-    for (let j = 1; j <= left; j++) if (highs[i - j] >= highs[i]) { is = false; break; }
-    if (!is) continue;
-    for (let j = 1; j <= right; j++) if (highs[i + j] >= highs[i]) { is = false; break; }
-    if (is) result[i] = highs[i];
+    let ok = true;
+    for (let j = 1; j <= left; j++) if (highs[i - j] >= highs[i]) { ok = false; break; }
+    if (!ok) continue;
+    for (let j = 1; j <= right; j++) if (highs[i + j] >= highs[i]) { ok = false; break; }
+    if (ok) result[i] = highs[i];
   }
   return result;
 }
 
-function pivotLow(lows: number[], left: number, right: number): (number | null)[] {
+function pivotLowArr(lows: number[], left: number, right: number): (number | null)[] {
   const result: (number | null)[] = new Array(lows.length).fill(null);
   for (let i = left; i < lows.length - right; i++) {
-    let is = true;
-    for (let j = 1; j <= left; j++) if (lows[i - j] <= lows[i]) { is = false; break; }
-    if (!is) continue;
-    for (let j = 1; j <= right; j++) if (lows[i + j] <= lows[i]) { is = false; break; }
-    if (is) result[i] = lows[i];
+    let ok = true;
+    for (let j = 1; j <= left; j++) if (lows[i - j] <= lows[i]) { ok = false; break; }
+    if (!ok) continue;
+    for (let j = 1; j <= right; j++) if (lows[i + j] <= lows[i]) { ok = false; break; }
+    if (ok) result[i] = lows[i];
   }
   return result;
 }
@@ -74,7 +71,7 @@ export interface WyckoffEvent {
   index: number;
   time: number;
   price: number;
-  label: string; // SC, AR, ST, BC, DAR, DST, Spring, UTAD
+  label: string; // SC, AR, ST, BC, Spring, UTAD
   type: 'accumulation' | 'distribution';
   location: 'above' | 'below';
 }
@@ -123,8 +120,7 @@ export function computeWyckoff(
   const rsiHigh = 50 + rsisens;
   const rsiLow = 50 - rsisens;
 
-  // ── Determine trend state per bar ──
-  // side = RSI within range OR previous RSI within range
+  // ── Per-bar trend state (Pine: side, bull, bear) ──
   const side = new Array(n).fill(false);
   const bull = new Array(n).fill(false);
   const bear = new Array(n).fill(false);
@@ -136,50 +132,69 @@ export function computeWyckoff(
     bear[i] = rsi[i] < rsiLow && rsi[i - 1] < rsiLow;
   }
 
-  // ── Build sideways boxes ──
+  // ── Pine: myhigh / mylow over barssince(side start) ──
+  // boxlen = ta.barssince(side and not side[1])
+  // safeBoxlen = min(boxlen+1, 63)
+  // y1 = myhigh(safeBoxlen)[2], y2 = mylow(safeBoxlen)[2]
+  // x1 = valuewhen(side and not side[1], bar_index, 0)
+  // x2 = valuewhen(not side and side[1], bar_index[1], 0) - 1
+
   const boxes: WyckoffBox[] = [];
-  let sideStart = -1;
+  let sideStartIdx = -1; // x1: where side started
 
   for (let i = 1; i < n; i++) {
-    // Detect side start: side[i] && !side[i-1]
+    // Detect side start
     if (side[i] && !side[i - 1]) {
-      sideStart = i;
+      sideStartIdx = i;
     }
-    // Detect side end: !side[i] && side[i-1]
-    if (!side[i] && side[i - 1] && sideStart >= 0) {
-      const endIdx = i - 1;
-      if (endIdx > sideStart) {
-        // Calculate high/low of the sideways range
+
+    // Detect side end: side[i-1] && !side[i]
+    if (!side[i] && side[i - 1] && sideStartIdx >= 0) {
+      const x1 = sideStartIdx;
+      const x2 = i - 1; // Pine: valuewhen(not side and side[1], bar_index[1], 0) - 1
+
+      if (x1 < x2) {
+        // Compute range high/low within the sideways period (with [2] offset like Pine)
+        const lookback = Math.min(x2 - x1 + 1, 63);
         let boxHigh = -Infinity;
         let boxLow = Infinity;
-        const safeLen = Math.min(endIdx - sideStart + 1, 63);
-        for (let j = endIdx; j >= Math.max(sideStart, endIdx - safeLen + 1); j--) {
+        // Pine uses [2] offset, so we look at range ending 2 bars before end
+        const rangeEnd = Math.max(x1, x2 - 2);
+        for (let j = x1; j <= rangeEnd; j++) {
           if (highs[j] > boxHigh) boxHigh = highs[j];
           if (lows[j] < boxLow) boxLow = lows[j];
         }
+        // Fallback: if rangeEnd was too narrow, include full range
+        if (boxHigh === -Infinity || boxLow === Infinity) {
+          for (let j = x1; j <= x2; j++) {
+            if (highs[j] > boxHigh) boxHigh = highs[j];
+            if (lows[j] < boxLow) boxLow = lows[j];
+          }
+        }
 
-        // Determine phase based on what comes after
+        // Phase: determined by what comes AFTER sideways
         let phase: 'accumulation' | 'distribution' | 'sideways' = 'sideways';
+        // Pine: after_trend is set by bull/bear state
         if (bull[i]) phase = 'accumulation';
         else if (bear[i]) phase = 'distribution';
 
         boxes.push({
-          startIndex: sideStart,
-          endIndex: endIdx,
-          startTime: candles[sideStart].time,
-          endTime: candles[endIdx].time,
+          startIndex: x1,
+          endIndex: x2,
+          startTime: candles[x1].time,
+          endTime: candles[x2].time,
           top: boxHigh,
           bottom: boxLow,
           phase,
         });
       }
-      sideStart = -1;
+      sideStartIdx = -1;
     }
   }
 
   // ── Pivot detection ──
-  const ph = pivotHigh(highs, pivotLen, pivotLen);
-  const pl = pivotLow(lows, pivotLen, pivotLen);
+  const ph = pivotHighArr(highs, pivotLen, pivotLen);
+  const pl = pivotLowArr(lows, pivotLen, pivotLen);
 
   const pivots: WyckoffPivot[] = [];
   for (let i = 0; i < n; i++) {
@@ -187,104 +202,91 @@ export function computeWyckoff(
     if (pl[i] !== null) pivots.push({ index: i, time: candles[i].time, price: pl[i]!, direction: 'low' });
   }
 
-  // ── Wyckoff Events ──
+  // ── Wyckoff Events (Pine Script exact logic) ──
   const events: WyckoffEvent[] = [];
 
-  // Track flags like Pine Script (reset each new sideways)
-  let scFound = false;
-  let arFound = false;
-  let stFound = false;
-  let bcFound = false;
-  let darFound = false;
-  let dstFound = false;
-  let scBarIdx = -1;
-  let bcBarIdx = -1;
-  let darBarIdx = -1;
+  // Pine: flags are reset each bar (bar_index != bar_index[1] always true)
+  // But flags persist within the SAME phase detection run
+  // Pine resets at each new bar, but flags accumulate — they're var flags
+  // In Pine, isSCFlag := isSC ? true : isSCFlag means once SC found, flag stays true
+  // Reset happens at: if bar_index != bar_index[1] → always true (every bar)
+  // Wait, Pine resets flags EVERY bar?? Let me re-read...
+  // "if bar_index != bar_index[1]" is always true in Pine (bar_index increments each bar)
+  // So flags reset every bar → meaning each bar can independently be SC, AR, etc.
+  // This means: on each bar, check conditions fresh (no persistent state)
+
+  let scBarIndex = -1;
+  let bcBarIndex = -1;
+  let darBarIndex = -1;
   let pivotCounter = 0;
 
   for (let i = pivotLen; i < n - pivotLen; i++) {
-    const rsiAtPivot = rsi[i];
+    const rsiAtPivot = rsi[i]; // Pine: rsi[pivotLen] when checking at i+pivotLen
     if (isNaN(rsiAtPivot)) continue;
 
     const isPivotLow = pl[i] !== null;
     const isPivotHigh = ph[i] !== null;
 
-    // UTAD / Spring detection
+    // UTAD / Spring (Pine: utad = rsi<rsiHigh and rsi[1]>rsiHigh)
     const utad = !isNaN(rsi[i]) && !isNaN(rsi[i - 1]) && rsi[i] < rsiHigh && rsi[i - 1] > rsiHigh;
     const spring = !isNaN(rsi[i]) && !isNaN(rsi[i - 1]) && rsi[i] > rsiLow && rsi[i - 1] < rsiLow;
 
-    if (spring) {
-      events.push({ index: i, time: candles[i].time, price: lows[i], label: 'Spring', type: 'accumulation', location: 'below' });
-    }
-    if (utad) {
-      events.push({ index: i, time: candles[i].time, price: highs[i], label: 'UTAD', type: 'distribution', location: 'above' });
-    }
+    // Pine: flags reset every bar, so each event type can fire at most once per bar
+    // But scBarIndex, bcBarIndex, darBarIndex persist across bars
 
-    // ── Accumulation events ──
+    // ── Accumulation ──
     // SC: Selling Climax
-    if (isPivotLow && rsiAtPivot < rsiLow && !scFound && !spring) {
+    const isSC = isPivotLow && rsiAtPivot < rsiLow && !spring;
+    if (isSC) {
       events.push({ index: i, time: candles[i].time, price: lows[i], label: 'SC', type: 'accumulation', location: 'below' });
-      scFound = true;
-      scBarIdx = i;
+      scBarIndex = i;
     }
 
-    // AR: Automatic Rally (after SC)
-    if (scBarIdx > 0 && isPivotHigh && i > scBarIdx && !arFound) {
+    // AR: Automatic Rally (first pivot high after SC)
+    if (scBarIndex > 0 && isPivotHigh && i > scBarIndex) {
       events.push({ index: i, time: candles[i].time, price: highs[i], label: 'AR', type: 'accumulation', location: 'above' });
-      arFound = true;
-      scBarIdx = -1;
+      scBarIndex = -1; // consumed
     }
 
-    // ST: Secondary Test (accumulation)
+    // ST: Secondary Test (accumulation) — first pivot low after RSI was above rsiLow
     if (isPivotLow) pivotCounter++;
     if (rsiAtPivot < rsiLow) pivotCounter = 0;
-    if (pivotCounter === 1 && isPivotLow && !stFound) {
+    if (pivotCounter === 1 && isPivotLow) {
       events.push({ index: i, time: candles[i].time, price: lows[i], label: 'ST', type: 'accumulation', location: 'below' });
-      stFound = true;
     }
 
-    // ── Distribution events ──
+    // ── Distribution ──
     // BC: Buying Climax
-    if (rsiAtPivot > rsiHigh && isPivotHigh && !bcFound && !utad) {
+    const isBC = rsiAtPivot > rsiHigh && isPivotHigh && !utad;
+    if (isBC) {
       events.push({ index: i, time: candles[i].time, price: highs[i], label: 'BC', type: 'distribution', location: 'above' });
-      bcFound = true;
-      bcBarIdx = i;
+      bcBarIndex = i;
     }
 
-    // DAR: Automatic Reaction (after BC)
-    if (bcBarIdx > 0 && isPivotLow && i > bcBarIdx && !darFound) {
+    // DAR: Automatic Reaction (first pivot low after BC)
+    if (bcBarIndex > 0 && isPivotLow && i > bcBarIndex) {
       events.push({ index: i, time: candles[i].time, price: lows[i], label: 'AR', type: 'distribution', location: 'below' });
-      darFound = true;
-      darBarIdx = i;
-      bcBarIdx = -1;
+      darBarIndex = i;
+      bcBarIndex = -1; // consumed
     }
 
-    // DST: Distribution Secondary Test
-    if (darBarIdx > 0 && isPivotHigh && i > darBarIdx && !dstFound && !bcFound) {
+    // DST: Distribution ST (first pivot high after DAR, but not BC)
+    if (darBarIndex > 0 && isPivotHigh && i > darBarIndex && !isBC) {
       events.push({ index: i, time: candles[i].time, price: highs[i], label: 'ST', type: 'distribution', location: 'above' });
-      dstFound = true;
-      darBarIdx = -1;
-    }
-
-    // Reset flags when new sideways starts
-    if (side[i] && !side[i - 1]) {
-      scFound = false; arFound = false; stFound = false;
-      bcFound = false; darFound = false; dstFound = false;
-      scBarIdx = -1; bcBarIdx = -1; darBarIdx = -1;
-      pivotCounter = 0;
+      darBarIndex = -1; // consumed
     }
   }
 
   // ── BUY/SELL breakout signals ──
+  // Pine: bullBreak = endSide and bull and x1 < x2
+  // endSide = side[1] and not side (offset -1)
   const signals: WyckoffSignal[] = [];
   for (let i = 2; i < n; i++) {
-    if (!side[i] && side[i - 1]) {
-      // End of sideways
-      if (bull[i]) {
-        signals.push({ index: i, time: candles[i].time, price: lows[i], type: 'BUY' });
-      } else if (bear[i]) {
-        signals.push({ index: i, time: candles[i].time, price: highs[i], type: 'SELL' });
-      }
+    const endSide = side[i - 1] && !side[i];
+    if (endSide && bull[i]) {
+      signals.push({ index: i - 1, time: candles[i - 1].time, price: lows[i - 1], type: 'BUY' });
+    } else if (endSide && bear[i]) {
+      signals.push({ index: i - 1, time: candles[i - 1].time, price: highs[i - 1], type: 'SELL' });
     }
   }
 
@@ -296,7 +298,6 @@ export function computeWyckoff(
     else if (bull[n - 1]) currentPhase = 'bullish';
     else if (bear[n - 1]) currentPhase = 'bearish';
   }
-  // Check if we're in a box
   const lastBox = boxes[boxes.length - 1];
   if (lastBox && lastBox.endIndex >= n - 5) {
     currentPhase = lastBox.phase;
