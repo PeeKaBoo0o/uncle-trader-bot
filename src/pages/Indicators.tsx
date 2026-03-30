@@ -488,23 +488,12 @@ const Indicators: React.FC = () => {
               )}
             </div>
 
-            {/* Sub-indicator area */}
-            <div className="border-t border-white/5">
-              <div className="flex items-center gap-1 px-3 py-1.5 border-b border-white/5">
-                <span className="text-[9px] text-muted-foreground/40 font-mono tracking-widest mr-2">SUB</span>
-                {(['rsi', 'volume', 'macd'] as const).map(tab => (
-                  <button key={tab} onClick={() => setSubTab(tab)}
-                    className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase font-bold transition-all ${
-                      subTab === tab ? 'bg-white/5 text-foreground' : 'text-muted-foreground/40 hover:text-muted-foreground'
-                    }`}>
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              {!marketData.loading && marketData.candles.length > 0 && (
+            {/* Sub-indicator area — Oscillator Matrix only */}
+            {!marketData.loading && marketData.candles.length > 0 && oscillatorData && oscillatorData.oscillator.length > 0 && (
+              <div className="border-t border-white/5">
                 <SubIndicators candles={marketData.candles} indicators={marketData.indicators} activeTab={subTab} oscillatorData={oscillatorData} />
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* ── RIGHT: Signal Feed ── */}
