@@ -111,30 +111,11 @@ const Indicators: React.FC = () => {
     }
   }, [marketData.loading, activePair, activeTimeframe]);
 
-  // If not logged in, show login prompt
-  if (!user) {
-    return (
-      <main className="min-h-screen bg-[#0b1120]">
-        <Header />
-        <div className="pt-32 pb-20 px-6 text-center">
-          <div className="max-w-md mx-auto glass-card rounded-2xl p-10 cyber-border">
-            <h2 className="font-display font-bold text-2xl text-foreground mb-4">🔒 Yêu cầu đăng nhập</h2>
-            <p className="text-muted-foreground mb-6">Bạn cần đăng nhập để sử dụng các chỉ báo giao dịch.</p>
-            <Link to="/auth" className="btn-primary px-8 py-3 rounded-xl text-base font-semibold inline-block">
-              Đăng Nhập / Đăng Ký
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </main>
-    );
-  }
-
-  // Filter indicators by permission
+  // Filter indicators by permission (if logged in, check permissions; if guest, show all)
   const accessibleIndicators = indicators.map(ind => ({
     ...ind,
-    enabled: ind.enabled && hasAccess(ind.id),
-    locked: !hasAccess(ind.id),
+    enabled: ind.enabled && (user ? hasAccess(ind.id) : true),
+    locked: user ? !hasAccess(ind.id) : false,
   }));
 
   return (
