@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import AppLogo from './AppLogo';
+import { Menu, X, Send, PhoneCall, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
 
 const navLinks = [
   { href: '/', label: 'Trang Chủ' },
@@ -13,10 +14,51 @@ const navLinks = [
   { href: '/contact', label: 'Liên Hệ' },
 ];
 
+const useLivePrice = () => {
+  const [btc, setBtc] = useState({ price: 0, change: 0 });
+  const [gold, setGold] = useState({ price: 0, change: 0 });
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=["BTCUSDT","XAUUSDT"]');
+        const data = await res.json();
+        const btcData = data.find((d: any) => d.symbol === 'BTCUSDT');
+        const goldData = data.find((d: any) => d.symbol === 'XAUUSDT');
+        if (btcData) setBtc({ price: parseFloat(btcData.lastPrice), change: parseFloat(btcData.priceChangePercent) });
+        if (goldData) setGold({ price: parseFloat(goldData.lastPrice), change: parseFloat(goldData.priceChangePercent) });
+      } catch { /* silent */ }
+    };
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return { btc, gold };
+};
+
+const PriceBadge = ({ symbol, icon, price, change }: { symbol: string; icon: string; price: number; change: number }) => {
+  const isPositive = change >= 0;
+  return (
+    <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-foreground/[0.03] border border-foreground/[0.06] hover:bg-foreground/[0.06] transition-colors cursor-default">
+      <span className="text-sm">{icon}</span>
+      <span className="text-[11px] font-bold text-foreground/80 font-mono">{symbol}</span>
+      <span className="text-[11px] font-mono font-bold text-foreground">
+        {price > 0 ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '...'}
+      </span>
+      <span className={`flex items-center gap-0.5 text-[10px] font-mono font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+        {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+        {isPositive ? '+' : ''}{change.toFixed(2)}%
+      </span>
+    </div>
+  );
+};
+
 const Header: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { btc, gold } = useLivePrice();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -24,97 +66,174 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
   return (
     <header
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
-        scrolled ? 'nav-blur shadow-lg' : 'bg-transparent'
+        scrolled ? 'nav-blur shadow-2xl shadow-background/50' : 'bg-background/80 backdrop-blur-md'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-20">
-          <Link to="/" className="flex items-center gap-2 group">
-            <AppLogo size={36} className="group-hover:scale-110 transition-transform duration-300" />
-            <span className="font-display font-bold text-xl tracking-tight text-foreground group-hover:text-cyan-brand transition-colors duration-300">
-              UNCLETRADER
-            </span>
+      {/* ── TOP TICKER BAR ── */}
+      <div className="border-b border-foreground/[0.06]">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="flex items-center justify-between h-8">
+            {/* Live Prices */}
+            <div className="hidden md:flex items-center gap-2">
+              <div className="flex items-center gap-1 mr-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] font-bold text-muted-foreground/60 tracking-widest uppercase font-mono">LIVE</span>
+              </div>
+              <PriceBadge symbol="BTC" icon="₿" price={btc.price} change={btc.change} />
+              <PriceBadge symbol="XAU" icon="🥇" price={gold.price} change={gold.change} />
+            </div>
+
+            {/* Right side: Date + Status */}
+            <div className="hidden md:flex items-center gap-3 text-[10px] text-muted-foreground/50 font-mono">
+              <span>📡 Dữ liệu từ Binance</span>
+              <span className="w-px h-3 bg-foreground/10" />
+              <span>{new Date().toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}</span>
+            </div>
+
+            {/* Mobile: compact prices */}
+            <div className="flex md:hidden items-center gap-2 w-full justify-between text-[10px] font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-foreground/70 font-bold">₿ {btc.price > 0 ? `$${(btc.price/1000).toFixed(1)}K` : '...'}</span>
+                <span className={btc.change >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  {btc.change >= 0 ? '+' : ''}{btc.change.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-foreground/70 font-bold">🥇 {gold.price > 0 ? `$${gold.price.toFixed(0)}` : '...'}</span>
+                <span className={gold.change >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  {gold.change >= 0 ? '+' : ''}{gold.change.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN NAV BAR ── */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        <div className="flex items-center justify-between h-14 lg:h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+            <AppLogo size={32} className="group-hover:scale-110 transition-transform duration-300" />
+            <div className="flex flex-col">
+              <span className="font-display font-extrabold text-lg tracking-tight text-foreground group-hover:text-primary transition-colors duration-300 leading-none">
+                UNCLETRADER
+              </span>
+              <span className="text-[8px] font-mono text-muted-foreground/40 tracking-[0.2em] uppercase leading-none mt-0.5">
+                Smart Money Analysis
+              </span>
+            </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={`text-sm font-medium tracking-wide transition-all duration-300 relative group ${
-                  location.pathname === link.href ? 'text-cyan-brand' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {link.label}
-                <span
-                  className={`absolute -bottom-1 left-0 h-px bg-cyan-brand transition-all duration-300 ${
-                    location.pathname === link.href ? 'w-full' : 'w-0 group-hover:w-full'
+          {/* Desktop Nav */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={`relative px-3 py-2 rounded-lg text-[13px] font-semibold tracking-wide transition-all duration-300 ${
+                    isActive
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
                   }`}
-                />
-              </Link>
-            ))}
+                >
+                  {link.label}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
+          {/* Desktop CTAs */}
+          <div className="hidden lg:flex items-center gap-2">
+            <a
+              href="https://t.me/UNCLETRADER"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold text-foreground/80 bg-foreground/[0.04] border border-foreground/[0.08] hover:bg-foreground/[0.08] hover:border-foreground/[0.12] transition-all duration-300"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Telegram
+            </a>
             <Link
               to="/contact"
-              className="btn-primary px-5 py-2.5 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
+              <PhoneCall className="w-3.5 h-3.5" />
               Tư Vấn Ngay
             </Link>
           </div>
 
+          {/* Mobile Menu Toggle */}
           <button
-            className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+            className="lg:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-all"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {menuOpen ? (
-                <>
-                  <path d="M18 6L6 18" />
-                  <path d="M6 6l12 12" />
-                </>
-              ) : (
-                <>
-                  <path d="M4 6h16" />
-                  <path d="M4 12h16" />
-                  <path d="M4 18h16" />
-                </>
-              )}
-            </svg>
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
+      </div>
 
-        <div id="mobile-menu-panel" className={menuOpen ? 'open' : ''}>
-          <div className="glass-card rounded-xl mb-4 p-4 flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
+      {/* ── MOBILE MENU ── */}
+      <div
+        className={`lg:hidden overflow-hidden transition-all duration-400 ease-in-out ${
+          menuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="px-4 pb-4">
+          <div className="glass-card rounded-xl p-3 space-y-1 border border-foreground/[0.06]">
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                    isActive
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+
+            <div className="pt-2 mt-2 border-t border-foreground/[0.06] flex flex-col gap-2">
+              <a
+                href="https://t.me/UNCLETRADER"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
-                className={`px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  location.pathname === link.href
-                    ? 'text-cyan-brand bg-cyan-brand/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                }`}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold text-foreground/80 bg-foreground/[0.04] border border-foreground/[0.08]"
               >
-                {link.label}
+                <Send className="w-4 h-4" />
+                Tham Gia Telegram
+              </a>
+              <Link
+                to="/contact"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold text-primary-foreground bg-gradient-to-r from-primary to-secondary"
+              >
+                <PhoneCall className="w-4 h-4" />
+                Tư Vấn Ngay
               </Link>
-            ))}
-            <Link
-              to="/contact"
-              onClick={() => setMenuOpen(false)}
-              className="btn-primary mt-2 px-4 py-3 rounded-lg text-sm font-semibold text-center"
-            >
-              Tư Vấn Ngay
-            </Link>
+            </div>
           </div>
         </div>
       </div>
