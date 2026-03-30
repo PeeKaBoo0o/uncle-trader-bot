@@ -164,6 +164,9 @@ const Header: React.FC = () => {
         </div>
       </div>
 
+      {/* ── ECONOMIC TICKER ── */}
+      <EconomicTicker />
+
       {/* ── MOBILE MENU ── */}
       <div
         className={`lg:hidden overflow-hidden transition-all duration-400 ease-in-out ${
