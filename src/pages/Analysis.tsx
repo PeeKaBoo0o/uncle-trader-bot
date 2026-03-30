@@ -37,7 +37,7 @@ const Analysis: React.FC = () => {
   const [sendingSignal, setSendingSignal] = useState<string | null>(null);
   const [commentary, setCommentary] = useState('');
   const [commentaryLoading, setCommentaryLoading] = useState(false);
-  const [commentaryTime, setCommentaryTime] = useState('');
+  const [commentaryFailed, setCommentaryFailed] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
