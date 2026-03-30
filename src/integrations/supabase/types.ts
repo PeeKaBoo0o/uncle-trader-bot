@@ -83,6 +83,30 @@ export type Database = {
         }
         Relationships: []
       }
+      indicator_permissions: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          indicator_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          indicator_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          indicator_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       news_articles: {
         Row: {
           badge: string | null
@@ -137,6 +161,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          phone: string | null
           updated_at: string
           user_id: string
         }
@@ -145,6 +170,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id: string
         }
@@ -153,6 +179,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id?: string
         }
