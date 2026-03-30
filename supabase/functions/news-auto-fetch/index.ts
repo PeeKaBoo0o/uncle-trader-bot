@@ -620,6 +620,12 @@ serve(async (req) => {
 
       console.log(`✅ Inserted ${inserted?.length || 0} articles`);
 
+      // Send Telegram notifications to news topic
+      if (inserted && inserted.length > 0) {
+        await sendNewsTelegram(inserted);
+        console.log(`📨 Sent ${inserted.length} news notifications to Telegram topic 329`);
+      }
+
       return new Response(JSON.stringify({
         success: true,
         articles_count: inserted?.length || 0,
