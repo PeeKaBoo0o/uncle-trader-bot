@@ -17,13 +17,33 @@ function error(msg: string, status = 400) {
   return json({ error: msg }, status);
 }
 
+const VALID_RESOURCES = ["news", "signals", "events"] as const;
+type ResourceName = typeof VALID_RESOURCES[number];
+
+function resourceToTable(resource: string): string | null {
+  switch (resource) {
+    case "news": case "news_articles": return "news_articles";
+    case "signals": case "signal": return "signals";
+    case "events": case "event": case "economic_events": return "economic_events";
+    default: return null;
+  }
+}
+
+function normalizeResource(resource: string): ResourceName | null {
+  const table = resourceToTable(resource);
+  if (!table) return null;
+  if (table === "news_articles") return "news";
+  if (table === "signals") return "signals";
+  if (table === "economic_events") return "events";
+  return null;
+}
+
 /** Authenticate via AGENT_API_KEY header OR Supabase JWT (admin role required) */
 async function authenticate(req: Request) {
   const agentKey = req.headers.get("x-agent-key");
   const AGENT_API_KEY = Deno.env.get("AGENT_API_KEY");
 
   if (agentKey && AGENT_API_KEY && agentKey === AGENT_API_KEY) {
-    // API Key auth → use service role
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -31,7 +51,6 @@ async function authenticate(req: Request) {
     return { supabase, authMethod: "api_key" as const };
   }
 
-  // JWT auth → verify user is admin
   const authHeader = req.headers.get("authorization");
   if (!authHeader) return null;
 
@@ -47,7 +66,6 @@ async function authenticate(req: Request) {
   } = await supabaseAnon.auth.getUser();
   if (userErr || !user) return null;
 
-  // Check admin role using service role client
   const supabaseService = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -65,7 +83,7 @@ async function authenticate(req: Request) {
 
 // ── Route handlers ──────────────────────────────────────────
 
-type Ctx = { supabase: ReturnType<typeof createClient>; body: any; params: URLSearchParams };
+type Ctx = { supabase: ReturnType<typeof createClient>; body: any; params: URLSearchParams; authMethod: string; userId?: string };
 
 // --- NEWS ---
 async function handleNews(method: string, ctx: Ctx) {
@@ -158,7 +176,6 @@ async function handleSignals(method: string, ctx: Ctx) {
     }).select().single();
     if (e) return error(e.message, 500);
 
-    // Optional: send to Telegram
     if (body.send_telegram) {
       try {
         await sendTelegram(body);
@@ -248,7 +265,6 @@ async function handleUsers(method: string, ctx: Ctx) {
         roles: rolesRes.data?.map((r: any) => r.role) || [],
       });
     }
-    // List all profiles
     const limit = parseInt(params.get("limit") || "50");
     const { data, error: e, count } = await supabase
       .from("profiles")
@@ -298,6 +314,312 @@ async function handleUsers(method: string, ctx: Ctx) {
   return error("Method not allowed", 405);
 }
 
+// ── NEW: Context endpoint ───────────────────────────────────
+
+async function handleContext(ctx: Ctx) {
+  const { supabase, authMethod, userId } = ctx;
+
+  const [signalsRes, newsRes, eventsRes, statsRes] = await Promise.all([
+    supabase
+      .from("signals")
+      .select("*")
+      .order("sent_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("news_articles")
+      .select("id,title,summary,stream,badge,published_at,source")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("economic_events")
+      .select("*")
+      .gte("event_time", new Date().toISOString())
+      .order("event_time", { ascending: true })
+      .limit(10),
+    Promise.all([
+      supabase.from("signals").select("*", { count: "exact", head: true }),
+      supabase.from("news_articles").select("*", { count: "exact", head: true }),
+      supabase.from("economic_events").select("*", { count: "exact", head: true }),
+      supabase.from("profiles").select("*", { count: "exact", head: true }),
+    ]),
+  ]);
+
+  const [sCnt, nCnt, eCnt, pCnt] = statsRes;
+
+  let userInfo: any = { auth_method: authMethod };
+  if (userId) {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    userInfo.user_id = userId;
+    userInfo.roles = roles?.map((r: any) => r.role) || [];
+  } else {
+    userInfo.roles = ["service_role"];
+  }
+
+  return json({
+    latest_signals: signalsRes.data || [],
+    latest_news: newsRes.data || [],
+    upcoming_events: eventsRes.data || [],
+    stats: {
+      total_signals: sCnt.count ?? 0,
+      total_news: nCnt.count ?? 0,
+      total_events: eCnt.count ?? 0,
+      total_users: pCnt.count ?? 0,
+    },
+    user: userInfo,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+// ── NEW: Review endpoint ────────────────────────────────────
+
+async function handleReview(ctx: Ctx) {
+  const { supabase, body } = ctx;
+
+  if (!body?.resource) return error("resource is required (news|signal|event)");
+  const table = resourceToTable(body.resource);
+  if (!table) return error(`Invalid resource: ${body.resource}. Use: news, signal, event`);
+
+  const mode = body.mode || "quality";
+  if (!["quality", "risk", "improvement"].includes(mode))
+    return error("mode must be: quality, risk, or improvement");
+
+  let record: any = body.data || null;
+
+  // If id provided, fetch the record
+  if (body.id && !record) {
+    const { data, error: e } = await supabase.from(table).select("*").eq("id", body.id).single();
+    if (e) return error(`Record not found: ${e.message}`, 404);
+    record = data;
+  }
+
+  if (!record) return error("Provide either 'id' to fetch or 'data' to review");
+
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  let improved_version: any = null;
+
+  // Review logic per resource + mode
+  if (table === "news_articles") {
+    if (!record.title || record.title.trim().length < 10)
+      issues.push("Title is too short (< 10 chars)");
+    if (record.title && record.title.length > 200)
+      issues.push("Title is too long (> 200 chars)");
+    if (!record.summary || record.summary.trim().length < 20)
+      issues.push("Summary is missing or too short");
+    if (!record.full_content || record.full_content.trim().length < 50)
+      issues.push("Full content is missing or too short");
+    if (!record.image_url)
+      suggestions.push("Consider adding an image URL for better engagement");
+    if (!record.badge)
+      suggestions.push("Add a badge (e.g. 'Nóng', 'Phân tích') to categorize the article");
+    if (record.source === "" || !record.source)
+      suggestions.push("Add a source for credibility");
+
+    if (mode === "improvement" || mode === "quality") {
+      improved_version = { ...record };
+      if (record.title) improved_version.title = record.title.trim();
+      if (record.summary) improved_version.summary = record.summary.trim();
+      if (!record.stream) improved_version.stream = "hot";
+      if (!record.is_published) improved_version.is_published = true;
+    }
+
+    if (mode === "risk") {
+      if (record.full_content && record.full_content.length > 10000)
+        issues.push("Content exceeds 10k chars — may impact performance");
+      if (record.image_url && !record.image_url.startsWith("https://"))
+        issues.push("Image URL is not HTTPS — security risk");
+    }
+  }
+
+  if (table === "signals") {
+    if (!record.symbol) issues.push("Missing symbol");
+    if (!record.price || record.price <= 0) issues.push("Invalid or missing price");
+    if (!record.candle_time) issues.push("Missing candle_time");
+    if (!record.conditions || record.conditions.length === 0)
+      suggestions.push("Add conditions to explain signal triggers");
+    if (record.strength === "TRUNG BÌNH")
+      suggestions.push("Consider specifying exact strength instead of default");
+    if (!record.rsi) suggestions.push("Include RSI for better signal context");
+    if (!record.vol_ratio) suggestions.push("Include volume ratio for confirmation");
+
+    if (mode === "risk") {
+      if (record.price && record.symbol) {
+        if (record.symbol.includes("BTC") && record.price < 1000)
+          issues.push("BTC price seems unrealistically low — verify");
+        if (record.symbol.includes("XAU") && record.price < 100)
+          issues.push("XAU price seems unrealistically low — verify");
+      }
+    }
+
+    if (mode === "improvement") {
+      improved_version = { ...record };
+      if (!record.timeframe) improved_version.timeframe = "H4";
+      if (!record.conditions) improved_version.conditions = [];
+    }
+  }
+
+  if (table === "economic_events") {
+    if (!record.event_name) issues.push("Missing event_name");
+    if (!record.event_time) issues.push("Missing event_time");
+    if (!record.country) issues.push("Missing country");
+    if (!record.impact || !["high", "medium", "low"].includes(record.impact))
+      suggestions.push("Set impact to high/medium/low");
+    if (record.flag === "🌐")
+      suggestions.push("Set a country-specific flag emoji");
+    if (!record.estimate && !record.prev)
+      suggestions.push("Add estimate or previous values for context");
+
+    if (mode === "risk") {
+      const eventTime = new Date(record.event_time);
+      if (eventTime < new Date())
+        issues.push("Event time is in the past");
+    }
+  }
+
+  const summary = issues.length === 0
+    ? `${mode} review passed. ${suggestions.length} suggestion(s) available.`
+    : `${mode} review found ${issues.length} issue(s) and ${suggestions.length} suggestion(s).`;
+
+  return json({
+    resource: normalizeResource(body.resource),
+    mode,
+    summary,
+    issues,
+    suggestions,
+    improved_version,
+    reviewed_record: record,
+  });
+}
+
+// ── NEW: Preview Edit endpoint ──────────────────────────────
+
+async function handlePreviewEdit(ctx: Ctx) {
+  const { supabase, body } = ctx;
+
+  if (!body?.resource) return error("resource is required");
+  const table = resourceToTable(body.resource);
+  if (!table) return error(`Invalid resource: ${body.resource}`);
+
+  if (!body.changes || typeof body.changes !== "object" || Object.keys(body.changes).length === 0)
+    return error("changes object is required and must not be empty");
+
+  let before: any = null;
+
+  if (body.id) {
+    const { data, error: e } = await supabase.from(table).select("*").eq("id", body.id).single();
+    if (e) return error(`Record not found: ${e.message}`, 404);
+    before = data;
+  } else {
+    // Preview on provided data
+    before = body.data || {};
+  }
+
+  // Build after state
+  const after = { ...before, ...body.changes };
+
+  // Build diff summary
+  const diff_summary: string[] = [];
+  const warnings: string[] = [];
+
+  for (const key of Object.keys(body.changes)) {
+    const oldVal = before[key];
+    const newVal = body.changes[key];
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      const oldDisplay = oldVal === null || oldVal === undefined ? "(empty)" : 
+        typeof oldVal === "string" && oldVal.length > 80 ? oldVal.substring(0, 80) + "..." : String(oldVal);
+      const newDisplay = newVal === null || newVal === undefined ? "(empty)" :
+        typeof newVal === "string" && newVal.length > 80 ? newVal.substring(0, 80) + "..." : String(newVal);
+      diff_summary.push(`${key}: "${oldDisplay}" → "${newDisplay}"`);
+    }
+  }
+
+  // Validate dangerous changes
+  const protectedFields = ["id", "created_at"];
+  for (const key of protectedFields) {
+    if (key in body.changes) {
+      warnings.push(`Changing '${key}' is not recommended and will be ignored on apply`);
+    }
+  }
+
+  if (table === "news_articles") {
+    if (body.changes.is_published === false && before.is_published === true)
+      warnings.push("This will unpublish the article — it will no longer be visible to users");
+    if (body.changes.image_url && !body.changes.image_url.startsWith("https://"))
+      warnings.push("New image URL is not HTTPS");
+  }
+
+  if (table === "signals" && body.changes.price) {
+    const priceDiff = Math.abs(body.changes.price - (before.price || 0));
+    const pctChange = before.price ? (priceDiff / before.price) * 100 : 100;
+    if (pctChange > 20)
+      warnings.push(`Price change is ${pctChange.toFixed(1)}% — verify this is intentional`);
+  }
+
+  return json({
+    resource: normalizeResource(body.resource),
+    id: body.id || null,
+    before,
+    after,
+    diff_summary,
+    warnings,
+    changes_count: diff_summary.length,
+  });
+}
+
+// ── NEW: Apply Edit endpoint ────────────────────────────────
+
+async function handleApplyEdit(ctx: Ctx) {
+  const { supabase, body } = ctx;
+
+  if (!body?.resource) return error("resource is required");
+  const table = resourceToTable(body.resource);
+  if (!table) return error(`Invalid resource: ${body.resource}`);
+
+  if (!body.id) return error("id is required for apply-edit");
+
+  if (!body.changes || typeof body.changes !== "object" || Object.keys(body.changes).length === 0)
+    return error("changes object is required and must not be empty");
+
+  // Strip protected fields
+  const sanitized = { ...body.changes };
+  delete sanitized.id;
+  delete sanitized.created_at;
+
+  if (Object.keys(sanitized).length === 0)
+    return error("No valid changes after removing protected fields");
+
+  // Verify record exists
+  const { data: existing, error: fetchErr } = await supabase
+    .from(table)
+    .select("*")
+    .eq("id", body.id)
+    .single();
+  if (fetchErr) return error(`Record not found: ${fetchErr.message}`, 404);
+
+  // Apply update
+  const { data: updated, error: updateErr } = await supabase
+    .from(table)
+    .update(sanitized)
+    .eq("id", body.id)
+    .select()
+    .single();
+
+  if (updateErr) return error(`Update failed: ${updateErr.message}`, 500);
+
+  return json({
+    success: true,
+    resource: normalizeResource(body.resource),
+    id: body.id,
+    before: existing,
+    after: updated,
+    applied_changes: Object.keys(sanitized),
+  });
+}
+
 // --- Telegram helper ---
 async function sendTelegram(signal: any) {
   const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
@@ -337,7 +659,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Authenticate
   const auth = await authenticate(req);
   if (!auth) {
     return error("Unauthorized. Provide x-agent-key header or admin JWT.", 401);
@@ -345,11 +666,9 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split("/").filter(Boolean);
-  // Path: /agent-api/{resource}
-  // pathParts might be: ["agent-api", "news"] or just ["news"]
   const resource = pathParts[pathParts.length - 1];
   const params = url.searchParams;
-  
+
   let body: any = null;
   if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     try {
@@ -359,7 +678,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  const ctx: Ctx = { supabase: auth.supabase, body, params };
+  const ctx: Ctx = { supabase: auth.supabase, body, params, authMethod: auth.authMethod, userId: (auth as any).userId };
 
   switch (resource) {
     case "news":
@@ -370,6 +689,18 @@ Deno.serve(async (req) => {
       return handleEvents(req.method, ctx);
     case "users":
       return handleUsers(req.method, ctx);
+    case "context":
+      if (req.method !== "GET") return error("GET only", 405);
+      return handleContext(ctx);
+    case "review":
+      if (req.method !== "POST") return error("POST only", 405);
+      return handleReview(ctx);
+    case "preview-edit":
+      if (req.method !== "POST") return error("POST only", 405);
+      return handlePreviewEdit(ctx);
+    case "apply-edit":
+      if (req.method !== "POST") return error("POST only", 405);
+      return handleApplyEdit(ctx);
     case "health":
       return json({ status: "ok", auth: auth.authMethod, timestamp: new Date().toISOString() });
     default:
@@ -381,6 +712,10 @@ Deno.serve(async (req) => {
           "GET/PUT /users": "Profiles (?user_id=...&limit=...)",
           "POST /users?action=assign_role": "Gán role {user_id, role}",
           "DELETE /users?action=remove_role": "Xoá role {user_id, role}",
+          "GET /context": "App context: signals, news, events, stats, user info",
+          "POST /review": "Review content {resource, id?, data?, mode}",
+          "POST /preview-edit": "Preview changes {resource, id?, changes}",
+          "POST /apply-edit": "Apply changes {resource, id, changes}",
           "GET /health": "Health check",
         },
         auth: "Header x-agent-key hoặc Authorization: Bearer <admin_jwt>",
