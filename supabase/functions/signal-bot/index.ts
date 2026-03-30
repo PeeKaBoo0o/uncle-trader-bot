@@ -538,7 +538,7 @@ serve(async (req) => {
             // Send Telegram
             if (telegramChatId) {
               const msg = formatTelegramMessage(sym, timeframe, conditions, candles[n].close, currRSI, currVolRatio, strength);
-              await sendTelegram(telegramChatId, msg);
+              await sendTelegram(telegramChatId, msg, 9);
             }
 
             results.push({ symbol: sym, strength, conditions: triggeredNames, price: candles[n].close });
