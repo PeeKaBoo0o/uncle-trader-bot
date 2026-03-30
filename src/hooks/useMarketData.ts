@@ -59,16 +59,19 @@ export function useMarketData(pair: string, timeframe: string) {
   });
   const wsRef = useRef<WebSocket | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loadingHistoryRef = useRef(false);
+  const noMoreHistoryRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
       const symbol = SYMBOL_MAP[pair] || pair.replace('/', '');
       const { data: result, error } = await supabase.functions.invoke('signal-bot', {
-        body: { mode: 'indicators', symbol, timeframe, limit: 300 }
+        body: { mode: 'indicators', symbol, timeframe, limit: 500 }
       });
 
       if (error) throw error;
 
+      noMoreHistoryRef.current = false;
       setData({
         candles: result.candles || [],
         indicators: result.indicators || null,
@@ -83,9 +86,45 @@ export function useMarketData(pair: string, timeframe: string) {
     }
   }, [pair, timeframe]);
 
+  // Fetch older candles for history pagination
+  const fetchOlderCandles = useCallback(async () => {
+    if (loadingHistoryRef.current || noMoreHistoryRef.current) return;
+    loadingHistoryRef.current = true;
+
+    try {
+      const symbol = SYMBOL_MAP[pair] || pair.replace('/', '');
+      const oldestTime = data.candles.length > 0 ? data.candles[0].time : undefined;
+      if (!oldestTime) return;
+
+      const { data: result, error } = await supabase.functions.invoke('signal-bot', {
+        body: { mode: 'candles', symbol, timeframe, limit: 500, endTime: oldestTime - 1 }
+      });
+
+      if (error) throw error;
+
+      const olderCandles: Candle[] = result.candles || [];
+      if (olderCandles.length === 0) {
+        noMoreHistoryRef.current = true;
+        return;
+      }
+
+      setData(prev => {
+        // Deduplicate by time
+        const existingTimes = new Set(prev.candles.map(c => c.time));
+        const newCandles = olderCandles.filter(c => !existingTimes.has(c.time));
+        return { ...prev, candles: [...newCandles, ...prev.candles] };
+      });
+    } catch (e) {
+      console.error('History fetch error:', e);
+    } finally {
+      loadingHistoryRef.current = false;
+    }
+  }, [pair, timeframe, data.candles]);
+
   // Initial fetch + periodic full refresh (every 5 min for indicators recalc)
   useEffect(() => {
     setData(prev => ({ ...prev, loading: true }));
+    noMoreHistoryRef.current = false;
     fetchData();
 
     intervalRef.current = setInterval(fetchData, 300000); // 5 min
@@ -128,13 +167,9 @@ export function useMarketData(pair: string, timeframe: string) {
             const newCandles = [...prev.candles];
 
             if (lastCandle.time === wsCandle.time) {
-              // Update existing candle
               newCandles[newCandles.length - 1] = wsCandle;
             } else if (wsCandle.time > lastCandle.time) {
-              // New candle formed
               newCandles.push(wsCandle);
-              // Keep max 300 candles
-              if (newCandles.length > 300) newCandles.shift();
             }
 
             return { ...prev, candles: newCandles };
@@ -145,7 +180,6 @@ export function useMarketData(pair: string, timeframe: string) {
       };
 
       ws.onclose = (e) => {
-        // Reconnect after 3s unless intentionally closed
         if (e.code !== 1000) {
           setTimeout(connect, 3000);
         }
@@ -160,14 +194,14 @@ export function useMarketData(pair: string, timeframe: string) {
 
     return () => {
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect on cleanup
+        wsRef.current.onclose = null;
         wsRef.current.close(1000);
         wsRef.current = null;
       }
     };
   }, [pair, timeframe]);
 
-  return data;
+  return { ...data, fetchOlderCandles };
 }
 
 export interface Signal {

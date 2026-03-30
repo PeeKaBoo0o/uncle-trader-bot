@@ -56,6 +56,7 @@ const Indicators: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
 
   const marketData = useMarketData(activePair, activeTimeframe);
+  const { fetchOlderCandles } = marketData;
   const { signals, loading: signalsLoading } = useSignals();
   const liqHunterEnabled = indicators.find(i => i.id === 'liq_hunter')?.enabled ?? false;
   const smcResult = useSmcAnalysis(marketData.candles, activePair, activeTimeframe, liqHunterEnabled && !marketData.loading);
@@ -482,6 +483,7 @@ const Indicators: React.FC = () => {
                   proEmaData={proEmaData}
                   srData={srData}
                   wyckoffData={wyckoffData}
+                  onLoadMore={fetchOlderCandles}
                 />
               )}
             </div>
