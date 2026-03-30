@@ -10,6 +10,7 @@ import { useDXY } from '@/hooks/useDXY';
 import { supabase } from '@/integrations/supabase/client';
 import html2canvas from 'html2canvas';
 import { computeDualTrendlines } from '@/lib/computeTrendline';
+import { Sparkles, RefreshCw } from 'lucide-react';
 
 const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
 
