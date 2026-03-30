@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AppLogo from './AppLogo';
-import { Menu, X, Send, PhoneCall, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
+import { Menu, X, Send, PhoneCall, TrendingUp, TrendingDown, ChevronDown, LogIn, LogOut, Shield } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useIndicatorPermissions } from '@/hooks/useIndicatorPermissions';
 
 const navLinks = [
   { href: '/', label: 'Trang Chủ' },
