@@ -69,9 +69,23 @@ Hãy viết bài nhận định thị trường dựa trên dữ liệu trên.`;
     if (!response.ok) {
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
+
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ commentary: "⚠️ Hệ thống AI tạm thời không khả dụng. Vui lòng thử lại sau.", generated_at: new Date().toISOString(), credit_error: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ commentary: "⏳ AI đang quá tải, vui lòng thử lại sau ít phút.", generated_at: new Date().toISOString(), rate_limited: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: response.status === 429 ? "Rate limited" : "AI error" }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "AI error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
