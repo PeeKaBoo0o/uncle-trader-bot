@@ -154,6 +154,7 @@ const Indicators: React.FC = () => {
 
           {/* Live price */}
           <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Real-time" />
             <span className="text-foreground font-mono font-bold text-sm">
               {marketData.loading ? '...' : `$${livePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </span>
@@ -162,6 +163,7 @@ const Indicators: React.FC = () => {
                 {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
               </span>
             )}
+            <span className="text-[9px] text-muted-foreground/40 font-mono">LIVE</span>
           </div>
 
           <div className="flex-1" />
