@@ -99,18 +99,26 @@ const Analysis: React.FC = () => {
         },
       });
       if (error) throw error;
-      setCommentary(data.commentary || '');
+      if (data.credit_error || data.rate_limited) {
+        setCommentary(data.commentary || '');
+        setCommentaryFailed(true);
+      } else {
+        setCommentary(data.commentary || '');
+        setCommentaryFailed(false);
+      }
       setCommentaryTime(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       console.error('Commentary error:', e);
+      setCommentary('⚠️ Không thể tạo nhận định lúc này. Vui lòng thử lại sau.');
+      setCommentaryFailed(true);
     } finally {
       setCommentaryLoading(false);
     }
   }, [btcAI, goldAI, btcPrice, goldPrice, dxy.value, dxy.changePercent, btcTimeframe, goldTimeframe, commentaryLoading]);
 
-  // Auto-fetch commentary when AI points are ready
+  // Auto-fetch commentary when AI points are ready (only once, don't retry on failure)
   useEffect(() => {
-    if ((btcAI || goldAI) && !commentary && !commentaryLoading) {
+    if ((btcAI || goldAI) && !commentary && !commentaryLoading && !commentaryFailed) {
       fetchCommentary();
     }
   }, [btcAI, goldAI]);
