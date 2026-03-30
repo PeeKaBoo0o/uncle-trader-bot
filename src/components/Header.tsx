@@ -77,46 +77,6 @@ const Header: React.FC = () => {
         scrolled ? 'nav-blur shadow-2xl shadow-background/50' : 'bg-background/80 backdrop-blur-md'
       }`}
     >
-      {/* ── TOP TICKER BAR ── */}
-      <div className="border-b border-foreground/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-8">
-            {/* Live Prices */}
-            <div className="hidden md:flex items-center gap-2">
-              <div className="flex items-center gap-1 mr-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] font-bold text-muted-foreground/60 tracking-widest uppercase font-mono">LIVE</span>
-              </div>
-              <PriceBadge symbol="BTC" icon="₿" price={btc.price} change={btc.change} />
-              <PriceBadge symbol="XAU" icon="🥇" price={gold.price} change={gold.change} />
-            </div>
-
-            {/* Right side: Date + Status */}
-            <div className="hidden md:flex items-center gap-3 text-[10px] text-muted-foreground/50 font-mono">
-              <span>📡 Dữ liệu từ Binance</span>
-              <span className="w-px h-3 bg-foreground/10" />
-              <span>{new Date().toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}</span>
-            </div>
-
-            {/* Mobile: compact prices */}
-            <div className="flex md:hidden items-center gap-2 w-full justify-between text-[10px] font-mono">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-foreground/70 font-bold">₿ {btc.price > 0 ? `$${(btc.price/1000).toFixed(1)}K` : '...'}</span>
-                <span className={btc.change >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                  {btc.change >= 0 ? '+' : ''}{btc.change.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-foreground/70 font-bold">🥇 {gold.price > 0 ? `$${gold.price.toFixed(0)}` : '...'}</span>
-                <span className={gold.change >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                  {gold.change >= 0 ? '+' : ''}{gold.change.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── MAIN NAV BAR ── */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
