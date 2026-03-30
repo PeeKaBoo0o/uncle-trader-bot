@@ -4,12 +4,12 @@ import AppLogo from './AppLogo';
 
 const navLinks = [
   { href: '/', label: 'Trang Chủ' },
-  { href: '/services', label: 'Dịch Vụ' },
   { href: '/tin-tuc', label: 'Tin Tức' },
   { href: '/phan-tich', label: 'Phân Tích' },
   { href: '/indicators', label: 'Indicators' },
   { href: '/lich-kinh-te', label: 'Lịch Kinh Tế' },
   { href: '/tu-dien', label: 'Từ Điển' },
+  { href: '/services', label: 'Dịch Vụ' },
   { href: '/contact', label: 'Liên Hệ' },
 ];
 
