@@ -210,20 +210,43 @@ CHỈ trả về JSON, không giải thích thêm.`;
   }
 }
 
-// ─── AI Generate Image ───
-async function aiGenerateImage(title: string, stream: string): Promise<string | null> {
+// ─── AI Edit/Enhance Image ───
+async function aiGenerateImage(title: string, stream: string, originalImageUrl?: string | null): Promise<string | null> {
   const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_KEY) return null;
 
   const styleMap: Record<string, string> = {
-    hot: "dynamic crypto trading chart with red and green candles, digital futuristic style, dark background",
-    whale: "giant whale silhouette in deep ocean with blockchain network nodes, dark blue tones",
-    macro: "modern government building with digital currency symbols, professional news photo style",
-    event: "futuristic cryptocurrency event stage with spotlights and blockchain visuals",
-    sentiment: "abstract emotion visualization with bull and bear, data streams, dark moody lighting",
+    hot: "vibrant crypto trading atmosphere, dramatic lighting with red/green accent glows, cinematic editorial quality",
+    whale: "deep ocean blue tones with subtle blockchain/network overlay, mysterious and powerful mood",
+    macro: "clean professional editorial style, modern financial/governmental aesthetic, sharp and authoritative",
+    event: "energetic and futuristic tech event vibe, spotlight effects, innovation and excitement",
+    sentiment: "moody atmospheric with data visualization overlay, abstract bull/bear energy, dramatic contrast",
   };
 
-  const prompt = `Professional crypto news illustration for article: "${title}". Style: ${styleMap[stream] || styleMap.hot}. High quality, editorial, no text, no watermarks, 16:9 aspect ratio, on a clean background`;
+  const messages: any[] = [];
+
+  if (originalImageUrl && !originalImageUrl.includes("unsplash.com")) {
+    // Edit mode: enhance the original image
+    const editPrompt = `Transform this news image into a stunning, professional crypto editorial illustration. 
+Style: ${styleMap[stream] || styleMap.hot}. 
+Context: "${title}".
+Requirements: Make it more visually captivating and polished. Enhance colors, add cinematic depth and dramatic lighting. Keep the core subject recognizable but elevate the visual quality to premium editorial standard. No text, no watermarks. 16:9 aspect ratio.`;
+
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: editPrompt },
+        { type: "image_url", image_url: { url: originalImageUrl } },
+      ],
+    });
+  } else {
+    // Generate mode: create from scratch based on content
+    const genPrompt = `Create a stunning, photorealistic crypto news illustration for: "${title}". 
+Style: ${styleMap[stream] || styleMap.hot}. 
+Requirements: Cinematic quality, dramatic lighting, rich colors, professional editorial photography feel. Highly detailed and visually captivating. No text, no watermarks. 16:9 aspect ratio.`;
+
+    messages.push({ role: "user", content: genPrompt });
+  }
 
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -233,8 +256,8 @@ async function aiGenerateImage(title: string, stream: string): Promise<string | 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: prompt }],
+        model: "google/gemini-3.1-flash-image-preview",
+        messages,
         modalities: ["image", "text"],
       }),
     });
@@ -246,20 +269,18 @@ async function aiGenerateImage(title: string, stream: string): Promise<string | 
 
     const data = await res.json();
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    
     if (!imageUrl) return null;
 
-    // Upload to Supabase storage
+    // Upload to storage
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Decode base64 and upload
     const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
     const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     
     const fileName = `news/${Date.now()}-${stream}.png`;
-    const { data: uploadData, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("news-images")
       .upload(fileName, bytes, { contentType: "image/png", upsert: true });
 
