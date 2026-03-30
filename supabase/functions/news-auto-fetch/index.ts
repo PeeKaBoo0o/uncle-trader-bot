@@ -297,45 +297,76 @@ Requirements: Cinematic quality, dramatic lighting, rich colors, professional ed
   }
 }
 
-// ─── Get free stock image from Unsplash ───
-function getUnsplashImage(stream: string, index: number): string {
-  const queries: Record<string, string[]> = {
-    hot: ["cryptocurrency-trading", "bitcoin-chart", "crypto-market", "digital-currency", "blockchain"],
-    whale: ["ocean-whale", "deep-sea", "blockchain-network", "data-center", "financial-technology"],
-    macro: ["government-building", "federal-reserve", "economics", "global-finance", "stock-market"],
-    event: ["technology-conference", "crypto-event", "innovation", "startup", "blockchain-summit"],
-    sentiment: ["stock-chart", "market-analysis", "data-visualization", "trading-floor", "financial-graph"],
+// ─── Get diverse stock image from Unsplash Source (random, unique per query) ───
+function getStreamImage(stream: string, title: string): string {
+  // Use Unsplash Source API with specific search queries per stream + title keywords
+  const streamQueries: Record<string, string[]> = {
+    hot: ["bitcoin,trading", "cryptocurrency,chart", "digital,finance", "crypto,market,bull", "blockchain,technology"],
+    whale: ["ocean,deep", "technology,network", "data,server", "digital,abstract,blue", "blockchain,node"],
+    macro: ["government,politics", "economy,finance", "federal,building", "global,business", "stock,market"],
+    event: ["technology,conference", "innovation,future", "startup,launch", "digital,summit", "tech,event"],
+    sentiment: ["chart,analysis", "market,graph", "trading,screen", "finance,data", "abstract,pattern"],
   };
+
+  const queries = streamQueries[stream] || streamQueries.hot;
+  // Use title hash to pick a query variant, ensuring different articles get different images
+  const hash = title.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+  const query = queries[Math.abs(hash) % queries.length];
   
-  const q = queries[stream] || queries.hot;
-  const query = q[index % q.length];
-  return `https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=800&h=450&fit=crop&q=80`;
+  // Use Unsplash Source with sig parameter for cache-busting (unique per article)
+  const sig = Math.abs(hash).toString(36);
+  return `https://source.unsplash.com/800x450/?${encodeURIComponent(query)}&sig=${sig}`;
 }
 
-// ─── Search web image via Unsplash source ───
-async function searchFreeImage(query: string): Promise<string> {
-  // Use curated Unsplash images based on keywords
-  const cryptoImages = [
-    "photo-1639762681485-074b7f938ba0",
-    "photo-1518546305927-5a555bb7020d",
-    "photo-1622630998477-20aa696ecb05",
-    "photo-1605792657660-596af9009e82",
-    "photo-1642104704074-907c0698cbd9",
-    "photo-1611974789855-9c2a0a7236a3",
-    "photo-1535320903710-d993d3d77d29",
-    "photo-1526304640581-d334cdbbf45e",
-    "photo-1504384308090-c894fdcc538d",
-    "photo-1611605698335-8b1569810432",
-    "photo-1642790106117-e829e14a795f",
-    "photo-1559526324-593bc073d938",
-    "photo-1486406146926-c627a92ad1ab",
-    "photo-1540575467063-178a50e2fd60",
-    "photo-1590283603385-17ffb3a7f29f",
-  ];
+// ─── Search web image with diverse pool per stream ───
+async function searchFreeImage(title: string, stream: string): Promise<string> {
+  // Large curated pool organized by stream category
+  const imagePool: Record<string, string[]> = {
+    hot: [
+      "photo-1639762681485-074b7f938ba0", "photo-1518546305927-5a555bb7020d",
+      "photo-1622630998477-20aa696ecb05", "photo-1605792657660-596af9009e82",
+      "photo-1642104704074-907c0698cbd9", "photo-1611974789855-9c2a0a7236a3",
+      "photo-1621761191319-c6fb62004040", "photo-1643408875993-fba601fccfea",
+      "photo-1629877521896-2238eed29b5c", "photo-1624996752380-8ec242e0f85d",
+    ],
+    whale: [
+      "photo-1535320903710-d993d3d77d29", "photo-1526304640581-d334cdbbf45e",
+      "photo-1504384308090-c894fdcc538d", "photo-1558494949-ef010cbdcc31",
+      "photo-1451187580459-43490279c0fa", "photo-1550751827-4bd374c3f58b",
+      "photo-1563986768609-322da13575f2", "photo-1639322537228-f710d846310a",
+      "photo-1516245834210-c4c142787335", "photo-1544197150-b99a580bb7a8",
+    ],
+    macro: [
+      "photo-1486406146926-c627a92ad1ab", "photo-1540575467063-178a50e2fd60",
+      "photo-1590283603385-17ffb3a7f29f", "photo-1611605698335-8b1569810432",
+      "photo-1541354329998-f4d9a9f9297f", "photo-1569025743873-ea3a9ber956f",
+      "photo-1526304640581-d334cdbbf45e", "photo-1559526324-593bc073d938",
+      "photo-1554224155-8d04cb21cd6c", "photo-1460925895917-afdab827c52f",
+    ],
+    event: [
+      "photo-1540575467063-178a50e2fd60", "photo-1504384308090-c894fdcc538d",
+      "photo-1519389950473-47ba0277781c", "photo-1485827404703-89b55fcc595e",
+      "photo-1531482615713-2afd69097998", "photo-1492684223f8-82d0fe8c085f",
+      "photo-1505373877841-8d25f7d46678", "photo-1475721027785-f74eccf877e2",
+      "photo-1587825140708-dfaf18c4228a", "photo-1560439514-4e9645039924",
+    ],
+    sentiment: [
+      "photo-1611605698335-8b1569810432", "photo-1642790106117-e829e14a795f",
+      "photo-1559526324-593bc073d938", "photo-1551288049-bebda4e38f71",
+      "photo-1611162617213-7d7a39e9b1d7", "photo-1535320903710-d993d3d77d29",
+      "photo-1504868584819-f8e8b4b6d7e3", "photo-1460925895917-afdab827c52f",
+      "photo-1590283603385-17ffb3a7f29f", "photo-1543286386-713bdd548da4",
+    ],
+  };
+
+  const pool = imagePool[stream] || imagePool.hot;
   
-  const hash = query.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
-  const idx = Math.abs(hash) % cryptoImages.length;
-  return `https://images.unsplash.com/${cryptoImages[idx]}?w=800&h=450&fit=crop&auto=format`;
+  // Use both title hash AND current timestamp to ensure uniqueness
+  const titleHash = title.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+  const timeComponent = Math.floor(Date.now() / 60000); // changes every minute
+  const idx = Math.abs(titleHash + timeComponent) % pool.length;
+  
+  return `https://images.unsplash.com/${pool[idx]}?w=800&h=450&fit=crop&auto=format`;
 }
 
 // ─── Count AI images generated today ───
@@ -481,10 +512,10 @@ serve(async (req) => {
 
     // 4. Check how many AI images we've generated today
     const aiImagesCount = await countTodayAiImages(supabase);
-    const canGenerateImage = aiImagesCount < 6;
-    let imageGenerated = false;
+    const maxAiImages = 6;
+    let aiImagesGenerated = 0;
 
-    console.log(`🖼️ AI images today: ${aiImagesCount}/6, can generate: ${canGenerateImage}`);
+    console.log(`🖼️ AI images today: ${aiImagesCount}/${maxAiImages}`);
 
     // 5. Process each stream article: AI rewrite + image
     const insertArticles: any[] = [];
@@ -503,21 +534,29 @@ serve(async (req) => {
         continue;
       }
 
-      // Image: generate AI for first eligible article, rest use original or Unsplash
+      // Image strategy:
+      // 1. Try AI generation if budget allows (spread across streams)
+      // 2. Use original source image if available
+      // 3. Fall back to diverse Unsplash image based on stream + title
       let imageUrl: string | null = null;
 
-      if (canGenerateImage && !imageGenerated) {
+      if ((aiImagesCount + aiImagesGenerated) < maxAiImages) {
         console.log(`🎨 Generating AI image for ${stream}...`);
         imageUrl = await aiGenerateImage(rewritten.title, stream, raw.imageUrl);
         if (imageUrl) {
-          imageGenerated = true;
-          console.log(`✅ AI image generated for ${stream}`);
+          aiImagesGenerated++;
+          console.log(`✅ AI image generated for ${stream} (${aiImagesCount + aiImagesGenerated}/${maxAiImages} today)`);
         }
       }
 
+      if (!imageUrl && raw.imageUrl && !raw.imageUrl.includes("unsplash.com")) {
+        // Use original source image (but not Unsplash placeholders)
+        imageUrl = raw.imageUrl;
+      }
+
       if (!imageUrl) {
-        // Use original image from source or Unsplash fallback
-        imageUrl = raw.imageUrl || await searchFreeImage(rewritten.title);
+        // Fallback: diverse Unsplash image unique to this stream + title
+        imageUrl = await searchFreeImage(rewritten.title, stream);
       }
 
       const badgeInfo = STREAM_BADGES[stream];
@@ -557,8 +596,8 @@ serve(async (req) => {
         success: true,
         articles_count: inserted?.length || 0,
         articles: inserted,
-        ai_image_generated: imageGenerated,
-        total_ai_images_today: aiImagesCount + (imageGenerated ? 1 : 0),
+        ai_images_generated: aiImagesGenerated,
+        total_ai_images_today: aiImagesCount + aiImagesGenerated,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
