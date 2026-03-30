@@ -581,6 +581,13 @@ const Indicators: React.FC = () => {
       </div>
 
       <Footer />
+
+      <FloatingAssistant
+        latestSignal={signals.length > 0 ? signals[0] : null}
+        trendState={buySellEnabled && buySellData ? buySellData.currentTrend : undefined}
+        activePair={activePair}
+        activeTimeframe={activeTimeframe}
+      />
     </main>
   );
 };
