@@ -1353,7 +1353,41 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    chart.subscribeCrosshairMove((param) => {
+    // ── Alpha MP (Alpha Net Matrix Pro) ──
+    if (alphaMPData && enabledIndicators.includes('alpha_mp')) {
+      // Upper band (cyan dashed)
+      const mpUpperSeries = chart.addSeries(LineSeries, {
+        color: '#06B6D4', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'MP Upper',
+      });
+      if (alphaMPData.upperSeries.length > 0) mpUpperSeries.setData(alphaMPData.upperSeries.map(p => ({ time: p.time as any, value: p.value })));
+
+      // Lower band (orange dashed)
+      const mpLowerSeries = chart.addSeries(LineSeries, {
+        color: '#F97316', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'MP Lower',
+      });
+      if (alphaMPData.lowerSeries.length > 0) mpLowerSeries.setData(alphaMPData.lowerSeries.map(p => ({ time: p.time as any, value: p.value })));
+
+      // Basis line (white, thin)
+      const mpBasisSeries = chart.addSeries(LineSeries, {
+        color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'MP Basis',
+      });
+      if (alphaMPData.basisSeries.length > 0) mpBasisSeries.setData(alphaMPData.basisSeries.map(p => ({ time: p.time as any, value: p.value })));
+
+      // Markers (buy, sell, cross-up, cross-down)
+      alphaMPData.markers.forEach(m => {
+        allMarkers.push({
+          time: m.time as any,
+          position: m.position as any,
+          color: m.color,
+          shape: m.shape as any,
+          text: m.text,
+        });
+      });
+    }
+
       if (!param || !param.time) {
       const currentCandles = candlesRef.current;
       const last = currentCandles[currentCandles.length - 1];
