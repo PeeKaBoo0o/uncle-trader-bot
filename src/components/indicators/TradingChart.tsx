@@ -19,6 +19,7 @@ import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 import type { WyckoffResult } from '@/hooks/useWyckoff';
 import type { AlphaLHResult } from '@/hooks/useAlphaLH';
 import type { AlphaMPResult } from '@/hooks/useAlphaMP';
+import type { AlphaEventResult } from '@/hooks/useAlphaEventSignal';
 import {
   alignRangeToLiveEdge,
   getInitialLogicalRange,
@@ -66,11 +67,12 @@ interface TradingChartProps {
   wyckoffData?: WyckoffResult | null;
   alphaLHData?: AlphaLHResult | null;
   alphaMPData?: AlphaMPResult | null;
+  alphaEventData?: AlphaEventResult | null;
   onLoadMore?: () => void;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, oscillatorData, proEmaData, srData, wyckoffData, alphaLHData, alphaMPData, onLoadMore,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, oscillatorData, proEmaData, srData, wyckoffData, alphaLHData, alphaMPData, alphaEventData, onLoadMore,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -1379,6 +1381,103 @@ const TradingChart: React.FC<TradingChartProps> = ({
       alphaMPData.markers.forEach(m => {
         allMarkers.push({
           time: toChartTime(m.time),
+          position: m.position as any,
+          color: m.color,
+          shape: m.shape as any,
+          text: m.text,
+        });
+      });
+    }
+
+    // ── Alpha Event Signal ──
+    if (alphaEventData && enabledIndicators.includes('alpha_event')) {
+      // EMA 200 trend line — colored segments
+      if (alphaEventData.emaTrendSeries.length > 0) {
+        const greenPts: { time: any; value: number }[] = [];
+        const redPts: { time: any; value: number }[] = [];
+        const grayPts: { time: any; value: number }[] = [];
+
+        alphaEventData.emaTrendSeries.forEach(p => {
+          const pt = { time: p.time as any, value: p.value };
+          if (p.color === '#16a34a') greenPts.push(pt);
+          else if (p.color === '#dc2626') redPts.push(pt);
+          else grayPts.push(pt);
+        });
+
+        if (greenPts.length > 0) {
+          const s = chart.addSeries(LineSeries, {
+            color: '#16a34a', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+          });
+          s.setData(greenPts);
+        }
+        if (redPts.length > 0) {
+          const s = chart.addSeries(LineSeries, {
+            color: '#dc2626', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+          });
+          s.setData(redPts);
+        }
+        if (grayPts.length > 0) {
+          const s = chart.addSeries(LineSeries, {
+            color: '#9ca3af', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+          });
+          s.setData(grayPts);
+        }
+      }
+
+      // Long entry line (green dotted)
+      const longEntryFiltered = alphaEventData.longEntrySeries.filter(p => Number.isFinite(p.value));
+      if (longEntryFiltered.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: '#16a34a', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+        });
+        s.setData(longEntryFiltered.map(p => ({ time: p.time as any, value: p.value })));
+      }
+
+      // Short entry line (red dotted)
+      const shortEntryFiltered = alphaEventData.shortEntrySeries.filter(p => Number.isFinite(p.value));
+      if (shortEntryFiltered.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: '#dc2626', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+        });
+        s.setData(shortEntryFiltered.map(p => ({ time: p.time as any, value: p.value })));
+      }
+
+      // Long TP line (green solid)
+      const longTpFiltered = alphaEventData.longTpSeries.filter(p => Number.isFinite(p.value));
+      if (longTpFiltered.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: 'rgba(22,163,106,0.6)', lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+        });
+        s.setData(longTpFiltered.map(p => ({ time: p.time as any, value: p.value })));
+      }
+
+      // Short TP line (red solid)
+      const shortTpFiltered = alphaEventData.shortTpSeries.filter(p => Number.isFinite(p.value));
+      if (shortTpFiltered.length > 0) {
+        const s = chart.addSeries(LineSeries, {
+          color: 'rgba(220,38,38,0.6)', lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+        });
+        s.setData(shortTpFiltered.map(p => ({ time: p.time as any, value: p.value })));
+      }
+
+      // TP zones as filled rectangles
+      alphaEventData.zones.forEach(zone => {
+        const t = Math.floor(zone.time / 1000);
+        const isLong = zone.side === 'long';
+        const rect = new RectanglePrimitive({
+          p1: { time: t, price: zone.entry },
+          p2: { time: t + 1, price: zone.target },
+          fillColor: isLong ? 'rgba(22,163,106,0.15)' : 'rgba(220,38,38,0.15)',
+          borderColor: 'transparent',
+          borderWidth: 0,
+        });
+        candleSeries.attachPrimitive(rect);
+      });
+
+      // Markers (Buy, Sell, TP)
+      alphaEventData.markers.forEach(m => {
+        allMarkers.push({
+          time: m.time as any,
           position: m.position as any,
           color: m.color,
           shape: m.shape as any,

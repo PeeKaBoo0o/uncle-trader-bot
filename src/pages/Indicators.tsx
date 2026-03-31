@@ -25,6 +25,8 @@ import { useAlphaLH, defaultAlphaLHConfig, type AlphaLHConfig } from '@/hooks/us
 import AlphaLHConfigPanel from '@/components/indicators/AlphaLHConfig';
 import { useAlphaMP, defaultAlphaMPConfig, type AlphaMPConfig } from '@/hooks/useAlphaMP';
 import AlphaMPConfigPanel from '@/components/indicators/AlphaMPConfig';
+import { useAlphaEventSignal, defaultAlphaEventConfig, type AlphaEventConfig } from '@/hooks/useAlphaEventSignal';
+import AlphaEventConfigPanel from '@/components/indicators/AlphaEventConfig';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
@@ -54,6 +56,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'wyckoff', label: 'Wyckoff', enabled: false, color: '#B388FF', category: 'Structure' },
   { id: 'alpha_lh', label: 'Alpha LH', enabled: false, color: '#F59E0B', category: 'Liquidity' },
   { id: 'alpha_mp', label: 'Alpha MP', enabled: false, color: '#06B6D4', category: 'Envelope' },
+  { id: 'alpha_event', label: 'Alpha Event', enabled: false, color: '#E879F9', category: 'Signal' },
 ];
 
 const Indicators: React.FC = () => {
@@ -96,6 +99,9 @@ const Indicators: React.FC = () => {
   const alphaMPEnabled = indicators.find(i => i.id === 'alpha_mp')?.enabled ?? false;
   const [alphaMPConfig, setAlphaMPConfig] = useState(defaultAlphaMPConfig);
   const alphaMPData = useAlphaMP(marketData.candles, alphaMPEnabled && !marketData.loading, alphaMPConfig);
+  const alphaEventEnabled = indicators.find(i => i.id === 'alpha_event')?.enabled ?? false;
+  const [alphaEventConfig, setAlphaEventConfig] = useState(defaultAlphaEventConfig);
+  const alphaEventData = useAlphaEventSignal(marketData.candles, alphaEventEnabled && !marketData.loading, alphaEventConfig);
 
   const trendlines = useMemo(() => {
     if (!engineEnabled || marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
@@ -553,8 +559,40 @@ const Indicators: React.FC = () => {
                         <span className="text-red-400 font-bold">{alphaMPData.dashboard.totalSellSignals}</span>
                       </div>
                     </div>
+              </div>
+            )}
+
+            {/* Alpha Event Dashboard + Config */}
+            {alphaEventEnabled && (
+              <div className="mt-3">
+                <AlphaEventConfigPanel config={alphaEventConfig} onChange={setAlphaEventConfig} />
+                {alphaEventData && (
+                  <div className="mt-2 border border-[#2b3139] rounded-lg overflow-hidden">
+                    <div className="bg-[#1e2329] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                      ALPHA EVENT
+                    </div>
+                    <div className="bg-[#161a1e] p-2 space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Buy Signals</span>
+                        <span className="text-emerald-400 font-bold">{alphaEventData.markers.filter(m => m.shape === 'arrowUp' && m.text.startsWith('Buy')).length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Sell Signals</span>
+                        <span className="text-red-400 font-bold">{alphaEventData.markers.filter(m => m.shape === 'arrowDown' && m.text.startsWith('Sell')).length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">TP Hits</span>
+                        <span className="text-[#d69094] font-bold">{alphaEventData.markers.filter(m => m.text === 'TP').length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Active Zones</span>
+                        <span className="text-[#eaecef] font-bold">{alphaEventData.zones.length}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
               </div>
             )}
           </div>
@@ -599,6 +637,7 @@ const Indicators: React.FC = () => {
                   wyckoffData={wyckoffData}
                   alphaLHData={alphaLHData}
                   alphaMPData={alphaMPData}
+                  alphaEventData={alphaEventData}
                   onLoadMore={fetchOlderCandles}
                 />
               )}
