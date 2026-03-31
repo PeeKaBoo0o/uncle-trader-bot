@@ -63,6 +63,7 @@ interface TradingChartProps {
   proEmaData?: ProEmaData | null;
   srData?: SupportResistanceResult | null;
   wyckoffData?: WyckoffResult | null;
+  alphaLHData?: AlphaLHResult | null;
   onLoadMore?: () => void;
 }
 
