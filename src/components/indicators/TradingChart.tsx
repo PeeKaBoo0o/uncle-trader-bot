@@ -62,8 +62,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
   const candleSeriesRef = useRef<any>(null);
   const volSeriesRef = useRef<any>(null);
   const prevCandlesLenRef = useRef<number>(0);
-  const isFirstLoadRef = useRef<boolean>(true);
-  const savedScrollPosRef = useRef<number | null>(null);
+  const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
 
   const [crosshairData, setCrosshairData] = useState<{
     open: number; high: number; low: number; close: number; time: string; change: number; changePercent: number;
@@ -102,9 +101,16 @@ const TradingChart: React.FC<TradingChartProps> = ({
   useEffect(() => {
     if (!chartContainerRef.current || !rsiContainerRef.current || candles.length === 0) return;
 
-    // Save scroll position before cleanup
+    // Save current visible range before cleanup so user drag position is preserved
     if (chartRef.current) {
-      try { savedScrollPosRef.current = chartRef.current.timeScale().scrollPosition(); } catch {}
+      try {
+        const currentRange = chartRef.current.timeScale().getVisibleLogicalRange();
+        visibleRangeRef.current = currentRange
+          ? { from: currentRange.from, to: currentRange.to }
+          : null;
+      } catch {
+        visibleRangeRef.current = null;
+      }
     }
     // Cleanup
     [chartRef, rsiChartRef].forEach(ref => {
@@ -1258,7 +1264,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
       createSeriesMarkers(candleSeries, allMarkers);
     }
 
-    chart.timeScale().fitContent();
+    if (visibleRangeRef.current) {
+      chart.timeScale().setVisibleLogicalRange(visibleRangeRef.current);
+    } else {
+      chart.timeScale().fitContent();
+    }
 
     // ═══════════ RSI CHART (synced) ═══════════
     const rsiChart = createChart(rsiContainerRef.current, {
@@ -1315,7 +1325,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    rsiChart.timeScale().fitContent();
+    if (visibleRangeRef.current) {
+      rsiChart.timeScale().setVisibleLogicalRange(visibleRangeRef.current);
+    } else {
+      rsiChart.timeScale().fitContent();
+    }
 
     // ── Sync time scales ──
     const syncTimeScales = () => {
