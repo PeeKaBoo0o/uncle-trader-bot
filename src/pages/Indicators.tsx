@@ -531,13 +531,13 @@ const Indicators: React.FC = () => {
           </div>
 
           {/* ── RIGHT: Signal Feed ── */}
-          <div className="bg-[#161a1e] p-3 flex flex-col">
+          <div className="bg-[#161a1e] p-3 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[10px] font-bold text-[#848e9c] tracking-widest uppercase font-mono">TÍN HIỆU GẦN ĐÂY</h3>
               <span className="text-[10px] font-mono text-[#5e6673]">{signals.length}</span>
             </div>
             <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Click để xem lại vị trí</p>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <SignalFeed signals={signals} loading={signalsLoading} />
             </div>
           </div>

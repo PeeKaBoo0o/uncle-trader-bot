@@ -33,7 +33,7 @@ const SignalFeed: React.FC<SignalFeedProps> = ({ signals, loading, onSignalClick
   }
 
   return (
-    <div className="space-y-1.5 max-h-[600px] overflow-y-auto scrollbar-thin">
+    <div className="h-full space-y-1.5">
       {signals.map(signal => {
         const style = STRENGTH_STYLES[signal.strength] || STRENGTH_STYLES['✅ TRUNG BÌNH'];
         const time = new Date(signal.sent_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
