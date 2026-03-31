@@ -247,12 +247,6 @@ const Indicators: React.FC = () => {
             <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Bật/Tắt để hiển thị lên đồ thị</p>
             <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
             
-            {/* AlphaNet AI Dashboard */}
-            {alphaNetEnabled && (
-              <div className="mt-3">
-                <AlphaNetDashboard data={alphaNet.data} loading={alphaNet.loading} error={alphaNet.error} />
-              </div>
-            )}
 
             {/* TP/SL Backtesting Dashboard */}
             {tpSlEnabled && tpSlData && (
