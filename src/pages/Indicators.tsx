@@ -98,6 +98,9 @@ const Indicators: React.FC = () => {
   const alphaEventEnabled = indicators.find(i => i.id === 'alpha_event')?.enabled ?? false;
   const [alphaEventConfig, setAlphaEventConfig] = useState(defaultAlphaEventConfig);
   const alphaEventData = useAlphaEventSignal(marketData.candles, alphaEventEnabled && !marketData.loading, alphaEventConfig);
+  const alphaProEnabled = indicators.find(i => i.id === 'alpha_pro')?.enabled ?? false;
+  const [alphaProConfig, setAlphaProConfig] = useState(defaultAlphaProConfig);
+  const alphaProData = useAlphaProSignal(marketData.candles, alphaProEnabled && !marketData.loading, alphaProConfig);
 
   const trendlines = useMemo(() => {
     if (!engineEnabled || marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
