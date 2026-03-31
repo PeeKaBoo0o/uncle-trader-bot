@@ -22,8 +22,6 @@ import { useAlphaLH, defaultAlphaLHConfig, type AlphaLHConfig } from '@/hooks/us
 import AlphaLHConfigPanel from '@/components/indicators/AlphaLHConfig';
 import { useAlphaEventSignal, defaultAlphaEventConfig, type AlphaEventConfig } from '@/hooks/useAlphaEventSignal';
 import AlphaEventConfigPanel from '@/components/indicators/AlphaEventConfig';
-import { useAlphaProSignal, defaultAlphaProConfig, type AlphaProConfig } from '@/hooks/useAlphaProSignal';
-import AlphaProConfigPanel from '@/components/indicators/AlphaProConfig';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
