@@ -62,6 +62,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
   const candleSeriesRef = useRef<any>(null);
   const volSeriesRef = useRef<any>(null);
   const prevCandlesLenRef = useRef<number>(0);
+  const isFirstLoadRef = useRef<boolean>(true);
+  const savedScrollPosRef = useRef<number | null>(null);
 
   const [crosshairData, setCrosshairData] = useState<{
     open: number; high: number; low: number; close: number; time: string; change: number; changePercent: number;
