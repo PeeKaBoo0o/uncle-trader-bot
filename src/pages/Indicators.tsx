@@ -87,6 +87,9 @@ const Indicators: React.FC = () => {
   const srData = useSupportResistance(marketData.candles, srEnabled && !marketData.loading);
   const wyckoffEnabled = indicators.find(i => i.id === 'wyckoff')?.enabled ?? false;
   const wyckoffData = useWyckoff(marketData.candles, wyckoffEnabled && !marketData.loading);
+  const alphaLHEnabled = indicators.find(i => i.id === 'alpha_lh')?.enabled ?? false;
+  const [alphaLHConfig, setAlphaLHConfig] = useState(defaultAlphaLHConfig);
+  const alphaLHData = useAlphaLH(marketData.candles, alphaLHEnabled && !marketData.loading, alphaLHConfig);
 
   const trendlines = useMemo(() => {
     if (!engineEnabled || marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
