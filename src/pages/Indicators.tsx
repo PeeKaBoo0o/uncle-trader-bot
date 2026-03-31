@@ -228,13 +228,38 @@ const Indicators: React.FC = () => {
 
       {/* ═══ 3-PANEL LAYOUT ═══ */}
       <div className="px-1.5 lg:px-3 py-1">
-        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_220px] gap-px min-h-[75vh] bg-[#2b3139] rounded overflow-hidden">
+        <div className={`grid grid-cols-1 ${sidebarOpen ? 'lg:grid-cols-[180px_1fr_220px]' : 'lg:grid-cols-[1fr_220px]'} gap-px min-h-[75vh] bg-[#2b3139] rounded overflow-hidden transition-all duration-300`}>
+
+          {/* ── Collapsed sidebar handle ── */}
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="fixed left-1 top-1/2 -translate-y-1/2 z-30 bg-[#1e2329] border border-[#2b3139] rounded-r-lg px-1 py-4 hover:bg-[#2b3139] transition-colors group"
+              title="Mở chỉ báo"
+            >
+              <svg className="w-3.5 h-3.5 text-[#848e9c] group-hover:text-[#fcd535] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
 
           {/* ── LEFT: Indicator Checklist ── */}
-          <div className="bg-[#161a1e] p-3">
+          {sidebarOpen && (
+          <div className="bg-[#161a1e] p-3 relative">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[10px] font-bold text-[#848e9c] tracking-widest uppercase font-mono">CHỈ BÁO</h3>
-              <span className="text-[9px] font-mono text-[#5e6673]">{enabledIds.length}/{indicators.length}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono text-[#5e6673]">{enabledIds.length}/{indicators.length}</span>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-0.5 rounded hover:bg-[#2b3139] transition-colors group"
+                  title="Thu gọn"
+                >
+                  <svg className="w-3.5 h-3.5 text-[#5e6673] group-hover:text-[#fcd535] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Bật/Tắt để hiển thị lên đồ thị</p>
             <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
