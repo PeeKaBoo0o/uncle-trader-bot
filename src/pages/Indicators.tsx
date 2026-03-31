@@ -226,16 +226,16 @@ const Indicators: React.FC = () => {
       </div>
 
       {/* ═══ 3-PANEL LAYOUT ═══ */}
-      <div className="px-2 lg:px-4 py-2">
-        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_220px] gap-2 min-h-[70vh]">
+      <div className="px-1.5 lg:px-3 py-1">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_220px] gap-px min-h-[75vh] bg-[#2b3139] rounded overflow-hidden">
 
           {/* ── LEFT: Indicator Checklist ── */}
-          <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3">
+          <div className="bg-[#161a1e] p-3">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">CHỈ BÁO</h3>
-              <span className="text-[9px] font-mono text-muted-foreground/40">{enabledIds.length}/{indicators.length}</span>
+              <h3 className="text-[10px] font-bold text-[#848e9c] tracking-widest uppercase font-mono">CHỈ BÁO</h3>
+              <span className="text-[9px] font-mono text-[#5e6673]">{enabledIds.length}/{indicators.length}</span>
             </div>
-            <p className="text-[9px] text-muted-foreground/40 mb-3 font-mono">Bật/Tắt để hiển thị lên đồ thị</p>
+            <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Bật/Tắt để hiển thị lên đồ thị</p>
             <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} />
             
             {/* AlphaNet AI Dashboard */}
