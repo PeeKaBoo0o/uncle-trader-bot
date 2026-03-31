@@ -62,6 +62,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
   const candleSeriesRef = useRef<any>(null);
   const volSeriesRef = useRef<any>(null);
   const prevCandlesLenRef = useRef<number>(0);
+  const isFirstLoadRef = useRef<boolean>(true);
+  const savedScrollPosRef = useRef<number | null>(null);
 
   const [crosshairData, setCrosshairData] = useState<{
     open: number; high: number; low: number; close: number; time: string; change: number; changePercent: number;
@@ -100,6 +102,10 @@ const TradingChart: React.FC<TradingChartProps> = ({
   useEffect(() => {
     if (!chartContainerRef.current || !rsiContainerRef.current || candles.length === 0) return;
 
+    // Save scroll position before cleanup
+    if (chartRef.current) {
+      try { savedScrollPosRef.current = chartRef.current.timeScale().scrollPosition(); } catch {}
+    }
     // Cleanup
     [chartRef, rsiChartRef].forEach(ref => {
       if (ref.current) { try { ref.current.remove(); } catch {} ref.current = null; }
@@ -1252,8 +1258,13 @@ const TradingChart: React.FC<TradingChartProps> = ({
       createSeriesMarkers(candleSeries, allMarkers);
     }
 
-    // Fit content — rightOffset already centers the last candle
+    // On first load: fit content then center last candle. On rebuild: restore scroll position.
     chart.timeScale().fitContent();
+    if (isFirstLoadRef.current) {
+      isFirstLoadRef.current = false;
+    } else if (savedScrollPosRef.current !== null) {
+      chart.timeScale().scrollToPosition(savedScrollPosRef.current, false);
+    }
 
     // ═══════════ RSI CHART (synced) ═══════════
     const rsiChart = createChart(rsiContainerRef.current, {
