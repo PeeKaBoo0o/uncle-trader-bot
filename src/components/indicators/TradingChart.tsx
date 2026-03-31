@@ -1391,95 +1391,116 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
     // ── Alpha Event Signal ──
     if (alphaEventData && enabledIndicators.includes('alpha_event')) {
-      // EMA 200 trend line — colored segments
+      // 1. EMA 200 trend line — contiguous colored segments
       if (alphaEventData.emaTrendSeries.length > 0) {
-        const greenPts: { time: any; value: number }[] = [];
-        const redPts: { time: any; value: number }[] = [];
-        const grayPts: { time: any; value: number }[] = [];
-
-        alphaEventData.emaTrendSeries.forEach(p => {
+        type EmaPoint = { time: any; value: number; color: string };
+        const emaPts: EmaPoint[] = alphaEventData.emaTrendSeries;
+        // Group consecutive same-color points into segments
+        const segments: { color: string; data: { time: any; value: number }[] }[] = [];
+        let currentSeg: typeof segments[0] | null = null;
+        emaPts.forEach((p, i) => {
           const pt = { time: p.time as any, value: p.value };
-          if (p.color === '#16a34a') greenPts.push(pt);
-          else if (p.color === '#dc2626') redPts.push(pt);
-          else grayPts.push(pt);
+          if (!currentSeg || currentSeg.color !== p.color) {
+            // Overlap: duplicate last point of previous segment as first of new one for continuity
+            if (currentSeg && currentSeg.data.length > 0) {
+              const lastPt = currentSeg.data[currentSeg.data.length - 1];
+              currentSeg = { color: p.color, data: [{ ...lastPt }, pt] };
+            } else {
+              currentSeg = { color: p.color, data: [pt] };
+            }
+            segments.push(currentSeg);
+          } else {
+            currentSeg.data.push(pt);
+          }
         });
-
-        if (greenPts.length > 0) {
+        segments.forEach(seg => {
+          if (seg.data.length === 0) return;
           const s = chart.addSeries(LineSeries, {
-            color: '#16a34a', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+            color: seg.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
           });
-          s.setData(greenPts);
+          s.setData(seg.data);
+        });
+      }
+
+      // 2. Build trade spans from events for rectangles and lines
+      interface TradeSpan {
+        side: 'long' | 'short';
+        entryTime: number;
+        entryPrice: number;
+        tpPrice: number;
+        exitTime: number | null;
+        tpHit: boolean;
+      }
+      const tradeSpans: TradeSpan[] = [];
+      const evts = alphaEventData.events;
+      let activeTrade: TradeSpan | null = null;
+      const lastCandleTime = candles.length > 0 ? Math.floor(candles[candles.length - 1].time / 1000) : 0;
+
+      evts.forEach(evt => {
+        const t = Math.floor(evt.time / 1000);
+        if (evt.type === 'buy') {
+          if (activeTrade) { activeTrade.exitTime = t; tradeSpans.push(activeTrade); }
+          const tpPct = alphaEventData.longTpSeries.find(p => p.time === t && Number.isFinite(p.value));
+          activeTrade = { side: 'long', entryTime: t, entryPrice: evt.price, tpPrice: tpPct?.value ?? evt.price * 1.01, exitTime: null, tpHit: false };
+        } else if (evt.type === 'sell') {
+          if (activeTrade) { activeTrade.exitTime = t; tradeSpans.push(activeTrade); }
+          const tpPct = alphaEventData.shortTpSeries.find(p => p.time === t && Number.isFinite(p.value));
+          activeTrade = { side: 'short', entryTime: t, entryPrice: evt.price, tpPrice: tpPct?.value ?? evt.price * 0.99, exitTime: null, tpHit: false };
+        } else if (evt.type === 'tp-long' || evt.type === 'tp-short') {
+          if (activeTrade) { activeTrade.exitTime = t; activeTrade.tpHit = true; tradeSpans.push(activeTrade); activeTrade = null; }
         }
-        if (redPts.length > 0) {
-          const s = chart.addSeries(LineSeries, {
-            color: '#dc2626', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
-          });
-          s.setData(redPts);
-        }
-        if (grayPts.length > 0) {
-          const s = chart.addSeries(LineSeries, {
-            color: '#9ca3af', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
-          });
-          s.setData(grayPts);
-        }
-      }
+      });
+      if (activeTrade) { activeTrade.exitTime = lastCandleTime; tradeSpans.push(activeTrade); }
 
-      // Long entry line (green dotted)
-      const longEntryFiltered = alphaEventData.longEntrySeries.filter(p => Number.isFinite(p.value));
-      if (longEntryFiltered.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: '#16a34a', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
-        });
-        s.setData(longEntryFiltered.map(p => ({ time: p.time as any, value: p.value })));
-      }
-
-      // Short entry line (red dotted)
-      const shortEntryFiltered = alphaEventData.shortEntrySeries.filter(p => Number.isFinite(p.value));
-      if (shortEntryFiltered.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: '#dc2626', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
-        });
-        s.setData(shortEntryFiltered.map(p => ({ time: p.time as any, value: p.value })));
-      }
-
-      // Long TP line (green solid)
-      const longTpFiltered = alphaEventData.longTpSeries.filter(p => Number.isFinite(p.value));
-      if (longTpFiltered.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: 'rgba(22,163,106,0.6)', lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
-        });
-        s.setData(longTpFiltered.map(p => ({ time: p.time as any, value: p.value })));
-      }
-
-      // Short TP line (red solid)
-      const shortTpFiltered = alphaEventData.shortTpSeries.filter(p => Number.isFinite(p.value));
-      if (shortTpFiltered.length > 0) {
-        const s = chart.addSeries(LineSeries, {
-          color: 'rgba(220,38,38,0.6)', lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
-        });
-        s.setData(shortTpFiltered.map(p => ({ time: p.time as any, value: p.value })));
-      }
-
-      // TP zones as filled rectangles
-      alphaEventData.zones.forEach(zone => {
-        const t = Math.floor(zone.time / 1000);
-        const isLong = zone.side === 'long';
-        const rect = new RectanglePrimitive({
-          p1: { time: t, price: zone.entry },
-          p2: { time: t + 1, price: zone.target },
-          fillColor: isLong ? 'rgba(22,163,106,0.15)' : 'rgba(220,38,38,0.15)',
-          borderColor: 'transparent',
-          borderWidth: 0,
-        });
-        candleSeries.attachPrimitive(rect);
+      // 3. TP zone rectangles spanning full trade duration
+      tradeSpans.forEach(trade => {
+        const endT = trade.exitTime ?? lastCandleTime;
+        if (trade.entryTime >= endT) return;
+        const isLong = trade.side === 'long';
+        // Filled zone between entry and TP
+        candleSeries.attachPrimitive(new RectanglePrimitive({
+          p1: { time: trade.entryTime, price: trade.entryPrice },
+          p2: { time: endT, price: trade.tpPrice },
+          fillColor: isLong ? 'rgba(22,163,106,0.13)' : 'rgba(220,38,38,0.13)',
+          borderColor: isLong ? 'rgba(22,163,106,0.35)' : 'rgba(220,38,38,0.35)',
+          borderWidth: 1,
+        }));
       });
 
-      // Markers (Buy, Sell, TP)
+      // 4. Entry lines (softer, dotted) per trade span
+      tradeSpans.forEach(trade => {
+        const endT = trade.exitTime ?? lastCandleTime;
+        if (trade.entryTime >= endT) return;
+        const isLong = trade.side === 'long';
+        const entrySeries = chart.addSeries(LineSeries, {
+          color: isLong ? 'rgba(22,163,106,0.45)' : 'rgba(220,38,38,0.45)',
+          lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+        });
+        entrySeries.setData([
+          { time: trade.entryTime as any, value: trade.entryPrice },
+          { time: endT as any, value: trade.entryPrice },
+        ]);
+      });
+
+      // 5. TP lines (magenta/purple, solid) per trade span
+      tradeSpans.forEach(trade => {
+        const endT = trade.exitTime ?? lastCandleTime;
+        if (trade.entryTime >= endT) return;
+        const tpSeries = chart.addSeries(LineSeries, {
+          color: '#c026d3', lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, priceScaleId: 'right',
+        });
+        tpSeries.setData([
+          { time: trade.entryTime as any, value: trade.tpPrice },
+          { time: endT as any, value: trade.tpPrice },
+        ]);
+      });
+
+      // 6. Markers (Buy, Sell, TP hit)
       alphaEventData.markers.forEach(m => {
         allMarkers.push({
           time: m.time as any,
           position: m.position as any,
-          color: m.color,
+          color: m.color === '#d69094' ? '#c026d3' : m.color, // TP markers in magenta
           shape: m.shape as any,
           text: m.text,
         });
