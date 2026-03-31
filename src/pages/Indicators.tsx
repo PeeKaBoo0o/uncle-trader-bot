@@ -56,6 +56,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'wyckoff', label: 'Wyckoff', enabled: false, color: '#B388FF', category: 'Structure' },
   { id: 'alpha_lh', label: 'Alpha LH', enabled: false, color: '#F59E0B', category: 'Liquidity' },
   { id: 'alpha_mp', label: 'Alpha MP', enabled: false, color: '#06B6D4', category: 'Envelope' },
+  { id: 'alpha_event', label: 'Alpha Event', enabled: false, color: '#E879F9', category: 'Signal' },
 ];
 
 const Indicators: React.FC = () => {
