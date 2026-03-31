@@ -18,6 +18,7 @@ import type { ProEmaData } from '@/hooks/useProEma';
 import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 import type { WyckoffResult } from '@/hooks/useWyckoff';
 import type { AlphaLHResult } from '@/hooks/useAlphaLH';
+import type { AlphaMPResult } from '@/hooks/useAlphaMP';
 import {
   alignRangeToLiveEdge,
   getInitialLogicalRange,
@@ -64,11 +65,12 @@ interface TradingChartProps {
   srData?: SupportResistanceResult | null;
   wyckoffData?: WyckoffResult | null;
   alphaLHData?: AlphaLHResult | null;
+  alphaMPData?: AlphaMPResult | null;
   onLoadMore?: () => void;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, oscillatorData, proEmaData, srData, wyckoffData, alphaLHData, onLoadMore,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, oscillatorData, proEmaData, srData, wyckoffData, alphaLHData, alphaMPData, onLoadMore,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -1347,6 +1349,41 @@ const TradingChart: React.FC<TradingChartProps> = ({
           color: m.color,
           shape: m.shape,
           text: m.text || '',
+        });
+      });
+    }
+
+    // ── Alpha MP (Alpha Net Matrix Pro) ──
+    if (alphaMPData && enabledIndicators.includes('alpha_mp')) {
+      // Upper band (cyan dashed)
+      const mpUpperSeries = chart.addSeries(LineSeries, {
+        color: '#06B6D4', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'MP Upper',
+      });
+      if (alphaMPData.upperSeries.length > 0) mpUpperSeries.setData(alphaMPData.upperSeries.map(p => ({ time: p.time as any, value: p.value })));
+
+      // Lower band (orange dashed)
+      const mpLowerSeries = chart.addSeries(LineSeries, {
+        color: '#F97316', lineWidth: 2, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'MP Lower',
+      });
+      if (alphaMPData.lowerSeries.length > 0) mpLowerSeries.setData(alphaMPData.lowerSeries.map(p => ({ time: p.time as any, value: p.value })));
+
+      // Basis line (white, thin)
+      const mpBasisSeries = chart.addSeries(LineSeries, {
+        color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'MP Basis',
+      });
+      if (alphaMPData.basisSeries.length > 0) mpBasisSeries.setData(alphaMPData.basisSeries.map(p => ({ time: p.time as any, value: p.value })));
+
+      // Markers (buy, sell, cross-up, cross-down)
+      alphaMPData.markers.forEach(m => {
+        allMarkers.push({
+          time: m.time as any,
+          position: m.position as any,
+          color: m.color,
+          shape: m.shape as any,
+          text: m.text,
         });
       });
     }
