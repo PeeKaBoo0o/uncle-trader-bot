@@ -69,12 +69,9 @@ const TradingChart: React.FC<TradingChartProps> = ({
   candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, oscillatorData, proEmaData, srData, wyckoffData, onLoadMore,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const rsiContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const rsiChartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<any>(null);
   const volSeriesRef = useRef<any>(null);
-  const rsiSeriesRef = useRef<any>(null);
   const prevCandlesLenRef = useRef<number>(0);
   const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
   const candlesRef = useRef<Candle[]>(candles);
@@ -97,7 +94,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
     if (!chartRef.current || !candleSeriesRef.current || !volSeriesRef.current || candles.length === 0) return;
 
     const chart = chartRef.current;
-    const rsiChart = rsiChartRef.current;
+    
     const nextSnapshot: DataSnapshot = {
       length: candles.length,
       firstTime: candles[0].time,
@@ -121,14 +118,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       value: c.volume,
       color: c.close >= c.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
     }));
-    const rsiData = indicators?.rsi
-      .map((value, index) => ({
-        time: (candles[index]?.time / 1000) as any,
-        value,
-      }))
-      .filter((point) => typeof point.value === 'number' && !isNaN(point.value));
     const lastCandle = candles[candles.length - 1];
-    const lastRsiPoint = rsiData && rsiData.length > 0 ? rsiData[rsiData.length - 1] : null;
 
     const prependedBars = previousSnapshot
       ? candles.findIndex((candle) => candle.time === previousSnapshot.firstTime)
@@ -144,19 +134,15 @@ const TradingChart: React.FC<TradingChartProps> = ({
       candleSeriesRef.current.setData(chartData);
       volSeriesRef.current.setData(volumeData);
 
-      if (rsiSeriesRef.current) {
-        rsiSeriesRef.current.setData(rsiData ?? []);
-      }
 
       if (didPrependHistory && normalizedRange) {
         const shiftedRange = shiftLogicalRange(normalizedRange, prependedBars);
         chart.timeScale().setVisibleLogicalRange(shiftedRange);
-        rsiChart?.timeScale().setVisibleLogicalRange(shiftedRange);
+        
         visibleRangeRef.current = shiftedRange;
       } else {
         const initialRange = getInitialLogicalRange(candles.length);
         chart.timeScale().setVisibleLogicalRange(initialRange);
-        rsiChart?.timeScale().setVisibleLogicalRange(initialRange);
         visibleRangeRef.current = initialRange;
         initialViewportAppliedRef.current = true;
         isFollowingLiveEdgeRef.current = true;
@@ -175,21 +161,18 @@ const TradingChart: React.FC<TradingChartProps> = ({
         color: lastCandle.close >= lastCandle.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
       });
 
-      if (rsiSeriesRef.current && lastRsiPoint) {
-        rsiSeriesRef.current.update(lastRsiPoint);
-      }
 
       if (!initialViewportAppliedRef.current) {
         const initialRange = getInitialLogicalRange(candles.length);
         chart.timeScale().setVisibleLogicalRange(initialRange);
-        rsiChart?.timeScale().setVisibleLogicalRange(initialRange);
+        
         visibleRangeRef.current = initialRange;
         initialViewportAppliedRef.current = true;
         isFollowingLiveEdgeRef.current = true;
       } else if (didAppendBar && normalizedRange && isFollowingLiveEdgeRef.current) {
         const liveRange = alignRangeToLiveEdge(normalizedRange, candles.length);
         chart.timeScale().setVisibleLogicalRange(liveRange);
-        rsiChart?.timeScale().setVisibleLogicalRange(liveRange);
+        
         visibleRangeRef.current = liveRange;
       }
     }
@@ -199,7 +182,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
   }, [candles, indicators]);
 
   useEffect(() => {
-    if (!chartContainerRef.current || !rsiContainerRef.current || candles.length === 0) return;
+    if (!chartContainerRef.current || candles.length === 0) return;
 
     // Save current visible range before cleanup so user drag position is preserved
     if (chartRef.current) {
@@ -213,10 +196,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
     // Cleanup
-    [chartRef, rsiChartRef].forEach(ref => {
-      if (ref.current) { try { ref.current.remove(); } catch {} ref.current = null; }
-    });
-    if (!chartContainerRef.current || !rsiContainerRef.current) return;
+    if (chartRef.current) { try { chartRef.current.remove(); } catch {} chartRef.current = null; }
+    if (!chartContainerRef.current) return;
 
     const chartBg = '#0b0e11';
     const gridColor = 'rgba(255,255,255,0.025)';
@@ -1381,79 +1362,12 @@ const TradingChart: React.FC<TradingChartProps> = ({
     initialViewportAppliedRef.current = true;
     isFollowingLiveEdgeRef.current = true;
 
-    // ═══════════ RSI CHART (synced) ═══════════
-    const rsiChart = createChart(rsiContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: chartBg },
-        textColor,
-        fontFamily: "'JetBrains Mono', 'SF Mono', monospace",
-        fontSize: 10,
-      },
-      grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
-      rightPriceScale: {
-        borderColor,
-        scaleMargins: { top: 0.05, bottom: 0.05 },
-      },
-      timeScale: {
-        borderColor,
-        timeVisible: true,
-        visible: true,
-        rightOffset: 5,
-        barSpacing: 6,
-      },
-      crosshair: {
-        vertLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
-        horzLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
-      },
-      width: rsiContainerRef.current.clientWidth,
-      height: 100,
-    });
-    rsiChartRef.current = rsiChart;
-
-    if (indicators) {
-      const rsiSeries = rsiChart.addSeries(LineSeries, {
-        color: '#ab47bc',
-        lineWidth: 2,
-        priceLineVisible: true,
-        lastValueVisible: true,
-        title: 'RSI 14',
-      });
-      const rsiData = indicators.rsi
-        .map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
-        .filter(d => typeof d.value === 'number' && !isNaN(d.value));
-      if (rsiData.length > 0) rsiSeries.setData(rsiData);
-      rsiSeriesRef.current = rsiSeries;
-
-      // 70/50/30 lines
-      [
-        { price: 70, color: 'rgba(239,83,80,0.4)' },
-        { price: 50, color: 'rgba(255,255,255,0.1)' },
-        { price: 30, color: 'rgba(38,166,154,0.4)' },
-      ].forEach(line => {
-        rsiSeries.createPriceLine({
-          price: line.price, color: line.color,
-          lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '',
-        } as any);
-      });
-    }
-
-    rsiChart.timeScale().setVisibleLogicalRange(initialRange);
-
     // ── Sync time scales ──
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (!range) return;
 
       visibleRangeRef.current = { from: range.from, to: range.to };
       isFollowingLiveEdgeRef.current = isNearRightEdge(visibleRangeRef.current, candlesRef.current.length);
-
-      if (rsiChartRef.current && !syncingVisibleRangeRef.current) {
-        syncingVisibleRangeRef.current = true;
-        try {
-          rsiChartRef.current.timeScale().setVisibleLogicalRange(range);
-        } finally {
-          syncingVisibleRangeRef.current = false;
-        }
-      }
 
       if (range.from <= HISTORY_LOAD_TRIGGER_BARS && onLoadMoreRef.current) {
         const now = Date.now();
@@ -1463,38 +1377,21 @@ const TradingChart: React.FC<TradingChartProps> = ({
         }
       }
     });
-    rsiChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-      if (!range || !chartRef.current || syncingVisibleRangeRef.current) return;
-
-      syncingVisibleRangeRef.current = true;
-      try {
-        chartRef.current.timeScale().setVisibleLogicalRange(range);
-        visibleRangeRef.current = { from: range.from, to: range.to };
-        isFollowingLiveEdgeRef.current = isNearRightEdge(visibleRangeRef.current, candlesRef.current.length);
-      } finally {
-        syncingVisibleRangeRef.current = false;
-      }
-    });
 
     // ── Resize ──
     const handleResize = () => {
       if (chartContainerRef.current) chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      if (rsiContainerRef.current) rsiChart.applyOptions({ width: rsiContainerRef.current.clientWidth });
     };
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(chartContainerRef.current);
-    resizeObserver.observe(rsiContainerRef.current);
     handleResize();
 
     return () => {
       resizeObserver.disconnect();
       try { chart.remove(); } catch {}
-      try { rsiChart.remove(); } catch {}
       chartRef.current = null;
-      rsiChartRef.current = null;
       candleSeriesRef.current = null;
       volSeriesRef.current = null;
-      rsiSeriesRef.current = null;
       dataSnapshotRef.current = null;
       initialViewportAppliedRef.current = false;
     };
@@ -1570,18 +1467,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
       {/* ── Main Chart (Candles + Volume + MA) ── */}
       <div ref={chartContainerRef} className="w-full" style={{ minHeight: height }} />
 
-      {/* ── RSI Panel ── */}
-      <div className="border-t border-[#2b3139]">
-        <div className="flex items-center gap-2 px-3 py-1 bg-[#0b0e11]">
-          <span className="text-[10px] font-mono text-[#ab47bc] font-bold">RSI 14</span>
-          {indicators && indicators.rsi.length > 0 && (
-            <span className="text-[10px] font-mono text-[#848e9c]">
-              {indicators.rsi[indicators.rsi.length - 1]?.toFixed(2)}
-            </span>
-          )}
-        </div>
-        <div ref={rsiContainerRef} className="w-full" />
-      </div>
     </div>
   );
 };
