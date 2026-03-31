@@ -23,6 +23,8 @@ import { useWyckoff } from '@/hooks/useWyckoff';
 import { computeDualTrendlines } from '@/lib/computeTrendline';
 import { useAlphaLH, defaultAlphaLHConfig, type AlphaLHConfig } from '@/hooks/useAlphaLH';
 import AlphaLHConfigPanel from '@/components/indicators/AlphaLHConfig';
+import { useAlphaMP, defaultAlphaMPConfig, type AlphaMPConfig } from '@/hooks/useAlphaMP';
+import AlphaMPConfigPanel from '@/components/indicators/AlphaMPConfig';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
