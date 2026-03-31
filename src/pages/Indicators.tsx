@@ -478,16 +478,6 @@ const Indicators: React.FC = () => {
             )}
           </div>
           <div className="bg-[#0b0e11] overflow-hidden flex flex-col">
-            {/* Chart header with pair info */}
-            <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#2b3139] bg-[#161a1e]">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activePairInfo.color }} />
-                <span className="text-[11px] font-bold text-[#eaecef] font-mono">{activePair}</span>
-              </div>
-              <span className="text-[10px] text-[#5e6673] font-mono">Candlestick · Real-time</span>
-              <div className="flex-1" />
-              <span className="text-[10px] text-[#5e6673] font-mono">AI S/R Zones</span>
-            </div>
 
             {/* Main chart */}
             <div className="flex-1">
