@@ -54,6 +54,7 @@ const Indicators: React.FC = () => {
   const { user } = useAuth();
   const { hasAccess, loading: permLoading } = useIndicatorPermissions();
   const [activePair, setActivePair] = useState('BTC/USDT');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTimeframe, setActiveTimeframe] = useState('H4');
   const [indicators, setIndicators] = useState(DEFAULT_INDICATORS);
   
