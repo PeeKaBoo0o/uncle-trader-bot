@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIndicatorPermissions } from '@/hooks/useIndicatorPermissions';
 import Footer from '@/components/Footer';
 import TradingChart from '@/components/indicators/TradingChart';
-import SubIndicators from '@/components/indicators/SubIndicators';
+
 import IndicatorPanel, { IndicatorConfig } from '@/components/indicators/IndicatorPanel';
 import SignalFeed from '@/components/indicators/SignalFeed';
 import { useMarketData, useSignals } from '@/hooks/useMarketData';
@@ -56,7 +56,7 @@ const Indicators: React.FC = () => {
   const [activePair, setActivePair] = useState('BTC/USDT');
   const [activeTimeframe, setActiveTimeframe] = useState('H4');
   const [indicators, setIndicators] = useState(DEFAULT_INDICATORS);
-  const [subTab, setSubTab] = useState<'rsi' | 'volume' | 'macd'>('rsi');
+  
   const [botActive, setBotActive] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
 
@@ -530,12 +530,6 @@ const Indicators: React.FC = () => {
               )}
             </div>
 
-            {/* Sub-indicator area — Oscillator Matrix only */}
-            {!marketData.loading && marketData.candles.length > 0 && oscillatorData && oscillatorData.oscillator.length > 0 && (
-              <div className="border-t border-[#2b3139]">
-                <SubIndicators candles={marketData.candles} indicators={marketData.indicators} activeTab={subTab} oscillatorData={oscillatorData} />
-              </div>
-            )}
           </div>
 
           {/* ── RIGHT: Signal Feed ── */}
