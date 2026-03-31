@@ -142,7 +142,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
         secondsVisible: false,
         barSpacing: 4,
         minBarSpacing: 2,
-        rightOffset: Math.floor((chartContainerRef.current?.clientWidth || 800) / (4 * 2)),
+        rightOffset: 3,
       },
       width: chartContainerRef.current.clientWidth,
       height,
