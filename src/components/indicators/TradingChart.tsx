@@ -142,7 +142,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
         secondsVisible: false,
         barSpacing: 4,
         minBarSpacing: 2,
-        rightOffset: Math.floor((chartContainerRef.current?.clientWidth || 800) / (4 * 2)),
+        rightOffset: 3,
       },
       width: chartContainerRef.current.clientWidth,
       height,
@@ -1258,16 +1258,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       createSeriesMarkers(candleSeries, allMarkers);
     }
 
-    if (isFirstLoadRef.current) {
-      // First load: fit content with rightOffset centering the last candle
-      chart.timeScale().fitContent();
-      isFirstLoadRef.current = false;
-    } else if (savedScrollPosRef.current !== null) {
-      // Rebuild: restore exact scroll position without fitContent
-      chart.timeScale().scrollToPosition(savedScrollPosRef.current, false);
-    } else {
-      chart.timeScale().fitContent();
-    }
+    chart.timeScale().fitContent();
 
     // ═══════════ RSI CHART (synced) ═══════════
     const rsiChart = createChart(rsiContainerRef.current, {
