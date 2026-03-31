@@ -21,6 +21,8 @@ import { useProEma } from '@/hooks/useProEma';
 import { useSupportResistance } from '@/hooks/useSupportResistance';
 import { useWyckoff } from '@/hooks/useWyckoff';
 import { computeDualTrendlines } from '@/lib/computeTrendline';
+import { useAlphaLH, defaultAlphaLHConfig, type AlphaLHConfig } from '@/hooks/useAlphaLH';
+import AlphaLHConfigPanel from '@/components/indicators/AlphaLHConfig';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
@@ -48,6 +50,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'pro_ema', label: 'Pro EMA', enabled: false, color: '#FFA726', category: 'Trend' },
   { id: 'support_resistance', label: 'Pro S/R', enabled: false, color: '#00E676', category: 'S/R' },
   { id: 'wyckoff', label: 'Wyckoff', enabled: false, color: '#B388FF', category: 'Structure' },
+  { id: 'alpha_lh', label: 'Alpha LH', enabled: false, color: '#F59E0B', category: 'Liquidity' },
 ];
 
 const Indicators: React.FC = () => {
@@ -84,6 +87,9 @@ const Indicators: React.FC = () => {
   const srData = useSupportResistance(marketData.candles, srEnabled && !marketData.loading);
   const wyckoffEnabled = indicators.find(i => i.id === 'wyckoff')?.enabled ?? false;
   const wyckoffData = useWyckoff(marketData.candles, wyckoffEnabled && !marketData.loading);
+  const alphaLHEnabled = indicators.find(i => i.id === 'alpha_lh')?.enabled ?? false;
+  const [alphaLHConfig, setAlphaLHConfig] = useState(defaultAlphaLHConfig);
+  const alphaLHData = useAlphaLH(marketData.candles, alphaLHEnabled && !marketData.loading, alphaLHConfig);
 
   const trendlines = useMemo(() => {
     if (!engineEnabled || marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
@@ -483,6 +489,40 @@ const Indicators: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Alpha LH Dashboard + Config */}
+            {alphaLHEnabled && (
+              <div className="mt-3">
+                <AlphaLHConfigPanel config={alphaLHConfig} onChange={setAlphaLHConfig} />
+                {alphaLHData && (
+                  <div className="mt-2 border border-[#2b3139] rounded-lg overflow-hidden">
+                    <div className="bg-[#1e2329] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                      ALPHA LH STATS
+                    </div>
+                    <div className="bg-[#161a1e] p-2 space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Total Entries</span>
+                        <span className="text-[#eaecef] font-bold">{alphaLHData.stats.totalEntries}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">TP1 / TP2 / TP3</span>
+                        <span className="text-emerald-400 font-bold">{alphaLHData.stats.tp1Count} / {alphaLHData.stats.tp2Count} / {alphaLHData.stats.tp3Count}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Losses</span>
+                        <span className="text-red-400 font-bold">{alphaLHData.stats.losses}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Winrate</span>
+                        <span className={`font-bold ${alphaLHData.stats.winrate >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {alphaLHData.stats.winrate.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           )}
           <div className="bg-[#0b0e11] overflow-hidden flex flex-col">
@@ -523,6 +563,7 @@ const Indicators: React.FC = () => {
                   proEmaData={proEmaData}
                   srData={srData}
                   wyckoffData={wyckoffData}
+                  alphaLHData={alphaLHData}
                   onLoadMore={fetchOlderCandles}
                 />
               )}
