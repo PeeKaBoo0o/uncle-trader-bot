@@ -230,14 +230,14 @@ const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
 
-    // ── Candles ──
+    // ── Candles (Binance palette) ──
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      borderDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      upColor: '#0ecb81',
+      downColor: '#f6465d',
+      borderUpColor: '#0ecb81',
+      borderDownColor: '#f6465d',
+      wickUpColor: '#0ecb81',
+      wickDownColor: '#f6465d',
     });
     const chartData = candles.map(c => ({
       time: (c.time / 1000) as any,
@@ -254,13 +254,13 @@ const TradingChart: React.FC<TradingChartProps> = ({
       priceFormat: { type: 'volume' },
     });
     chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0 },
+      scaleMargins: { top: 0.82, bottom: 0 },
       borderVisible: false,
     });
     volSeries.setData(candles.map(c => ({
       time: (c.time / 1000) as any,
       value: c.volume,
-      color: c.close >= c.open ? 'rgba(38,166,154,0.25)' : 'rgba(239,83,80,0.25)',
+      color: c.close >= c.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
     })));
     volSeriesRef.current = volSeries;
     prevCandlesLenRef.current = candles.length;
