@@ -332,53 +332,6 @@ const Indicators: React.FC = () => {
               </div>
             )}
 
-            {/* Oscillator Matrix Dashboard */}
-            {oscillatorEnabled && oscillatorData && (
-              <div className="mt-3 border border-[#2b3139] rounded-lg overflow-hidden">
-                <div className="bg-[#1e2329] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
-                  OSCILLATOR MATRIX
-                </div>
-                <div className="bg-[#161a1e] p-2 space-y-1.5">
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Hyper Wave</span>
-                    <span className={`font-bold ${oscillatorData.lastSig > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {oscillatorData.lastSig.toFixed(1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Signal</span>
-                    <span className={`font-bold ${oscillatorData.lastSgD > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {oscillatorData.lastSgD.toFixed(1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Money Flow</span>
-                    <span className={`font-bold ${oscillatorData.lastMfi > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {oscillatorData.lastMfi.toFixed(1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Confluence</span>
-                    <span className={`font-bold ${
-                      oscillatorData.confluence.bullish ? 'text-emerald-400' :
-                      oscillatorData.confluence.bearish ? 'text-red-400' : 'text-yellow-400'
-                    }`}>
-                      {oscillatorData.confluence.bullish ? 'BULLISH' :
-                       oscillatorData.confluence.bearish ? 'BEARISH' : 'NEUTRAL'}
-                      {' '}({oscillatorData.confluence.score > 0 ? '+' : ''}{oscillatorData.confluence.score})
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Reversals</span>
-                    <span className="text-[#eaecef] font-bold">{oscillatorData.reversals.length}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Signals</span>
-                    <span className="text-[#eaecef] font-bold">{oscillatorData.buySellSignals.length}</span>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Pro EMA Dashboard */}
             {proEmaEnabled && proEmaData && (
