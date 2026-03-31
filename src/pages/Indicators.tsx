@@ -277,45 +277,6 @@ const Indicators: React.FC = () => {
               </div>
             )}
 
-            {/* Buy/Sell Signal Dashboard */}
-            {buySellEnabled && buySellData && (
-              <div className="mt-3 border border-[#2b3139] rounded-lg overflow-hidden">
-                <div className="bg-[#1e2329] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
-                  BUY/SELL SIGNAL
-                </div>
-                <div className="bg-[#161a1e] p-2 space-y-1.5">
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Trend</span>
-                    <span className={`font-bold ${buySellData.currentTrend === 'BULLISH' ? 'text-emerald-400' : buySellData.currentTrend === 'BEARISH' ? 'text-red-400' : 'text-yellow-400'}`}>
-                      {buySellData.currentTrend}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Zone</span>
-                    <span className={`font-bold ${
-                      buySellData.currentZone === 'green' ? 'text-emerald-400' :
-                      buySellData.currentZone === 'red' ? 'text-red-400' :
-                      buySellData.currentZone === 'blue' ? 'text-blue-400' :
-                      buySellData.currentZone === 'orange' ? 'text-orange-400' :
-                      buySellData.currentZone === 'yellow' ? 'text-yellow-400' :
-                      'text-cyan-400'
-                    }`}>
-                      {buySellData.currentZone.toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Last Signal</span>
-                    <span className={`font-bold ${buySellData.currentSignal === 'BUY' ? 'text-emerald-400' : buySellData.currentSignal === 'SELL' ? 'text-red-400' : 'text-muted-foreground'}`}>
-                      {buySellData.currentSignal || '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono">
-                    <span className="text-[#5e6673]">Total Signals</span>
-                    <span className="text-[#eaecef] font-bold">{buySellData.signals.length}</span>
-                  </div>
-                </div>
-              </div>
-            )}
 
 
             {/* Pro EMA Dashboard */}
