@@ -118,40 +118,45 @@ const TradingChart: React.FC<TradingChartProps> = ({
     });
     if (!chartContainerRef.current || !rsiContainerRef.current) return;
 
-    const chartBg = '#0d1117';
-    const gridColor = 'rgba(255,255,255,0.03)';
-    const borderColor = 'rgba(255,255,255,0.06)';
-    const textColor = '#8b949e';
+    const chartBg = '#0b0e11';
+    const gridColor = 'rgba(255,255,255,0.025)';
+    const borderColor = 'rgba(255,255,255,0.04)';
+    const textColor = '#848e9c';
 
     // ═══════════ MAIN CHART ═══════════
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: chartBg },
         textColor,
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
+        fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
+        fontSize: 11,
       },
       grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(255,255,255,0.15)', width: 1, style: 2, labelBackgroundColor: '#1f2937' },
-        horzLine: { color: 'rgba(255,255,255,0.15)', width: 1, style: 2, labelBackgroundColor: '#1f2937' },
+        vertLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
+        horzLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
       },
       rightPriceScale: {
         borderColor,
-        scaleMargins: { top: 0.05, bottom: 0.2 },
-        textColor: '#8b949e',
+        scaleMargins: { top: 0.02, bottom: 0.18 },
+        textColor: '#848e9c',
+        entireTextOnly: true,
       },
       timeScale: {
         borderColor,
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 4,
-        minBarSpacing: 2,
-        rightOffset: 3,
+        barSpacing: 6,
+        minBarSpacing: 3,
+        rightOffset: 5,
+        fixLeftEdge: false,
+        fixRightEdge: false,
       },
       width: chartContainerRef.current.clientWidth,
       height,
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
     });
     chartRef.current = chart;
 
