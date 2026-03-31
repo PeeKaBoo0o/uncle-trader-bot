@@ -1340,54 +1340,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // ── Alpha MP (Alpha Net Matrix Pro) ──
-    if (alphaMPData && enabledIndicators.includes('alpha_mp')) {
-      const toChartTime = (t: number) => t as any;
-
-      // Upper band (cyan dashed) — explicitly on right price scale with candles
-      const mpUpperSeries = chart.addSeries(LineSeries, {
-        color: '#06B6D4', lineWidth: 2, lineStyle: 2,
-        priceLineVisible: false, lastValueVisible: false, title: 'MP Upper',
-        priceScaleId: 'right',
-      });
-      const mpUpperData = alphaMPData.upperSeries
-        .filter(p => Number.isFinite(p.value))
-        .map(p => ({ time: toChartTime(p.time), value: p.value }));
-      if (mpUpperData.length > 0) mpUpperSeries.setData(mpUpperData);
-
-      // Lower band (orange dashed)
-      const mpLowerSeries = chart.addSeries(LineSeries, {
-        color: '#F97316', lineWidth: 2, lineStyle: 2,
-        priceLineVisible: false, lastValueVisible: false, title: 'MP Lower',
-        priceScaleId: 'right',
-      });
-      const mpLowerData = alphaMPData.lowerSeries
-        .filter(p => Number.isFinite(p.value))
-        .map(p => ({ time: toChartTime(p.time), value: p.value }));
-      if (mpLowerData.length > 0) mpLowerSeries.setData(mpLowerData);
-
-      // Basis line (white, thin)
-      const mpBasisSeries = chart.addSeries(LineSeries, {
-        color: 'rgba(255,255,255,0.35)', lineWidth: 1, lineStyle: 0,
-        priceLineVisible: false, lastValueVisible: false, title: 'MP Basis',
-        priceScaleId: 'right',
-      });
-      const mpBasisData = alphaMPData.basisSeries
-        .filter(p => Number.isFinite(p.value))
-        .map(p => ({ time: toChartTime(p.time), value: p.value }));
-      if (mpBasisData.length > 0) mpBasisSeries.setData(mpBasisData);
-
-      // Markers (buy, sell, cross-up, cross-down)
-      alphaMPData.markers.forEach(m => {
-        allMarkers.push({
-          time: toChartTime(m.time),
-          position: m.position as any,
-          color: m.color,
-          shape: m.shape as any,
-          text: m.text,
-        });
-      });
-    }
 
     // ── Alpha Event Signal ──
     if (alphaEventData && enabledIndicators.includes('alpha_event')) {
