@@ -25,6 +25,8 @@ import { useAlphaLH, defaultAlphaLHConfig, type AlphaLHConfig } from '@/hooks/us
 import AlphaLHConfigPanel from '@/components/indicators/AlphaLHConfig';
 import { useAlphaEventSignal, defaultAlphaEventConfig, type AlphaEventConfig } from '@/hooks/useAlphaEventSignal';
 import AlphaEventConfigPanel from '@/components/indicators/AlphaEventConfig';
+import { useAlphaProSignal, defaultAlphaProConfig, type AlphaProConfig } from '@/hooks/useAlphaProSignal';
+import AlphaProConfigPanel from '@/components/indicators/AlphaProConfig';
 
 const PAIRS = [
   { symbol: 'BTC/USDT', label: 'BTC', color: '#F7931A' },
@@ -55,6 +57,7 @@ const DEFAULT_INDICATORS: IndicatorConfig[] = [
   { id: 'alpha_lh', label: 'Alpha LH', enabled: false, color: '#F59E0B', category: 'Liquidity' },
   
   { id: 'alpha_event', label: 'Alpha Event', enabled: false, color: '#E879F9', category: 'Signal' },
+  { id: 'alpha_pro', label: 'Alpha Pro', enabled: false, color: '#06B6D4', category: 'Signal' },
 ];
 
 const Indicators: React.FC = () => {
@@ -95,6 +98,9 @@ const Indicators: React.FC = () => {
   const alphaEventEnabled = indicators.find(i => i.id === 'alpha_event')?.enabled ?? false;
   const [alphaEventConfig, setAlphaEventConfig] = useState(defaultAlphaEventConfig);
   const alphaEventData = useAlphaEventSignal(marketData.candles, alphaEventEnabled && !marketData.loading, alphaEventConfig);
+  const alphaProEnabled = indicators.find(i => i.id === 'alpha_pro')?.enabled ?? false;
+  const [alphaProConfig, setAlphaProConfig] = useState(defaultAlphaProConfig);
+  const alphaProData = useAlphaProSignal(marketData.candles, alphaProEnabled && !marketData.loading, alphaProConfig);
 
   const trendlines = useMemo(() => {
     if (!engineEnabled || marketData.loading || marketData.candles.length < 30) return { support: null, resistance: null };
@@ -510,8 +516,59 @@ const Indicators: React.FC = () => {
                         <span className="text-[#eaecef] font-bold">{alphaEventData.zones.length}</span>
                       </div>
                     </div>
+
+            {/* Alpha Pro Dashboard + Config */}
+            {alphaProEnabled && (
+              <div className="mt-3">
+                <AlphaProConfigPanel config={alphaProConfig} onChange={setAlphaProConfig} />
+                {alphaProData && (
+                  <div className="mt-2 border border-[#2b3139] rounded-lg overflow-hidden">
+                    <div className="bg-[#1e2329] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                      ALPHA PRO
+                    </div>
+                    <div className="bg-[#161a1e] p-2 space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Trend</span>
+                        <span className={`font-bold ${
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.bullish ? 'text-emerald-400' :
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.bearish ? 'text-red-400' : 'text-muted-foreground'
+                        }`}>
+                          {alphaProData.trendStates[alphaProData.trendStates.length - 1]?.bullish ? '🟢 BULLISH' :
+                           alphaProData.trendStates[alphaProData.trendStates.length - 1]?.bearish ? '🔴 BEARISH' : '—'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Zone</span>
+                        <span className={`font-bold ${
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.zone === 'green' ? 'text-emerald-400' :
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.zone === 'red' ? 'text-red-400' :
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.zone === 'blue' ? 'text-blue-400' :
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.zone === 'orange' ? 'text-orange-400' :
+                          alphaProData.trendStates[alphaProData.trendStates.length - 1]?.zone === 'yellow' ? 'text-yellow-400' :
+                          'text-cyan-400'
+                        }`}>
+                          {(alphaProData.trendStates[alphaProData.trendStates.length - 1]?.zone || 'none').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Buy Signals</span>
+                        <span className="text-emerald-400 font-bold">{alphaProData.markers.filter(m => m.text.includes('BUY') || (m.shape === 'arrowUp' && m.text === 'Buy')).length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Sell Signals</span>
+                        <span className="text-red-400 font-bold">{alphaProData.markers.filter(m => m.text.includes('SELL') || (m.shape === 'arrowDown' && m.text === 'Sell')).length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Total Markers</span>
+                        <span className="text-[#eaecef] font-bold">{alphaProData.markers.length}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+          )}
               </div>
             )}
           </div>
@@ -557,6 +614,7 @@ const Indicators: React.FC = () => {
                   alphaLHData={alphaLHData}
                   
                   alphaEventData={alphaEventData}
+                  alphaProData={alphaProData}
                   onLoadMore={fetchOlderCandles}
                 />
               )}

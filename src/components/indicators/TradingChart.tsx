@@ -20,6 +20,7 @@ import type { WyckoffResult } from '@/hooks/useWyckoff';
 import type { AlphaLHResult } from '@/hooks/useAlphaLH';
 
 import type { AlphaEventResult } from '@/hooks/useAlphaEventSignal';
+import type { AlphaProResult } from '@/hooks/useAlphaProSignal';
 import {
   alignRangeToLiveEdge,
   getInitialLogicalRange,
@@ -68,11 +69,12 @@ interface TradingChartProps {
   alphaLHData?: AlphaLHResult | null;
   
   alphaEventData?: AlphaEventResult | null;
+  alphaProData?: AlphaProResult | null;
   onLoadMore?: () => void;
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, proEmaData, srData, wyckoffData, alphaLHData, alphaEventData, onLoadMore,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, proEmaData, srData, wyckoffData, alphaLHData, alphaEventData, alphaProData, onLoadMore,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -1434,6 +1436,131 @@ const TradingChart: React.FC<TradingChartProps> = ({
             text: m.text,
           });
         }
+      });
+    }
+
+    // ── Alpha Pro (Buy/Sell Signal with Wavy + Tunnel + EMA Cloud) ──
+    if (alphaProData && enabledIndicators.includes('alpha_pro')) {
+      const mapTs = (arr: { time: number; value: number }[]) =>
+        arr.map(p => ({ time: p.time as any, value: p.value }));
+
+      // Take Profit EMA (stop line) — cyan
+      const stopS = chart.addSeries(LineSeries, {
+        color: '#06B6D4', lineWidth: 2, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'TP EMA',
+      });
+      const stopD = mapTs(alphaProData.stopSeries);
+      if (stopD.length > 0) stopS.setData(stopD);
+
+      // Wavy 34 lines (high/mid/low) — aqua dotted
+      const wHighS = chart.addSeries(LineSeries, {
+        color: 'rgba(0,188,212,0.5)', lineWidth: 1, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'W34H',
+      });
+      const wMidS = chart.addSeries(LineSeries, {
+        color: 'rgba(192,192,192,0.4)', lineWidth: 1, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'W34M',
+      });
+      const wLowS = chart.addSeries(LineSeries, {
+        color: 'rgba(0,188,212,0.5)', lineWidth: 1, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false, title: 'W34L',
+      });
+      const wH = mapTs(alphaProData.wavyHighSeries);
+      const wM = mapTs(alphaProData.wavyMidSeries);
+      const wL = mapTs(alphaProData.wavyLowSeries);
+      if (wH.length > 0) wHighS.setData(wH);
+      if (wM.length > 0) wMidS.setData(wM);
+      if (wL.length > 0) wLowS.setData(wL);
+
+      // Tunnel 144/169 — purple
+      const tun1S = chart.addSeries(LineSeries, {
+        color: 'rgba(168,85,247,0.6)', lineWidth: 1, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'T144',
+      });
+      const tun2S = chart.addSeries(LineSeries, {
+        color: 'rgba(168,85,247,0.6)', lineWidth: 2, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: false, title: 'T169',
+      });
+      const t1D = mapTs(alphaProData.tunnel1Series);
+      const t2D = mapTs(alphaProData.tunnel2Series);
+      if (t1D.length > 0) tun1S.setData(t1D);
+      if (t2D.length > 0) tun2S.setData(t2D);
+
+      // Tunnel fill between 144 and 169
+      if (t1D.length > 0 && t2D.length > 0) {
+        const tunnelFill = chart.addSeries(AreaSeries, {
+          topColor: 'rgba(168,85,247,0.06)', bottomColor: 'rgba(168,85,247,0.06)',
+          lineColor: 'transparent', lineWidth: 1 as 1,
+          priceLineVisible: false, lastValueVisible: false,
+        });
+        const tunnelMid = t1D.map((p, i) => ({
+          time: p.time,
+          value: t2D[i] ? (p.value + t2D[i].value) / 2 : p.value,
+        }));
+        tunnelFill.setData(tunnelMid);
+      }
+
+      // Fast/Slow EMA cloud — bullish (green) vs bearish (red) fill
+      const fastD = mapTs(alphaProData.fastMASeries);
+      const slowD = mapTs(alphaProData.slowMASeries);
+
+      if (fastD.length > 0 && slowD.length > 0) {
+        // Render cloud as two area series for bull/bear coloring
+        const bullCloud: { time: any; value: number }[] = [];
+        const bearCloud: { time: any; value: number }[] = [];
+        for (let i = 0; i < fastD.length; i++) {
+          const mid = slowD[i] ? (fastD[i].value + slowD[i].value) / 2 : fastD[i].value;
+          const isBull = fastD[i].value >= (slowD[i]?.value ?? fastD[i].value);
+          if (isBull) {
+            bullCloud.push({ time: fastD[i].time, value: mid });
+          } else {
+            bearCloud.push({ time: fastD[i].time, value: mid });
+          }
+        }
+
+        if (bullCloud.length > 0) {
+          const bullFill = chart.addSeries(AreaSeries, {
+            topColor: 'rgba(34,197,94,0.12)', bottomColor: 'rgba(34,197,94,0.12)',
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          bullFill.setData(bullCloud);
+        }
+        if (bearCloud.length > 0) {
+          const bearFill = chart.addSeries(AreaSeries, {
+            topColor: 'rgba(239,68,68,0.12)', bottomColor: 'rgba(239,68,68,0.12)',
+            lineColor: 'transparent', lineWidth: 1 as 1,
+            priceLineVisible: false, lastValueVisible: false,
+          });
+          bearFill.setData(bearCloud);
+        }
+
+        // Fast EMA line (green)
+        const fastS = chart.addSeries(LineSeries, {
+          color: '#22c55e', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false, title: 'Fast',
+        });
+        fastS.setData(fastD);
+
+        // Slow EMA line (red)
+        const slowS = chart.addSeries(LineSeries, {
+          color: '#ef4444', lineWidth: 1, lineStyle: 0,
+          priceLineVisible: false, lastValueVisible: false, title: 'Slow',
+        });
+        slowS.setData(slowD);
+      }
+
+      // Buy/Sell markers + ATR markers
+      alphaProData.markers.forEach(m => {
+        const isBuy = m.shape === 'arrowUp';
+        const isAtr = m.text === 'Buy' || m.text === 'Sell';
+        allMarkers.push({
+          time: m.time as any,
+          position: m.position as any,
+          color: isAtr ? (isBuy ? '#f59e0b' : '#f97316') : m.color,
+          shape: m.shape as any,
+          text: isAtr ? `ATR ${m.text}` : m.text,
+        });
       });
     }
 
