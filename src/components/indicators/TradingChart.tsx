@@ -67,6 +67,7 @@ interface TradingChartProps {
   wyckoffData?: WyckoffResult | null;
   alphaLHData?: AlphaLHResult | null;
   alphaMPData?: AlphaMPResult | null;
+  alphaEventData?: AlphaEventResult | null;
   onLoadMore?: () => void;
 }
 
