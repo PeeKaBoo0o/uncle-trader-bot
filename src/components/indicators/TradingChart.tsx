@@ -86,7 +86,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
       volSeriesRef.current.update({
         time: (lastCandle.time / 1000) as any,
         value: lastCandle.volume,
-        color: lastCandle.close >= lastCandle.open ? 'rgba(38,166,154,0.25)' : 'rgba(239,83,80,0.25)',
+        color: lastCandle.close >= lastCandle.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
       });
     } catch {
       // If update fails (e.g. new candle added), full rebuild will handle it
@@ -118,40 +118,45 @@ const TradingChart: React.FC<TradingChartProps> = ({
     });
     if (!chartContainerRef.current || !rsiContainerRef.current) return;
 
-    const chartBg = '#0d1117';
-    const gridColor = 'rgba(255,255,255,0.03)';
-    const borderColor = 'rgba(255,255,255,0.06)';
-    const textColor = '#8b949e';
+    const chartBg = '#0b0e11';
+    const gridColor = 'rgba(255,255,255,0.025)';
+    const borderColor = 'rgba(255,255,255,0.04)';
+    const textColor = '#848e9c';
 
     // ═══════════ MAIN CHART ═══════════
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: chartBg },
         textColor,
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
+        fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
+        fontSize: 11,
       },
       grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(255,255,255,0.15)', width: 1, style: 2, labelBackgroundColor: '#1f2937' },
-        horzLine: { color: 'rgba(255,255,255,0.15)', width: 1, style: 2, labelBackgroundColor: '#1f2937' },
+        vertLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
+        horzLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
       },
       rightPriceScale: {
         borderColor,
-        scaleMargins: { top: 0.05, bottom: 0.2 },
-        textColor: '#8b949e',
+        scaleMargins: { top: 0.02, bottom: 0.18 },
+        textColor: '#848e9c',
+        entireTextOnly: true,
       },
       timeScale: {
         borderColor,
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 4,
-        minBarSpacing: 2,
-        rightOffset: 3,
+        barSpacing: 6,
+        minBarSpacing: 3,
+        rightOffset: 5,
+        fixLeftEdge: false,
+        fixRightEdge: false,
       },
       width: chartContainerRef.current.clientWidth,
       height,
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
     });
     chartRef.current = chart;
 
@@ -225,14 +230,14 @@ const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
 
-    // ── Candles ──
+    // ── Candles (Binance palette) ──
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      borderDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      upColor: '#0ecb81',
+      downColor: '#f6465d',
+      borderUpColor: '#0ecb81',
+      borderDownColor: '#f6465d',
+      wickUpColor: '#0ecb81',
+      wickDownColor: '#f6465d',
     });
     const chartData = candles.map(c => ({
       time: (c.time / 1000) as any,
@@ -249,13 +254,13 @@ const TradingChart: React.FC<TradingChartProps> = ({
       priceFormat: { type: 'volume' },
     });
     chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0 },
+      scaleMargins: { top: 0.82, bottom: 0 },
       borderVisible: false,
     });
     volSeries.setData(candles.map(c => ({
       time: (c.time / 1000) as any,
       value: c.volume,
-      color: c.close >= c.open ? 'rgba(38,166,154,0.25)' : 'rgba(239,83,80,0.25)',
+      color: c.close >= c.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
     })));
     volSeriesRef.current = volSeries;
     prevCandlesLenRef.current = candles.length;
@@ -1275,8 +1280,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
       layout: {
         background: { type: ColorType.Solid, color: chartBg },
         textColor,
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 9,
+        fontFamily: "'JetBrains Mono', 'SF Mono', monospace",
+        fontSize: 10,
       },
       grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
       rightPriceScale: {
@@ -1288,11 +1293,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
         timeVisible: true,
         visible: true,
         rightOffset: 5,
-        barSpacing: 8,
+        barSpacing: 6,
       },
       crosshair: {
-        vertLine: { color: 'rgba(255,255,255,0.15)', width: 1, style: 2, labelBackgroundColor: '#1f2937' },
-        horzLine: { color: 'rgba(255,255,255,0.15)', width: 1, style: 2, labelBackgroundColor: '#1f2937' },
+        vertLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
+        horzLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
       },
       width: rsiContainerRef.current.clientWidth,
       height: 100,
@@ -1376,31 +1381,31 @@ const TradingChart: React.FC<TradingChartProps> = ({
   };
 
   return (
-    <div className="relative bg-[#0d1117] rounded-xl overflow-hidden border border-foreground/5">
-      {/* ── OHLC Legend Bar ── */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-foreground/5 bg-[#0d1117]">
+    <div className="relative bg-[#0b0e11] overflow-hidden">
+      {/* ── OHLC Legend Bar (Binance-style) ── */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0b0e11]">
         {label && (
-          <span className="text-xs font-bold text-foreground font-mono tracking-wide">{label}</span>
+          <span className="text-[11px] font-bold text-[#eaecef] font-mono tracking-wide mr-2">{label}</span>
         )}
         {(crosshairData || lastCandle) && (
-          <div className="flex items-center gap-3 text-[10px] font-mono">
-            <span className="text-muted-foreground/60">O</span>
-            <span className={isUp ? 'text-[#26a69a]' : 'text-[#ef5350]'}>{formatNum(crosshairData?.open ?? lastCandle?.open ?? 0)}</span>
-            <span className="text-muted-foreground/60">H</span>
-            <span className={isUp ? 'text-[#26a69a]' : 'text-[#ef5350]'}>{formatNum(crosshairData?.high ?? lastCandle?.high ?? 0)}</span>
-            <span className="text-muted-foreground/60">L</span>
-            <span className={isUp ? 'text-[#26a69a]' : 'text-[#ef5350]'}>{formatNum(crosshairData?.low ?? lastCandle?.low ?? 0)}</span>
-            <span className="text-muted-foreground/60">C</span>
-            <span className={`font-bold ${isUp ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{formatNum(crosshairData?.close ?? lastCandle?.close ?? 0)}</span>
+          <div className="flex items-center gap-2 text-[11px] font-mono">
+            <span className="text-[#848e9c]">O</span>
+            <span className={isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}>{formatNum(crosshairData?.open ?? lastCandle?.open ?? 0)}</span>
+            <span className="text-[#848e9c]">H</span>
+            <span className={isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}>{formatNum(crosshairData?.high ?? lastCandle?.high ?? 0)}</span>
+            <span className="text-[#848e9c]">L</span>
+            <span className={isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}>{formatNum(crosshairData?.low ?? lastCandle?.low ?? 0)}</span>
+            <span className="text-[#848e9c]">C</span>
+            <span className={`font-bold ${isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{formatNum(crosshairData?.close ?? lastCandle?.close ?? 0)}</span>
             {crosshairData && (
-              <span className={`${isUp ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+              <span className={`text-[10px] ${isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
                 {crosshairData.change >= 0 ? '+' : ''}{formatNum(crosshairData.change)} ({crosshairData.changePercent >= 0 ? '+' : ''}{crosshairData.changePercent.toFixed(2)}%)
               </span>
             )}
           </div>
         )}
         {indicators && (
-          <span className="text-[10px] font-mono text-[#42a5f5]">MA 9</span>
+          <span className="text-[10px] font-mono text-[#42a5f5] ml-1">MA 9</span>
         )}
 
         {/* ── Timeframe Selector ── */}
@@ -1408,10 +1413,10 @@ const TradingChart: React.FC<TradingChartProps> = ({
           <div className="ml-auto flex gap-0.5">
             {TIMEFRAMES.map(tf => (
               <button key={tf} onClick={() => onTimeframeChange(tf)}
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
                   timeframe === tf
-                    ? 'bg-primary/20 text-primary border border-primary/30'
-                    : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-foreground/5'
+                    ? 'bg-[#fcd535]/10 text-[#fcd535]'
+                    : 'text-[#848e9c] hover:text-[#eaecef] hover:bg-[#2b3139]'
                 }`}>
                 {tf}
               </button>
@@ -1423,11 +1428,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
       {/* ── Scan Sweep Overlay ── */}
       {scanning && (
         <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/8 to-transparent animate-scan-sweep" />
-          <div className="relative bg-background/90 backdrop-blur-sm border border-primary/30 rounded-lg px-4 py-2.5 shadow-lg shadow-primary/10">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#fcd535]/5 to-transparent animate-scan-sweep" />
+          <div className="relative bg-[#1e2329]/95 backdrop-blur-sm border border-[#fcd535]/30 rounded px-4 py-2.5 shadow-lg">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-mono text-primary font-bold">{scanLabel || '🔍 Gemini AI đang phân tích...'}</span>
+              <div className="w-4 h-4 border-2 border-[#fcd535] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-mono text-[#fcd535] font-bold">{scanLabel || '🔍 AI đang phân tích...'}</span>
             </div>
           </div>
         </div>
@@ -1437,11 +1442,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
       <div ref={chartContainerRef} className="w-full" style={{ minHeight: height }} />
 
       {/* ── RSI Panel ── */}
-      <div className="border-t border-foreground/5">
-        <div className="flex items-center gap-2 px-3 py-1 bg-[#0d1117]">
-          <span className="text-[9px] font-mono text-[#ab47bc] font-bold">RSI 14</span>
+      <div className="border-t border-[#2b3139]">
+        <div className="flex items-center gap-2 px-3 py-1 bg-[#0b0e11]">
+          <span className="text-[10px] font-mono text-[#ab47bc] font-bold">RSI 14</span>
           {indicators && indicators.rsi.length > 0 && (
-            <span className="text-[9px] font-mono text-muted-foreground">
+            <span className="text-[10px] font-mono text-[#848e9c]">
               {indicators.rsi[indicators.rsi.length - 1]?.toFixed(2)}
             </span>
           )}
