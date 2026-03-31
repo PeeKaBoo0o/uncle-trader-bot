@@ -570,6 +570,7 @@ const Indicators: React.FC = () => {
                   srData={srData}
                   wyckoffData={wyckoffData}
                   alphaLHData={alphaLHData}
+                  alphaMPData={alphaMPData}
                   onLoadMore={fetchOlderCandles}
                 />
               )}
