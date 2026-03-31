@@ -1467,18 +1467,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
       {/* ── Main Chart (Candles + Volume + MA) ── */}
       <div ref={chartContainerRef} className="w-full" style={{ minHeight: height }} />
 
-      {/* ── RSI Panel ── */}
-      <div className="border-t border-[#2b3139]">
-        <div className="flex items-center gap-2 px-3 py-1 bg-[#0b0e11]">
-          <span className="text-[10px] font-mono text-[#ab47bc] font-bold">RSI 14</span>
-          {indicators && indicators.rsi.length > 0 && (
-            <span className="text-[10px] font-mono text-[#848e9c]">
-              {indicators.rsi[indicators.rsi.length - 1]?.toFixed(2)}
-            </span>
-          )}
-        </div>
-        <div ref={rsiContainerRef} className="w-full" />
-      </div>
     </div>
   );
 };
