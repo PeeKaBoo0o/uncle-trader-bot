@@ -211,7 +211,7 @@ const Indicators: React.FC = () => {
 
       {/* ═══ 3-PANEL LAYOUT ═══ */}
       <div className="px-1.5 lg:px-3 py-1">
-        <div className={`grid grid-cols-1 ${sidebarOpen ? 'lg:grid-cols-[180px_1fr_300px]' : 'lg:grid-cols-[1fr_300px]'} gap-px min-h-[75vh] bg-[#2b3139] rounded overflow-hidden transition-all duration-300`}>
+        <div className={`grid grid-cols-1 ${sidebarOpen ? 'lg:grid-cols-[180px_1fr]' : 'lg:grid-cols-[1fr]'} gap-px min-h-[75vh] bg-[#2b3139] rounded overflow-hidden transition-all duration-300`}>
 
           {/* ── Collapsed sidebar handle ── */}
           {!sidebarOpen && (
