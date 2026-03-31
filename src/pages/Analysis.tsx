@@ -347,6 +347,7 @@ const Analysis: React.FC = () => {
                   </div>
                 ) : (
                   <TradingChart
+                    key={`btc-${btcTimeframe}`}
                     candles={btcData.candles}
                     indicators={btcData.indicators}
                     zones={btcData.zones}
@@ -388,6 +389,7 @@ const Analysis: React.FC = () => {
                   </div>
                 ) : (
                   <TradingChart
+                    key={`gold-${goldTimeframe}`}
                     candles={goldData.candles}
                     indicators={goldData.indicators}
                     zones={goldData.zones}

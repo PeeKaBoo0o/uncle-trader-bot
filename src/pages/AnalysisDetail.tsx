@@ -163,6 +163,7 @@ const AnalysisDetail: React.FC = () => {
               </div>
             ) : (
               <TradingChart
+                key={`${config.pair}-${timeframe}`}
                 candles={data.candles}
                 indicators={data.indicators}
                 zones={data.zones}

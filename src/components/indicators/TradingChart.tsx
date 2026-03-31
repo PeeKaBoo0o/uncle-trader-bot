@@ -17,6 +17,13 @@ import type { OscillatorMatrixData } from '@/hooks/useOscillatorMatrix';
 import type { ProEmaData } from '@/hooks/useProEma';
 import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 import type { WyckoffResult } from '@/hooks/useWyckoff';
+import {
+  alignRangeToLiveEdge,
+  getInitialLogicalRange,
+  HISTORY_LOAD_TRIGGER_BARS,
+  isNearRightEdge,
+  shiftLogicalRange,
+} from '@/components/indicators/trading-chart/viewport';
 
 export interface AITrendline {
   start: { time: number; price: number };
@@ -24,6 +31,12 @@ export interface AITrendline {
 }
 
 const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
+
+interface DataSnapshot {
+  length: number;
+  firstTime: number;
+  lastTime: number;
+}
 
 interface TradingChartProps {
   candles: Candle[];
@@ -61,42 +74,129 @@ const TradingChart: React.FC<TradingChartProps> = ({
   const rsiChartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<any>(null);
   const volSeriesRef = useRef<any>(null);
+  const rsiSeriesRef = useRef<any>(null);
   const prevCandlesLenRef = useRef<number>(0);
   const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const candlesRef = useRef<Candle[]>(candles);
+  const onLoadMoreRef = useRef(onLoadMore);
+  const dataSnapshotRef = useRef<DataSnapshot | null>(null);
+  const syncingVisibleRangeRef = useRef(false);
+  const initialViewportAppliedRef = useRef(false);
+  const isFollowingLiveEdgeRef = useRef(true);
+  const lastHistoryLoadAtRef = useRef(0);
 
   const [crosshairData, setCrosshairData] = useState<{
     open: number; high: number; low: number; close: number; time: string; change: number; changePercent: number;
   } | null>(null);
 
-  // Real-time candle update (runs on every candle change without recreating chart)
+  candlesRef.current = candles;
+  onLoadMoreRef.current = onLoadMore;
+
+  // Stable series updates: prepend history, append bars, or update the active bar without rebuilding the chart.
   useEffect(() => {
-    if (!candleSeriesRef.current || !volSeriesRef.current || candles.length === 0) return;
-    
-    const lastCandle = candles[candles.length - 1];
-    const candlePoint = {
-      time: (lastCandle.time / 1000) as any,
-      open: lastCandle.open,
-      high: lastCandle.high,
-      low: lastCandle.low,
-      close: lastCandle.close,
+    if (!chartRef.current || !candleSeriesRef.current || !volSeriesRef.current || candles.length === 0) return;
+
+    const chart = chartRef.current;
+    const rsiChart = rsiChartRef.current;
+    const nextSnapshot: DataSnapshot = {
+      length: candles.length,
+      firstTime: candles[0].time,
+      lastTime: candles[candles.length - 1].time,
     };
-    
-    try {
-      candleSeriesRef.current.update(candlePoint);
+    const previousSnapshot = dataSnapshotRef.current;
+    const currentRange = chart.timeScale().getVisibleLogicalRange();
+    const normalizedRange = currentRange
+      ? { from: currentRange.from, to: currentRange.to }
+      : visibleRangeRef.current;
+
+    const chartData = candles.map((c) => ({
+      time: (c.time / 1000) as any,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    const volumeData = candles.map((c) => ({
+      time: (c.time / 1000) as any,
+      value: c.volume,
+      color: c.close >= c.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
+    }));
+    const rsiData = indicators?.rsi
+      .map((value, index) => ({
+        time: (candles[index]?.time / 1000) as any,
+        value,
+      }))
+      .filter((point) => typeof point.value === 'number' && !isNaN(point.value));
+    const lastCandle = candles[candles.length - 1];
+    const lastRsiPoint = rsiData && rsiData.length > 0 ? rsiData[rsiData.length - 1] : null;
+
+    const prependedBars = previousSnapshot
+      ? candles.findIndex((candle) => candle.time === previousSnapshot.firstTime)
+      : 0;
+    const didPrependHistory = Boolean(previousSnapshot && prependedBars > 0);
+    const didAppendBar = Boolean(previousSnapshot && candles.length > previousSnapshot.length && !didPrependHistory);
+    const didReplaceDataset =
+      !previousSnapshot ||
+      candles.length < previousSnapshot.length ||
+      (previousSnapshot.firstTime !== nextSnapshot.firstTime && !didPrependHistory);
+
+    if (didReplaceDataset || didPrependHistory) {
+      candleSeriesRef.current.setData(chartData);
+      volSeriesRef.current.setData(volumeData);
+
+      if (rsiSeriesRef.current) {
+        rsiSeriesRef.current.setData(rsiData ?? []);
+      }
+
+      if (didPrependHistory && normalizedRange) {
+        const shiftedRange = shiftLogicalRange(normalizedRange, prependedBars);
+        chart.timeScale().setVisibleLogicalRange(shiftedRange);
+        rsiChart?.timeScale().setVisibleLogicalRange(shiftedRange);
+        visibleRangeRef.current = shiftedRange;
+      } else {
+        const initialRange = getInitialLogicalRange(candles.length);
+        chart.timeScale().setVisibleLogicalRange(initialRange);
+        rsiChart?.timeScale().setVisibleLogicalRange(initialRange);
+        visibleRangeRef.current = initialRange;
+        initialViewportAppliedRef.current = true;
+        isFollowingLiveEdgeRef.current = true;
+      }
+    } else {
+      candleSeriesRef.current.update({
+        time: (lastCandle.time / 1000) as any,
+        open: lastCandle.open,
+        high: lastCandle.high,
+        low: lastCandle.low,
+        close: lastCandle.close,
+      });
       volSeriesRef.current.update({
         time: (lastCandle.time / 1000) as any,
         value: lastCandle.volume,
         color: lastCandle.close >= lastCandle.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
       });
-    } catch {
-      // If update fails (e.g. new candle added), full rebuild will handle it
+
+      if (rsiSeriesRef.current && lastRsiPoint) {
+        rsiSeriesRef.current.update(lastRsiPoint);
+      }
+
+      if (!initialViewportAppliedRef.current) {
+        const initialRange = getInitialLogicalRange(candles.length);
+        chart.timeScale().setVisibleLogicalRange(initialRange);
+        rsiChart?.timeScale().setVisibleLogicalRange(initialRange);
+        visibleRangeRef.current = initialRange;
+        initialViewportAppliedRef.current = true;
+        isFollowingLiveEdgeRef.current = true;
+      } else if (didAppendBar && normalizedRange && isFollowingLiveEdgeRef.current) {
+        const liveRange = alignRangeToLiveEdge(normalizedRange, candles.length);
+        chart.timeScale().setVisibleLogicalRange(liveRange);
+        rsiChart?.timeScale().setVisibleLogicalRange(liveRange);
+        visibleRangeRef.current = liveRange;
+      }
     }
 
-    // If a new candle was added (length changed), trigger full rebuild via the other effect
-    if (candles.length !== prevCandlesLenRef.current) {
-      prevCandlesLenRef.current = candles.length;
-    }
-  }, [candles]);
+    prevCandlesLenRef.current = candles.length;
+    dataSnapshotRef.current = nextSnapshot;
+  }, [candles, indicators]);
 
   useEffect(() => {
     if (!chartContainerRef.current || !rsiContainerRef.current || candles.length === 0) return;
@@ -124,7 +224,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
     const textColor = '#848e9c';
 
     // ═══════════ MAIN CHART ═══════════
-    const chart = createChart(chartContainerRef.current, {
+      const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: chartBg },
         textColor,
@@ -147,9 +247,9 @@ const TradingChart: React.FC<TradingChartProps> = ({
         borderColor,
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 6,
+        barSpacing: 7,
         minBarSpacing: 3,
-        rightOffset: 5,
+        rightOffset: 8,
         fixLeftEdge: false,
         fixRightEdge: false,
       },
@@ -263,6 +363,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
       color: c.close >= c.open ? 'rgba(14,203,129,0.20)' : 'rgba(246,70,93,0.20)',
     })));
     volSeriesRef.current = volSeries;
+    dataSnapshotRef.current = {
+      length: candles.length,
+      firstTime: candles[0].time,
+      lastTime: candles[candles.length - 1].time,
+    };
     prevCandlesLenRef.current = candles.length;
 
     // ── MA 9 (cyan line like reference) ──
@@ -1237,8 +1342,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time) {
-        const last = candles[candles.length - 1];
-        const prev = candles[candles.length - 2];
+      const currentCandles = candlesRef.current;
+      const last = currentCandles[currentCandles.length - 1];
         if (last) {
           const ch = last.close - last.open;
           setCrosshairData({
@@ -1250,9 +1355,10 @@ const TradingChart: React.FC<TradingChartProps> = ({
         }
         return;
       }
-      const idx = candles.findIndex(c => Math.floor(c.time / 1000) === (param.time as number));
+      const currentCandles = candlesRef.current;
+      const idx = currentCandles.findIndex(c => Math.floor(c.time / 1000) === (param.time as number));
       if (idx >= 0) {
-        const c = candles[idx];
+        const c = currentCandles[idx];
         const ch = c.close - c.open;
         setCrosshairData({
           open: c.open, high: c.high, low: c.low, close: c.close,
@@ -1269,11 +1375,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
       createSeriesMarkers(candleSeries, allMarkers);
     }
 
-    if (visibleRangeRef.current) {
-      chart.timeScale().setVisibleLogicalRange(visibleRangeRef.current);
-    } else {
-      chart.timeScale().fitContent();
-    }
+    const initialRange = visibleRangeRef.current ?? getInitialLogicalRange(candles.length);
+    chart.timeScale().setVisibleLogicalRange(initialRange);
+    visibleRangeRef.current = initialRange;
+    initialViewportAppliedRef.current = true;
+    isFollowingLiveEdgeRef.current = true;
 
     // ═══════════ RSI CHART (synced) ═══════════
     const rsiChart = createChart(rsiContainerRef.current, {
@@ -1316,6 +1422,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
         .map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
         .filter(d => typeof d.value === 'number' && !isNaN(d.value));
       if (rsiData.length > 0) rsiSeries.setData(rsiData);
+      rsiSeriesRef.current = rsiSeries;
 
       // 70/50/30 lines
       [
@@ -1330,27 +1437,43 @@ const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    if (visibleRangeRef.current) {
-      rsiChart.timeScale().setVisibleLogicalRange(visibleRangeRef.current);
-    } else {
-      rsiChart.timeScale().fitContent();
-    }
+    rsiChart.timeScale().setVisibleLogicalRange(initialRange);
 
     // ── Sync time scales ──
-    const syncTimeScales = () => {
-      const mainRange = chart.timeScale().getVisibleLogicalRange();
-      if (mainRange) rsiChart.timeScale().setVisibleLogicalRange(mainRange);
-    };
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-      if (range) rsiChart.timeScale().setVisibleLogicalRange(range);
-      // Load more history when user scrolls to the left edge
-      if (range && range.from < 10 && onLoadMore) {
-        onLoadMore();
+      if (!range) return;
+
+      visibleRangeRef.current = { from: range.from, to: range.to };
+      isFollowingLiveEdgeRef.current = isNearRightEdge(visibleRangeRef.current, candlesRef.current.length);
+
+      if (rsiChartRef.current && !syncingVisibleRangeRef.current) {
+        syncingVisibleRangeRef.current = true;
+        try {
+          rsiChartRef.current.timeScale().setVisibleLogicalRange(range);
+        } finally {
+          syncingVisibleRangeRef.current = false;
+        }
+      }
+
+      if (range.from <= HISTORY_LOAD_TRIGGER_BARS && onLoadMoreRef.current) {
+        const now = Date.now();
+        if (now - lastHistoryLoadAtRef.current > 800) {
+          lastHistoryLoadAtRef.current = now;
+          onLoadMoreRef.current();
+        }
       }
     });
-    rsiChart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-      const range = rsiChart.timeScale().getVisibleLogicalRange();
-      if (range) chart.timeScale().setVisibleLogicalRange(range);
+    rsiChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (!range || !chartRef.current || syncingVisibleRangeRef.current) return;
+
+      syncingVisibleRangeRef.current = true;
+      try {
+        chartRef.current.timeScale().setVisibleLogicalRange(range);
+        visibleRangeRef.current = { from: range.from, to: range.to };
+        isFollowingLiveEdgeRef.current = isNearRightEdge(visibleRangeRef.current, candlesRef.current.length);
+      } finally {
+        syncingVisibleRangeRef.current = false;
+      }
     });
 
     // ── Resize ──
@@ -1358,19 +1481,25 @@ const TradingChart: React.FC<TradingChartProps> = ({
       if (chartContainerRef.current) chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       if (rsiContainerRef.current) rsiChart.applyOptions({ width: rsiContainerRef.current.clientWidth });
     };
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chartContainerRef.current);
+    resizeObserver.observe(rsiContainerRef.current);
+    handleResize();
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       try { chart.remove(); } catch {}
       try { rsiChart.remove(); } catch {}
       chartRef.current = null;
       rsiChartRef.current = null;
       candleSeriesRef.current = null;
       volSeriesRef.current = null;
+      rsiSeriesRef.current = null;
+      dataSnapshotRef.current = null;
+      initialViewportAppliedRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles.length, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, oscillatorData, proEmaData, srData, wyckoffData]);
+  }, [height]);
 
   const lastCandle = candles[candles.length - 1];
   const isUp = crosshairData ? crosshairData.change >= 0 : (lastCandle ? lastCandle.close >= lastCandle.open : true);

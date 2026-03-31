@@ -507,6 +507,7 @@ const Indicators: React.FC = () => {
                 </div>
               ) : (
                 <TradingChart
+                  key={`${activePair}-${activeTimeframe}-${enabledIds.join('.')}`}
                   candles={marketData.candles}
                   indicators={marketData.indicators}
                   zones={marketData.zones}

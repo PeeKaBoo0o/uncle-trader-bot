@@ -53,11 +53,11 @@ const AlphaNetDashboard: React.FC<Props> = ({ data, loading, error }) => {
 
       {/* Body */}
       <div className="p-2.5 space-y-1.5">
-        <Row label="Algorithm" value={data.algorithm} />
-        <Row label="Sensitivity" value={data.sensitivity.toFixed(2)} />
-        <Row label="AI Strength" value={`${data.ai_strength}%`} valueClass={strengthColor} />
-        <Row label="AI State" value={data.ai_state} valueClass={stateColor} />
-        <Row label="RZ State" value={data.rz_state} valueClass={rzColor} />
+        <MetricRow label="Algorithm" value={data.algorithm} />
+        <MetricRow label="Sensitivity" value={data.sensitivity.toFixed(2)} />
+        <MetricRow label="AI Strength" value={`${data.ai_strength}%`} valueClass={strengthColor} />
+        <MetricRow label="AI State" value={data.ai_state} valueClass={stateColor} />
+        <MetricRow label="RZ State" value={data.rz_state} valueClass={rzColor} />
 
         {/* Signal badge */}
         {data.signal !== 'HOLD' && (
@@ -80,15 +80,19 @@ const AlphaNetDashboard: React.FC<Props> = ({ data, loading, error }) => {
   );
 };
 
-const Row: React.FC<{ label: string; value: string; valueClass?: string }> = ({
-  label,
-  value,
-  valueClass = 'text-foreground',
-}) => (
-  <div className="flex items-center justify-between text-[10px] font-mono">
-    <span className="text-muted-foreground/50">{label}</span>
-    <span className={`font-semibold ${valueClass}`}>{value}</span>
-  </div>
+const MetricRow = React.forwardRef<HTMLDivElement, { label: string; value: string; valueClass?: string }>(
+  ({
+    label,
+    value,
+    valueClass = 'text-foreground',
+  }, ref) => (
+    <div ref={ref} className="flex items-center justify-between text-[10px] font-mono">
+      <span className="text-muted-foreground/50">{label}</span>
+      <span className={`font-semibold ${valueClass}`}>{value}</span>
+    </div>
+  ),
 );
+
+MetricRow.displayName = 'MetricRow';
 
 export default AlphaNetDashboard;
