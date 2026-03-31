@@ -74,7 +74,7 @@ interface TradingChartProps {
 }
 
 const TradingChart: React.FC<TradingChartProps> = ({
-  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, proEmaData, srData, wyckoffData, alphaLHData, alphaEventData, onLoadMore,
+  candles, indicators, zones, trendline, trendlineResistance, signals, enabledIndicators, height = 380, label, scanning, scanLabel, timeframe, onTimeframeChange, smcAnalysis, alphaNetData, matrixData, engineData, tpSlData, buySellData, proEmaData, srData, wyckoffData, alphaLHData, alphaEventData, alphaProData, onLoadMore,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
