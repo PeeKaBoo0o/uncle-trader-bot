@@ -17,6 +17,7 @@ import type { OscillatorMatrixData } from '@/hooks/useOscillatorMatrix';
 import type { ProEmaData } from '@/hooks/useProEma';
 import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 import type { WyckoffResult } from '@/hooks/useWyckoff';
+import type { AlphaLHResult } from '@/hooks/useAlphaLH';
 import {
   alignRangeToLiveEdge,
   getInitialLogicalRange,
