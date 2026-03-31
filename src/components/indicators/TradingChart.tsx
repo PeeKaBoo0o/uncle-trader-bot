@@ -328,21 +328,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
     };
     prevCandlesLenRef.current = candles.length;
 
-    // ── MA 9 (cyan line like reference) ──
-    if (indicators) {
-      const ma9Series = chart.addSeries(LineSeries, {
-        color: '#42a5f5',
-        lineWidth: 1,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        title: 'MA 9',
-      });
-      const ma9Data = indicators.ema20.map((v, i) => ({
-        time: (candles[i].time / 1000) as any,
-        value: v,
-      })).filter(p => typeof p.value === 'number' && !isNaN(p.value));
-      if (ma9Data.length > 0) ma9Series.setData(ma9Data);
-    }
 
     // ── Bollinger Bands ──
     if (indicators && enabledIndicators.includes('bb_squeeze')) {
