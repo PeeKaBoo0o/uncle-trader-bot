@@ -204,25 +204,6 @@ const Indicators: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex-1" />
-
-          {/* Live indicator + Bot status */}
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0ecb81] animate-pulse" />
-            <span className="text-[10px] text-[#848e9c] font-mono">LIVE</span>
-          </div>
-
-          <button
-            onClick={() => setBotActive(!botActive)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-bold text-[11px] font-mono transition-all ${
-              botActive
-                ? 'bg-[#0ecb81]/10 text-[#0ecb81] border border-[#0ecb81]/20'
-                : 'bg-[#f6465d]/10 text-[#f6465d] border border-[#f6465d]/20'
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${botActive ? 'bg-[#0ecb81] animate-pulse' : 'bg-[#f6465d]'}`} />
-            {botActive ? 'ĐANG CHẠY' : 'TẠM DỪNG'}
-          </button>
         </div>
       </div>
 
