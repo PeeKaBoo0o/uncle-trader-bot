@@ -559,6 +559,7 @@ const Indicators: React.FC = () => {
             )}
           </div>
           )}
+          <div className="bg-[#0b0e11] overflow-hidden flex flex-col">
 
             {/* Main chart */}
             <div className="flex-1">
