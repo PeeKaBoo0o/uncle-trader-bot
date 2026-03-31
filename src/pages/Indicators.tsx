@@ -477,32 +477,32 @@ const Indicators: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="bg-[#0d1526] border border-white/5 rounded-lg overflow-hidden flex flex-col">
+          <div className="bg-[#0b0e11] overflow-hidden flex flex-col">
             {/* Chart header with pair info */}
-            <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5">
+            <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#2b3139] bg-[#161a1e]">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activePairInfo.color }} />
-                <span className="text-xs font-bold text-foreground font-mono">{activePair}</span>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activePairInfo.color }} />
+                <span className="text-[11px] font-bold text-[#eaecef] font-mono">{activePair}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground/40 font-mono">Nến Nhật thời gian thực</span>
+              <span className="text-[10px] text-[#5e6673] font-mono">Candlestick · Real-time</span>
               <div className="flex-1" />
-              <span className="text-[10px] text-muted-foreground/40 font-mono">Vẽ các Zone Kháng cự/Hỗ trợ AI</span>
+              <span className="text-[10px] text-[#5e6673] font-mono">AI S/R Zones</span>
             </div>
 
             {/* Main chart */}
             <div className="flex-1">
               {marketData.loading ? (
-                <div className="flex items-center justify-center h-[520px]">
+                <div className="flex items-center justify-center h-[560px] bg-[#0b0e11]">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs text-muted-foreground font-mono">Loading {activePair}...</span>
+                    <div className="w-8 h-8 border-2 border-[#fcd535] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-[#848e9c] font-mono">Loading {activePair}...</span>
                   </div>
                 </div>
               ) : marketData.error ? (
-                <div className="flex items-center justify-center h-[520px]">
+                <div className="flex items-center justify-center h-[560px] bg-[#0b0e11]">
                   <div className="text-center">
-                    <span className="text-red-400 text-sm">⚠️ {marketData.error}</span>
-                    <p className="text-muted-foreground text-xs mt-2">Đang sử dụng dữ liệu demo</p>
+                    <span className="text-[#f6465d] text-sm font-mono">⚠️ {marketData.error}</span>
+                    <p className="text-[#848e9c] text-xs mt-2 font-mono">Đang sử dụng dữ liệu demo</p>
                   </div>
                 </div>
               ) : (
@@ -513,7 +513,7 @@ const Indicators: React.FC = () => {
                   trendline={trendlines.support}
                   trendlineResistance={trendlines.resistance}
                   enabledIndicators={enabledIds}
-                  height={520}
+                  height={560}
                   smcAnalysis={smcResult.analysis}
                   alphaNetData={alphaNet.data}
                   matrixData={matrixData}
@@ -531,19 +531,19 @@ const Indicators: React.FC = () => {
 
             {/* Sub-indicator area — Oscillator Matrix only */}
             {!marketData.loading && marketData.candles.length > 0 && oscillatorData && oscillatorData.oscillator.length > 0 && (
-              <div className="border-t border-white/5">
+              <div className="border-t border-[#2b3139]">
                 <SubIndicators candles={marketData.candles} indicators={marketData.indicators} activeTab={subTab} oscillatorData={oscillatorData} />
               </div>
             )}
           </div>
 
           {/* ── RIGHT: Signal Feed ── */}
-          <div className="bg-[#0d1526] border border-white/5 rounded-lg p-3 flex flex-col">
+          <div className="bg-[#161a1e] p-3 flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">TÍN HIỆU GẦN ĐÂY</h3>
-              <span className="text-[10px] font-mono text-muted-foreground/50">{signals.length}</span>
+              <h3 className="text-[10px] font-bold text-[#848e9c] tracking-widest uppercase font-mono">TÍN HIỆU GẦN ĐÂY</h3>
+              <span className="text-[10px] font-mono text-[#5e6673]">{signals.length}</span>
             </div>
-            <p className="text-[9px] text-muted-foreground/40 mb-3 font-mono">Click để xem lại vị trí</p>
+            <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Click để xem lại vị trí</p>
             <div className="flex-1 overflow-hidden">
               <SignalFeed signals={signals} loading={signalsLoading} />
             </div>
@@ -552,13 +552,13 @@ const Indicators: React.FC = () => {
       </div>
 
       {/* ═══ SYSTEM LOG ═══ */}
-      <div className="px-2 lg:px-4 pb-4">
-        <div className="bg-[#0d1526] border border-white/5 rounded-lg px-4 py-2 flex items-center gap-3 overflow-x-auto">
-          <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest shrink-0">NHẬT KÝ HỆ THỐNG</span>
-          <div className="w-px h-3 bg-white/10" />
-          <div className="flex gap-4 text-[10px] font-mono text-muted-foreground/60">
+      <div className="px-1.5 lg:px-3 pb-3">
+        <div className="bg-[#161a1e] border-t border-[#2b3139] px-4 py-2 flex items-center gap-3 overflow-x-auto">
+          <span className="text-[10px] font-bold text-[#5e6673] tracking-widest shrink-0 font-mono">SYSTEM LOG</span>
+          <div className="w-px h-3 bg-[#2b3139]" />
+          <div className="flex gap-4 text-[10px] font-mono text-[#848e9c]">
             {logs.slice(0, 4).map((log, i) => (
-              <span key={i} className={i === 0 ? 'text-cyan-400/70' : ''}>{log}</span>
+              <span key={i} className={i === 0 ? 'text-[#fcd535]' : ''}>{log}</span>
             ))}
             {logs.length === 0 && <span>Chờ dữ liệu...</span>}
           </div>
@@ -566,44 +566,44 @@ const Indicators: React.FC = () => {
 
         {/* AI SMC Action Points */}
         {smcResult.analysis && smcResult.analysis.action_points.length > 0 && (
-          <div className="mt-2 bg-[#0d1526] border border-white/5 rounded-lg px-4 py-3">
+          <div className="mt-1 bg-[#161a1e] border border-[#2b3139] rounded px-4 py-3">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest">🤖 AI PHÂN TÍCH SMC</span>
+              <span className="text-[10px] font-bold text-[#848e9c] tracking-widest font-mono">🤖 AI PHÂN TÍCH SMC</span>
               {smcResult.analysis.trade_signal.has_signal && (
                 <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
                   smcResult.analysis.trade_signal.type === 'Long'
-                    ? 'text-emerald-400 bg-emerald-400/10'
-                    : 'text-red-400 bg-red-400/10'
+                    ? 'text-[#0ecb81] bg-[#0ecb81]/10'
+                    : 'text-[#f6465d] bg-[#f6465d]/10'
                 }`}>
                   {smcResult.analysis.trade_signal.type === 'Long' ? '▲ LONG' : '▼ SHORT'}
                 </span>
               )}
               {smcResult.loading && (
-                <span className="text-[10px] text-cyan-400/70 font-mono animate-pulse">Đang phân tích...</span>
+                <span className="text-[10px] text-[#fcd535] font-mono animate-pulse">Đang phân tích...</span>
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {smcResult.analysis.action_points.map((point, i) => (
-                <div key={i} className="flex items-start gap-2 text-[11px] font-mono text-muted-foreground/80">
-                  <span className="text-cyan-400 shrink-0">{i + 1}.</span>
+                <div key={i} className="flex items-start gap-2 text-[11px] font-mono text-[#848e9c]">
+                  <span className="text-[#fcd535] shrink-0">{i + 1}.</span>
                   <span>{point}</span>
                 </div>
               ))}
             </div>
             {smcResult.analysis.trade_signal.has_signal && smcResult.analysis.trade_signal.entry_price && (
-              <div className="flex items-center gap-4 mt-2 pt-2 border-t border-white/5 text-[10px] font-mono">
-                <span className="text-muted-foreground/50">Entry: <span className="text-foreground">${smcResult.analysis.trade_signal.entry_price?.toLocaleString()}</span></span>
-                <span className="text-emerald-400/70">TP1: ${smcResult.analysis.trade_signal.TP1?.toLocaleString()}</span>
-                <span className="text-emerald-400/70">TP2: ${smcResult.analysis.trade_signal.TP2?.toLocaleString()}</span>
-                <span className="text-emerald-400/70">TP3: ${smcResult.analysis.trade_signal.TP3?.toLocaleString()}</span>
-                <span className="text-red-400/70">SL: ${smcResult.analysis.trade_signal.SL?.toLocaleString()}</span>
+              <div className="flex items-center gap-4 mt-2 pt-2 border-t border-[#2b3139] text-[10px] font-mono">
+                <span className="text-[#848e9c]">Entry: <span className="text-[#eaecef]">${smcResult.analysis.trade_signal.entry_price?.toLocaleString()}</span></span>
+                <span className="text-[#0ecb81]">TP1: ${smcResult.analysis.trade_signal.TP1?.toLocaleString()}</span>
+                <span className="text-[#0ecb81]">TP2: ${smcResult.analysis.trade_signal.TP2?.toLocaleString()}</span>
+                <span className="text-[#0ecb81]">TP3: ${smcResult.analysis.trade_signal.TP3?.toLocaleString()}</span>
+                <span className="text-[#f6465d]">SL: ${smcResult.analysis.trade_signal.SL?.toLocaleString()}</span>
               </div>
             )}
           </div>
         )}
 
         {smcResult.error && (
-          <div className="mt-2 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2 text-[10px] font-mono text-red-400/70">
+          <div className="mt-1 bg-[#f6465d]/5 border border-[#f6465d]/20 rounded px-4 py-2 text-[10px] font-mono text-[#f6465d]">
             ⚠️ AI Error: {smcResult.error}
           </div>
         )}
