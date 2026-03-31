@@ -19,6 +19,7 @@ import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 import type { WyckoffResult } from '@/hooks/useWyckoff';
 import type { AlphaLHResult } from '@/hooks/useAlphaLH';
 import type { AlphaMPResult } from '@/hooks/useAlphaMP';
+import type { AlphaEventResult } from '@/hooks/useAlphaEventSignal';
 import {
   alignRangeToLiveEdge,
   getInitialLogicalRange,
