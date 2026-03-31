@@ -18,6 +18,7 @@ import type { ProEmaData } from '@/hooks/useProEma';
 import type { SupportResistanceResult } from '@/hooks/useSupportResistance';
 import type { WyckoffResult } from '@/hooks/useWyckoff';
 import type { AlphaLHResult } from '@/hooks/useAlphaLH';
+import type { AlphaMPResult } from '@/hooks/useAlphaMP';
 import {
   alignRangeToLiveEdge,
   getInitialLogicalRange,
