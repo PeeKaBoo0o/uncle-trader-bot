@@ -559,8 +559,40 @@ const Indicators: React.FC = () => {
                         <span className="text-red-400 font-bold">{alphaMPData.dashboard.totalSellSignals}</span>
                       </div>
                     </div>
+              </div>
+            )}
+
+            {/* Alpha Event Dashboard + Config */}
+            {alphaEventEnabled && (
+              <div className="mt-3">
+                <AlphaEventConfigPanel config={alphaEventConfig} onChange={setAlphaEventConfig} />
+                {alphaEventData && (
+                  <div className="mt-2 border border-[#2b3139] rounded-lg overflow-hidden">
+                    <div className="bg-[#1e2329] px-2 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tracking-widest">
+                      ALPHA EVENT
+                    </div>
+                    <div className="bg-[#161a1e] p-2 space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Buy Signals</span>
+                        <span className="text-emerald-400 font-bold">{alphaEventData.markers.filter(m => m.shape === 'arrowUp' && m.text.startsWith('Buy')).length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Sell Signals</span>
+                        <span className="text-red-400 font-bold">{alphaEventData.markers.filter(m => m.shape === 'arrowDown' && m.text.startsWith('Sell')).length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">TP Hits</span>
+                        <span className="text-[#d69094] font-bold">{alphaEventData.markers.filter(m => m.text === 'TP').length}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono">
+                        <span className="text-[#5e6673]">Active Zones</span>
+                        <span className="text-[#eaecef] font-bold">{alphaEventData.zones.length}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
               </div>
             )}
           </div>
