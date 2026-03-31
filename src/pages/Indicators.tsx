@@ -537,7 +537,7 @@ const Indicators: React.FC = () => {
               <span className="text-[10px] font-mono text-[#5e6673]">{signals.length}</span>
             </div>
             <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Click để xem lại vị trí</p>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
               <SignalFeed signals={signals} loading={signalsLoading} />
             </div>
           </div>
