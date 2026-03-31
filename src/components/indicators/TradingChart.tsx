@@ -182,7 +182,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
   }, [candles, indicators]);
 
   useEffect(() => {
-    if (!chartContainerRef.current || !rsiContainerRef.current || candles.length === 0) return;
+    if (!chartContainerRef.current || candles.length === 0) return;
 
     // Save current visible range before cleanup so user drag position is preserved
     if (chartRef.current) {
