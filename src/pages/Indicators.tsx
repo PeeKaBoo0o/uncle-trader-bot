@@ -119,24 +119,67 @@ const Indicators: React.FC = () => {
   }));
 
   return (
-    <main className="min-h-screen bg-[#0b1120]">
+    <main className="min-h-screen bg-[#0b0e11]">
       <Header />
 
-      {/* ═══ TOP BAR: Logo | Pair | Timeframe | Bot Status ═══ */}
-      <div className="pt-24 px-2 lg:px-4">
-        <div className="bg-[#0d1526] border border-white/5 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-3 text-xs">
+      {/* ═══ BINANCE-STYLE TOP BAR ═══ */}
+      <div className="pt-24 px-1.5 lg:px-3">
+        <div className="bg-[#161a1e] border-b border-[#2b3139] px-3 py-2 flex flex-wrap items-center gap-2 text-xs">
+          {/* Symbol + Price block */}
+          <div className="flex items-center gap-3 pr-4 border-r border-[#2b3139]">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${activePairInfo.color}20` }}>
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: activePairInfo.color }} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-[#eaecef] font-mono leading-tight">{activePair}</span>
+                <span className="text-[9px] text-[#848e9c] font-mono">Perpetual</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end ml-2">
+              <span className={`text-lg font-bold font-mono leading-tight ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                {marketData.loading ? '...' : `$${livePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </span>
+              {!marketData.loading && (
+                <span className={`text-[11px] font-mono font-bold ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                  {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Market stats */}
+          <div className="flex items-center gap-4 px-3 border-r border-[#2b3139]">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[#848e9c] font-mono">24h High</span>
+              <span className="text-[11px] text-[#eaecef] font-mono font-medium">
+                {lastCandle ? `$${lastCandle.high.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[#848e9c] font-mono">24h Low</span>
+              <span className="text-[11px] text-[#eaecef] font-mono font-medium">
+                {lastCandle ? `$${lastCandle.low.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] text-[#848e9c] font-mono">24h Vol</span>
+              <span className="text-[11px] text-[#eaecef] font-mono font-medium">
+                {lastCandle ? `${(lastCandle.volume / 1e6).toFixed(2)}M` : '—'}
+              </span>
+            </div>
+          </div>
+
           {/* Coin pair selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground/50 font-mono tracking-widest">PAIR</span>
+          <div className="flex items-center gap-1.5">
             <div className="flex gap-0.5 flex-wrap">
               {PAIRS.map(p => (
                 <button key={p.symbol} onClick={() => setActivePair(p.symbol)}
-                  className={`px-2 py-1.5 rounded font-mono font-bold transition-all text-[11px] ${
+                  className={`px-2.5 py-1.5 rounded font-mono font-bold transition-all text-[11px] ${
                     activePair === p.symbol
-                      ? 'text-foreground border border-white/20'
-                      : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
+                      ? 'text-[#fcd535] bg-[#fcd535]/10'
+                      : 'text-[#848e9c] hover:text-[#eaecef] hover:bg-[#2b3139]'
                   }`}
-                  style={activePair === p.symbol ? { backgroundColor: `${p.color}15`, borderColor: `${p.color}40` } : {}}
                 >
                   {p.label}
                 </button>
@@ -144,53 +187,39 @@ const Indicators: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-px h-5 bg-white/10" />
+          <div className="w-px h-5 bg-[#2b3139]" />
 
           {/* Timeframe */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground/50 font-mono tracking-widest">TF</span>
-            <div className="flex gap-0.5">
-              {TIMEFRAMES.map(tf => (
-                <button key={tf} onClick={() => setActiveTimeframe(tf)}
-                  className={`px-2 py-1.5 rounded font-mono transition-all ${
-                    activeTimeframe === tf
-                      ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                      : 'text-muted-foreground/60 hover:text-foreground'
-                  }`}>
-                  {tf}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="w-px h-5 bg-white/10" />
-
-          {/* Live price */}
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Real-time" />
-            <span className="text-foreground font-mono font-bold text-sm">
-              {marketData.loading ? '...' : `$${livePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            </span>
-            {!marketData.loading && (
-              <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${priceChange >= 0 ? 'text-emerald-400 bg-emerald-400/10' : 'text-red-400 bg-red-400/10'}`}>
-                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-              </span>
-            )}
-            <span className="text-[9px] text-muted-foreground/40 font-mono">LIVE</span>
+          <div className="flex items-center gap-1">
+            {TIMEFRAMES.map(tf => (
+              <button key={tf} onClick={() => setActiveTimeframe(tf)}
+                className={`px-2.5 py-1.5 rounded font-mono font-bold text-[11px] transition-all ${
+                  activeTimeframe === tf
+                    ? 'bg-[#fcd535]/10 text-[#fcd535]'
+                    : 'text-[#848e9c] hover:text-[#eaecef] hover:bg-[#2b3139]'
+                }`}>
+                {tf}
+              </button>
+            ))}
           </div>
 
           <div className="flex-1" />
 
-          {/* Bot status */}
+          {/* Live indicator + Bot status */}
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0ecb81] animate-pulse" />
+            <span className="text-[10px] text-[#848e9c] font-mono">LIVE</span>
+          </div>
+
           <button
             onClick={() => setBotActive(!botActive)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-bold text-[11px] font-mono transition-all ${
               botActive
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                ? 'bg-[#0ecb81]/10 text-[#0ecb81] border border-[#0ecb81]/20'
+                : 'bg-[#f6465d]/10 text-[#f6465d] border border-[#f6465d]/20'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${botActive ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${botActive ? 'bg-[#0ecb81] animate-pulse' : 'bg-[#f6465d]'}`} />
             {botActive ? 'ĐANG CHẠY' : 'TẠM DỪNG'}
           </button>
         </div>
