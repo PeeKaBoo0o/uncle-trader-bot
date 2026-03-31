@@ -189,13 +189,14 @@ function runEndpointMode(candles: Candle[], src: number[], config: MatrixProConf
 
 function runRepaintingMode(candles: Candle[], src: number[], config: MatrixProConfig): MatrixProOutput {
   const n = candles.length - 1;
+  const nweLen = Math.min(500, n);
   const nwe: number[] = [];
   let sae = 0;
 
-  for (let i = 0; i <= Math.min(499, n - 1); i++) {
+  for (let i = 0; i < nweLen; i++) {
     let sum = 0;
     let sumW = 0;
-    for (let j = 0; j <= Math.min(499, n - 1); j++) {
+    for (let j = 0; j < nweLen; j++) {
       const w = gauss(i - j, config.bandwidth);
       sum += src[j] * w;
       sumW += w;
@@ -205,7 +206,7 @@ function runRepaintingMode(candles: Candle[], src: number[], config: MatrixProCo
     nwe.push(y2);
   }
 
-  const denom = Math.max(1, Math.min(499, n - 1));
+  const denom = Math.max(1, nweLen - 1);
   sae = (sae / denom) * config.multiplier;
 
   const bands: BandPoint[] = [];
@@ -215,8 +216,11 @@ function runRepaintingMode(candles: Candle[], src: number[], config: MatrixProCo
   let crossPrice: number | null = null;
   let crossDirection: 'above' | 'below' | null = null;
 
+  // nwe[i] corresponds to src[i] which corresponds to candles[offset + i]
+  const offset = candles.length - nweLen;
+
   for (let i = 0; i < nwe.length; i++) {
-    const candleIndex = n - i;
+    const candleIndex = offset + i;
     if (candleIndex < 0 || candleIndex >= candles.length) continue;
 
     const basis = nwe[i];
@@ -224,20 +228,28 @@ function runRepaintingMode(candles: Candle[], src: number[], config: MatrixProCo
     const lower = basis - sae;
     bands.push({ time: candles[candleIndex].time, upper, lower, basis });
 
-    if (i + 1 < nwe.length) {
-      const curr = src[i];
-      const next = src[i + 1];
-      if (curr > upper && next < upper) {
-        markers.push({ time: candles[candleIndex].time, price: src[i], type: 'cross-down', text: '▼' });
-      }
-      if (curr < lower && next > lower) {
-        markers.push({ time: candles[candleIndex].time, price: src[i], type: 'cross-up', text: '▲' });
-      }
-      if (curr > upper) {
-        crossPrice = curr;
+    if (i > 0) {
+      const prevSrc = src[i - 1];
+      const currSrc = src[i];
+      const prevBasis = nwe[i - 1];
+      const prevUpper = prevBasis + sae;
+      const prevLower = prevBasis - sae;
+
+      if (crossOver(prevSrc, currSrc, prevUpper, upper)) {
+        markers.push({ time: candles[candleIndex].time, price: candles[candleIndex].high, type: 'cross-down', text: '▼' });
+        crossPrice = currSrc;
         crossDirection = 'above';
-      } else if (curr < lower) {
-        crossPrice = curr;
+      } else if (crossUnder(prevSrc, currSrc, prevLower, lower)) {
+        markers.push({ time: candles[candleIndex].time, price: candles[candleIndex].low, type: 'cross-up', text: '▲' });
+        crossPrice = currSrc;
+        crossDirection = 'below';
+      }
+
+      if (currSrc > upper) {
+        crossPrice = currSrc;
+        crossDirection = 'above';
+      } else if (currSrc < lower) {
+        crossPrice = currSrc;
         crossDirection = 'below';
       }
 
@@ -258,10 +270,6 @@ function runRepaintingMode(candles: Candle[], src: number[], config: MatrixProCo
       }
     }
   }
-
-  bands.sort((a, b) => a.time - b.time);
-  markers.sort((a, b) => a.time - b.time);
-  events.sort((a, b) => a.time - b.time);
 
   return {
     bands,
