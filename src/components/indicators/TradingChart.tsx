@@ -1252,12 +1252,8 @@ const TradingChart: React.FC<TradingChartProps> = ({
       createSeriesMarkers(candleSeries, allMarkers);
     }
 
-    // Fit content then scroll so last candle is centered
+    // Fit content — rightOffset already centers the last candle
     chart.timeScale().fitContent();
-    // Calculate right offset to center last candle
-    const visibleBars = Math.floor((chartContainerRef.current?.clientWidth || 800) / (chart.timeScale().options().barSpacing || 4));
-    const centerOffset = Math.floor(visibleBars / 2);
-    chart.timeScale().scrollToPosition(-centerOffset, false);
 
     // ═══════════ RSI CHART (synced) ═══════════
     const rsiChart = createChart(rsiContainerRef.current, {
