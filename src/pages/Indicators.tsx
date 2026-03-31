@@ -40,11 +40,11 @@ const PAIRS = [
 const TIMEFRAMES = ['M15', 'H1', 'H4', 'D1'];
 
 const DEFAULT_INDICATORS: IndicatorConfig[] = [
-  { id: 'liq_hunter', label: 'Liquidity Hunter', enabled: true, color: '#FF6B6B', category: 'Liquidity' },
-  { id: 'alphanet', label: 'AlphaNet AI', enabled: true, color: '#7C3AED', category: 'AI' },
-  { id: 'matrix', label: 'Matrix NWE', enabled: true, color: '#00BCD4', category: 'Envelope' },
-  { id: 'engine', label: 'MS Engine', enabled: true, color: '#FF9800', category: 'Structure' },
-  { id: 'tp_sl', label: 'TP/SL Zones', enabled: true, color: '#E91E63', category: 'Risk' },
+  { id: 'liq_hunter', label: 'Liquidity Hunter', enabled: false, color: '#FF6B6B', category: 'Liquidity' },
+  { id: 'alphanet', label: 'AlphaNet AI', enabled: false, color: '#7C3AED', category: 'AI' },
+  { id: 'matrix', label: 'Matrix NWE', enabled: false, color: '#00BCD4', category: 'Envelope' },
+  { id: 'engine', label: 'MS Engine', enabled: false, color: '#FF9800', category: 'Structure' },
+  { id: 'tp_sl', label: 'TP/SL Zones', enabled: false, color: '#E91E63', category: 'Risk' },
   { id: 'buy_sell', label: 'Buy/Sell Signal', enabled: false, color: '#4CAF50', category: 'Signal' },
   { id: 'oscillator', label: 'Oscillator Matrix', enabled: false, color: '#FF5722', category: 'Oscillator' },
   { id: 'pro_ema', label: 'Pro EMA', enabled: false, color: '#FFA726', category: 'Trend' },
