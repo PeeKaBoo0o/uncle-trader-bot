@@ -175,10 +175,6 @@ const News: React.FC = () => {
                   <span className="text-[10px] text-muted-foreground">#{coin.market_cap_rank || '—'}</span>
                 </a>
               ))}
-              <a href="https://www.okx.com/join/UNCLETRADER" target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 shrink-0 hover:bg-amber-500/20 transition-all">
-                <span className="text-[10px] font-bold text-amber-400">💰 Mua ngay — OKX -20% phí</span>
-              </a>
             </div>
           </div>
         </section>
