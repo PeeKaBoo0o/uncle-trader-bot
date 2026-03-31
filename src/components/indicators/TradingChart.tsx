@@ -143,7 +143,6 @@ const TradingChart: React.FC<TradingChartProps> = ({
       } else {
         const initialRange = getInitialLogicalRange(candles.length);
         chart.timeScale().setVisibleLogicalRange(initialRange);
-        rsiChart?.timeScale().setVisibleLogicalRange(initialRange);
         visibleRangeRef.current = initialRange;
         initialViewportAppliedRef.current = true;
         isFollowingLiveEdgeRef.current = true;
