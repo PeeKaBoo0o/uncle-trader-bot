@@ -1362,79 +1362,12 @@ const TradingChart: React.FC<TradingChartProps> = ({
     initialViewportAppliedRef.current = true;
     isFollowingLiveEdgeRef.current = true;
 
-    // ═══════════ RSI CHART (synced) ═══════════
-    const rsiChart = createChart(rsiContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: chartBg },
-        textColor,
-        fontFamily: "'JetBrains Mono', 'SF Mono', monospace",
-        fontSize: 10,
-      },
-      grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
-      rightPriceScale: {
-        borderColor,
-        scaleMargins: { top: 0.05, bottom: 0.05 },
-      },
-      timeScale: {
-        borderColor,
-        timeVisible: true,
-        visible: true,
-        rightOffset: 5,
-        barSpacing: 6,
-      },
-      crosshair: {
-        vertLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
-        horzLine: { color: 'rgba(132,142,156,0.3)', width: 1, style: 0, labelBackgroundColor: '#1e2329' },
-      },
-      width: rsiContainerRef.current.clientWidth,
-      height: 100,
-    });
-    rsiChartRef.current = rsiChart;
-
-    if (indicators) {
-      const rsiSeries = rsiChart.addSeries(LineSeries, {
-        color: '#ab47bc',
-        lineWidth: 2,
-        priceLineVisible: true,
-        lastValueVisible: true,
-        title: 'RSI 14',
-      });
-      const rsiData = indicators.rsi
-        .map((v, i) => ({ time: (candles[i].time / 1000) as any, value: v }))
-        .filter(d => typeof d.value === 'number' && !isNaN(d.value));
-      if (rsiData.length > 0) rsiSeries.setData(rsiData);
-      rsiSeriesRef.current = rsiSeries;
-
-      // 70/50/30 lines
-      [
-        { price: 70, color: 'rgba(239,83,80,0.4)' },
-        { price: 50, color: 'rgba(255,255,255,0.1)' },
-        { price: 30, color: 'rgba(38,166,154,0.4)' },
-      ].forEach(line => {
-        rsiSeries.createPriceLine({
-          price: line.price, color: line.color,
-          lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '',
-        } as any);
-      });
-    }
-
-    rsiChart.timeScale().setVisibleLogicalRange(initialRange);
-
     // ── Sync time scales ──
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (!range) return;
 
       visibleRangeRef.current = { from: range.from, to: range.to };
       isFollowingLiveEdgeRef.current = isNearRightEdge(visibleRangeRef.current, candlesRef.current.length);
-
-      if (rsiChartRef.current && !syncingVisibleRangeRef.current) {
-        syncingVisibleRangeRef.current = true;
-        try {
-          rsiChartRef.current.timeScale().setVisibleLogicalRange(range);
-        } finally {
-          syncingVisibleRangeRef.current = false;
-        }
-      }
 
       if (range.from <= HISTORY_LOAD_TRIGGER_BARS && onLoadMoreRef.current) {
         const now = Date.now();
@@ -1444,38 +1377,21 @@ const TradingChart: React.FC<TradingChartProps> = ({
         }
       }
     });
-    rsiChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-      if (!range || !chartRef.current || syncingVisibleRangeRef.current) return;
-
-      syncingVisibleRangeRef.current = true;
-      try {
-        chartRef.current.timeScale().setVisibleLogicalRange(range);
-        visibleRangeRef.current = { from: range.from, to: range.to };
-        isFollowingLiveEdgeRef.current = isNearRightEdge(visibleRangeRef.current, candlesRef.current.length);
-      } finally {
-        syncingVisibleRangeRef.current = false;
-      }
-    });
 
     // ── Resize ──
     const handleResize = () => {
       if (chartContainerRef.current) chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      if (rsiContainerRef.current) rsiChart.applyOptions({ width: rsiContainerRef.current.clientWidth });
     };
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(chartContainerRef.current);
-    resizeObserver.observe(rsiContainerRef.current);
     handleResize();
 
     return () => {
       resizeObserver.disconnect();
       try { chart.remove(); } catch {}
-      try { rsiChart.remove(); } catch {}
       chartRef.current = null;
-      rsiChartRef.current = null;
       candleSeriesRef.current = null;
       volSeriesRef.current = null;
-      rsiSeriesRef.current = null;
       dataSnapshotRef.current = null;
       initialViewportAppliedRef.current = false;
     };
