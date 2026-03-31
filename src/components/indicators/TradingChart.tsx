@@ -91,7 +91,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
   // Stable series updates: prepend history, append bars, or update the active bar without rebuilding the chart.
   useEffect(() => {
-    if (!chartRef.current || !candleSeriesRef.current || !volSeriesRef.current || candles.length === 0) return;
+    if (!chartRef.current || !candleSeriesRef.current || candles.length === 0) return;
 
     const chart = chartRef.current;
     
