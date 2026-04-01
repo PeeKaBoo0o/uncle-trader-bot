@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Signal } from '@/hooks/useMarketData';
 
 interface SignalFeedProps {
@@ -14,7 +14,9 @@ const STRENGTH_STYLES: Record<string, { bg: string; text: string }> = {
   '⚠️ THẤP': { bg: 'bg-yellow-500/10 border-yellow-500/30', text: 'text-yellow-400' },
 };
 
-const SignalFeed: React.FC<SignalFeedProps> = ({ signals, loading, onSignalClick }) => {
+const SignalFeed: React.FC<SignalFeedProps> = ({ signals, loading, onSignalClick, maxItems }) => {
+  const [expanded, setExpanded] = useState(false);
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -33,9 +35,12 @@ const SignalFeed: React.FC<SignalFeedProps> = ({ signals, loading, onSignalClick
     );
   }
 
+  const hasMore = maxItems && !expanded && signals.length > maxItems;
+  const visibleSignals = hasMore ? signals.slice(0, maxItems) : signals;
+
   return (
     <div className="h-full space-y-1.5">
-      {signals.map(signal => {
+      {visibleSignals.map(signal => {
         const style = STRENGTH_STYLES[signal.strength] || STRENGTH_STYLES['✅ TRUNG BÌNH'];
         const time = new Date(signal.sent_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         const isBuy = signal.conditions.some(c => ['Breakout', 'Support Bounce', 'Confluence', 'BB Squeeze'].includes(c));
@@ -75,6 +80,24 @@ const SignalFeed: React.FC<SignalFeedProps> = ({ signals, loading, onSignalClick
           </button>
         );
       })}
+
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="w-full py-2.5 text-[10px] font-mono font-bold text-primary hover:text-primary/80 border border-primary/20 hover:border-primary/40 rounded-lg transition-all uppercase tracking-widest"
+        >
+          Xem thêm ({signals.length - maxItems!} tín hiệu)
+        </button>
+      )}
+
+      {expanded && maxItems && signals.length > maxItems && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="w-full py-2 text-[10px] font-mono text-muted-foreground hover:text-foreground transition-all"
+        >
+          Thu gọn
+        </button>
+      )}
     </div>
   );
 };
