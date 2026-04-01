@@ -326,23 +326,24 @@ const Analysis: React.FC = () => {
 
       {/* ── MAIN LAYOUT ── */}
       <div ref={dashboardRef} className="px-2 lg:px-4 py-2">
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-3">
 
-          {/* ── LEFT: Charts in 2 columns ── */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+          {/* ── LEFT: Charts + Commentary ── */}
+          <div className="space-y-3 min-w-0">
+            {/* Charts grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
               {/* ── BTC Column ── */}
               <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/btc')} title="Nhấp để xem chi tiết BTC/USDT">
                 {btcData.loading ? (
-                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                  <div className="flex items-center justify-center h-[360px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       <span className="text-xs text-muted-foreground font-mono">Loading BTC/USDT...</span>
                     </div>
                   </div>
                 ) : btcData.error ? (
-                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                  <div className="flex items-center justify-center h-[360px] bg-[#0d1117] rounded-xl">
                     <span className="text-destructive text-sm">⚠️ {btcData.error}</span>
                   </div>
                 ) : (
@@ -354,7 +355,7 @@ const Analysis: React.FC = () => {
                     trendline={btcTrendlines.support}
                     trendlineResistance={btcTrendlines.resistance}
                     enabledIndicators={ENABLED_INDICATORS}
-                    height={300}
+                    height={280}
                     label="₿ BTC/USDT · Binance"
                     scanning={scanning}
                     scanLabel={scanLabel}
@@ -368,14 +369,14 @@ const Analysis: React.FC = () => {
               {/* ── GOLD Column ── */}
               <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/xau')} title="Nhấp để xem chi tiết XAU/USD">
                 {goldData.loading ? (
-                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                  <div className="flex items-center justify-center h-[360px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
                       <span className="text-xs text-muted-foreground font-mono">Loading XAU/USD...</span>
                     </div>
                   </div>
                 ) : goldData.error ? (
-                  <div className="flex items-center justify-center h-[420px] bg-[#0d1117] rounded-xl">
+                  <div className="flex items-center justify-center h-[360px] bg-[#0d1117] rounded-xl">
                     <span className="text-destructive text-sm">⚠️ {goldData.error}</span>
                   </div>
                 ) : (
@@ -387,7 +388,7 @@ const Analysis: React.FC = () => {
                     trendline={goldTrendlines.support}
                     trendlineResistance={goldTrendlines.resistance}
                     enabledIndicators={ENABLED_INDICATORS}
-                    height={300}
+                    height={280}
                     label="🥇 XAU/USD (Gold)"
                     scanning={scanning}
                     scanLabel={scanLabel}
@@ -400,7 +401,7 @@ const Analysis: React.FC = () => {
             </div>
 
             {/* ── AI MARKET COMMENTARY ── */}
-            <div className="glass-card rounded-xl p-5 border border-primary/10 mt-2">
+            <div className="glass-card rounded-xl p-5 border border-primary/10">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary" />
@@ -426,8 +427,6 @@ const Analysis: React.FC = () => {
                   <div className="h-3 bg-foreground/5 rounded w-4/5" />
                   <div className="h-3 bg-foreground/5 rounded w-full" />
                   <div className="h-3 bg-foreground/5 rounded w-3/4" />
-                  <div className="h-3 bg-foreground/5 rounded w-full" />
-                  <div className="h-3 bg-foreground/5 rounded w-5/6" />
                 </div>
               ) : commentary ? (
                 <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
@@ -445,19 +444,112 @@ const Analysis: React.FC = () => {
             </div>
           </div>
 
-        </div>
-      </div>
+          {/* ── RIGHT SIDEBAR: Signal Feed + System Log ── */}
+          <div className="space-y-3">
+            {/* Signal Feed */}
+            <div className="glass-card rounded-xl border border-foreground/5 overflow-hidden">
+              <div className="px-3 py-2 border-b border-foreground/5 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-foreground tracking-wider font-mono">📡 TÍN HIỆU REALTIME</span>
+                <span className="text-[9px] text-muted-foreground/50 font-mono">{allSignals.length} tín hiệu</span>
+              </div>
+              <div className="max-h-[480px] overflow-y-auto">
+                {allSignals.length === 0 ? (
+                  <div className="p-4 text-center text-[10px] text-muted-foreground/40">
+                    Đang quét tín hiệu...
+                  </div>
+                ) : (
+                  <div className="divide-y divide-foreground/5">
+                    {allSignals.map((sig, i) => {
+                      const style = SIGNAL_COLORS[sig.type] || SIGNAL_COLORS.info;
+                      return (
+                        <div key={i} className={`px-3 py-2.5 ${sig.isNew ? 'bg-primary/5' : ''} hover:bg-foreground/[0.02] transition-colors`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-1.5 h-1.5 rounded-full ${style.dot} ${sig.isNew ? 'animate-pulse' : ''}`} />
+                            <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded ${style.bg} ${style.border} border ${style.text}`}>
+                              {style.label}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground/40 font-mono ml-auto">
+                              {sig.symbol?.replace('/USDT', '').replace('/', '')}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground/70 leading-relaxed pl-3.5">
+                            {sig.message}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
 
+            {/* DXY Widget */}
+            <div className="glass-card rounded-xl p-3 border border-foreground/5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-foreground font-mono">💵 DXY Index</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-foreground font-mono">
+                    {dxy.loading ? '...' : dxy.value?.toFixed(2)}
+                  </span>
+                  {!dxy.loading && dxy.changePercent !== null && (
+                    <span className={`text-[10px] font-mono ${dxy.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {dxy.changePercent >= 0 ? '+' : ''}{dxy.changePercent.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
 
-      {/* ── SYSTEM LOG ── */}
-      <div className="px-2 lg:px-4 pb-4">
-        <div className="glass-card rounded-lg px-4 py-2 flex items-center gap-3 overflow-x-auto">
-          <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest shrink-0 font-mono">SYSTEM</span>
-          <div className="flex gap-4 text-[10px] font-mono text-muted-foreground/60">
-            {logs.slice(0, 5).map((log, i) => (
-              <span key={i} className={i === 0 ? 'text-primary/70' : ''}>{log}</span>
-            ))}
+            {/* System Log */}
+            <div className="glass-card rounded-xl border border-foreground/5 overflow-hidden">
+              <div className="px-3 py-2 border-b border-foreground/5">
+                <span className="text-[10px] font-bold text-muted-foreground/40 tracking-widest font-mono">⚙️ SYSTEM LOG</span>
+              </div>
+              <div className="px-3 py-2 max-h-[160px] overflow-y-auto space-y-1">
+                {logs.length === 0 ? (
+                  <span className="text-[9px] text-muted-foreground/30 font-mono">Chưa có log...</span>
+                ) : (
+                  logs.slice(0, 8).map((log, i) => (
+                    <div key={i} className={`text-[9px] font-mono leading-relaxed ${i === 0 ? 'text-primary/70' : 'text-muted-foreground/50'}`}>
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="glass-card rounded-xl p-3 border border-foreground/5 space-y-2">
+              <span className="text-[10px] font-bold text-muted-foreground/60 tracking-wider font-mono">🚀 HÀNH ĐỘNG</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleSendSignal('BTCUSDT')}
+                  disabled={!!sendingSignal}
+                  className="px-2 py-2 rounded-lg text-[10px] font-bold text-amber-400 border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all disabled:opacity-50 font-mono"
+                >
+                  {sendingSignal === 'BTCUSDT' ? '⏳...' : '📤 BTC Signal'}
+                </button>
+                <button
+                  onClick={() => handleSendSignal('XAUUSDT')}
+                  disabled={!!sendingSignal}
+                  className="px-2 py-2 rounded-lg text-[10px] font-bold text-yellow-400 border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 transition-all disabled:opacity-50 font-mono"
+                >
+                  {sendingSignal === 'XAUUSDT' ? '⏳...' : '📤 XAU Signal'}
+                </button>
+              </div>
+              <button
+                onClick={() => setAutoSignal(!autoSignal)}
+                className={`w-full px-2 py-2 rounded-lg text-[10px] font-bold font-mono border transition-all ${
+                  autoSignal
+                    ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                    : 'text-muted-foreground/60 border-foreground/10 hover:bg-foreground/5'
+                }`}
+              >
+                {autoSignal ? '🟢 Auto Scan: ON' : '⚪ Auto Scan: OFF'}
+              </button>
+            </div>
           </div>
+
         </div>
       </div>
 
