@@ -41,7 +41,7 @@ function formatSetupMessage(setups: any[], dateDisplay: string): string {
     }
   }
 
-  msg += `👉 <a href="https://alphanet.vn/phan-tich">Xem chi tiết → alphanet.vn/setups</a>`;
+  msg += `👉 Xem chi tiết → alphanet.vn/phan-tich`;
 
   // Truncate if too long
   if (msg.length > MAX_MSG_LENGTH) {
