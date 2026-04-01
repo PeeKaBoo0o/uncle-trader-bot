@@ -401,42 +401,28 @@ async function countTodayAiImages(supabase: any): Promise<number> {
   return count || 0;
 }
 
-// ─── Send news notification to Telegram ───
+// ─── Send news notification to Telegram via news-telegram function ───
 async function sendNewsTelegram(articles: any[]) {
-  const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  const chatId = "-1003722231058";
-  if (!BOT_TOKEN) return;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !supabaseKey) return;
 
   for (const a of articles) {
-    const badge = a.badge || "TIN MỚI";
-    const caption = `📰 <b>[${badge}]</b> ${a.title}\n\n${(a.summary || "").slice(0, 300)}\n\n🔗 <a href="https://bright-build-beau.lovable.app/tin-tuc/${a.id}">Đọc đầy đủ</a>`;
-
+    if (!a.id) continue;
     try {
-      let res: Response;
-      if (a.image_url) {
-        // Send as photo with caption
-        res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_thread_id: 329,
-            photo: a.image_url,
-            caption: caption.slice(0, 1024),
-            parse_mode: "HTML",
-          }),
-        });
-      } else {
-        // Fallback text-only
-        res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: "HTML", message_thread_id: 329 }),
-        });
-      }
-      if (!res.ok) console.error("Telegram news send error:", await res.text());
+      const res = await fetch(`${supabaseUrl}/functions/v1/news-telegram`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ article_id: a.id }),
+      });
+      const body = await res.text();
+      if (!res.ok) console.error("news-telegram call failed:", body);
+      else console.log("news-telegram sent:", a.title);
     } catch (e) {
-      console.error("Telegram news error:", e);
+      console.error("news-telegram error:", e);
     }
   }
 }
