@@ -1,0 +1,1 @@
+ALTER TABLE public.economic_events ADD COLUMN IF NOT EXISTS telegram_alerted boolean NOT NULL DEFAULT false;

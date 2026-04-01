@@ -56,6 +56,7 @@ export type Database = {
           id: string
           impact: string
           prev: string | null
+          telegram_alerted: boolean
         }
         Insert: {
           actual?: string | null
@@ -68,6 +69,7 @@ export type Database = {
           id?: string
           impact?: string
           prev?: string | null
+          telegram_alerted?: boolean
         }
         Update: {
           actual?: string | null
@@ -80,6 +82,7 @@ export type Database = {
           id?: string
           impact?: string
           prev?: string | null
+          telegram_alerted?: boolean
         }
         Relationships: []
       }
