@@ -520,8 +520,7 @@ const Indicators: React.FC = () => {
             </div>
             <p className="text-[9px] text-[#5e6673] mb-3 font-mono">Click để xem lại vị trí</p>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <SignalFeed signals={signals} loading={signalsLoading} />
-            </div>
+              <SignalFeed signals={signals} loading={signalsLoading} maxItems={5} />
           </div>
         </div>
       </div>

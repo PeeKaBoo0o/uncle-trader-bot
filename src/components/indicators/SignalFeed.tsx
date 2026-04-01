@@ -5,6 +5,7 @@ interface SignalFeedProps {
   signals: Signal[];
   loading: boolean;
   onSignalClick?: (signal: Signal) => void;
+  maxItems?: number;
 }
 
 const STRENGTH_STYLES: Record<string, { bg: string; text: string }> = {
