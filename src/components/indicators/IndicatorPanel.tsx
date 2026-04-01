@@ -6,6 +6,7 @@ export interface IndicatorConfig {
   enabled: boolean;
   color: string;
   category: string;
+  note?: string;
 }
 
 interface IndicatorPanelProps {
@@ -35,6 +36,14 @@ const IndicatorPanel: React.FC<IndicatorPanelProps> = ({ indicators, onToggle })
               style={{ backgroundColor: ind.enabled ? ind.color : '#4B5563' }}
             />
             <span className="font-mono">{ind.label}</span>
+            {ind.note && (
+              <span className="relative group/note cursor-help">
+                <span className="text-yellow-400 text-[10px]">⚠</span>
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded bg-[#1e2329] border border-yellow-500/30 text-[9px] text-yellow-300 font-mono whitespace-nowrap opacity-0 group-hover/note:opacity-100 pointer-events-none transition-opacity z-50">
+                  {ind.note}
+                </span>
+              </span>
+            )}
           </div>
           <span className={`w-4 h-4 rounded border flex items-center justify-center text-[8px] ${
             ind.enabled ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400' : 'border-white/10'
