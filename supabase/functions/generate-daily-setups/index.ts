@@ -97,42 +97,57 @@ async function fetchGoldPrice(): Promise<{ price: number; change24h: number }> {
   throw new Error("Could not fetch gold price from any source");
 }
 
-// ---------- AI GENERATION ----------
+// ---------- AI GENERATION (Gemini REST API) ----------
 
 async function generateSetups(asset: string, systemPrompt: string, userPrompt: string): Promise<any> {
-  for (const model of MODELS) {
+  const toolDecl = {
+    functionDeclarations: [{
+      name: "create_trading_setups",
+      description: "Create 3 trading scenarios for an asset",
+      parameters: TOOL_SCHEMA.function.parameters,
+    }],
+  };
+
+  for (const model of GEMINI_MODELS) {
     try {
       console.log(`[${asset}] Trying model: ${model}`);
-      const res = await fetch(AI_GATEWAY, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const res = await fetch(url, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          tools: [TOOL_SCHEMA],
-          tool_choice: { type: "function", function: { name: "create_trading_setups" } },
-          temperature: 0.7,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+          tools: [toolDecl],
+          toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["create_trading_setups"] } },
+          generationConfig: { temperature: 0.7 },
         }),
       });
 
       if (!res.ok) {
-        console.error(`[${asset}] Model ${model} failed: ${res.status}`);
+        const errText = await res.text();
+        console.error(`[${asset}] Model ${model} failed: ${res.status} ${errText}`);
         continue;
       }
 
       const data = await res.json();
-      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        const parsed = JSON.parse(toolCall.function.arguments);
+      const parts = data.candidates?.[0]?.content?.parts;
+      const fnCall = parts?.find((p: any) => p.functionCall);
+      if (fnCall?.functionCall?.args) {
         console.log(`[${asset}] Success with ${model}`);
-        return parsed;
+        return fnCall.functionCall.args;
       }
+
+      // Fallback: try parsing text response as JSON
+      const textPart = parts?.find((p: any) => p.text);
+      if (textPart?.text) {
+        try {
+          const jsonMatch = textPart.text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        } catch {}
+      }
+
+      console.error(`[${asset}] Model ${model}: no function call in response`);
     } catch (e) {
       console.error(`[${asset}] Model ${model} error:`, e);
     }
