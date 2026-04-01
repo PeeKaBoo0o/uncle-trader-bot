@@ -210,10 +210,13 @@ CHỈ trả về JSON, không giải thích thêm.`;
   }
 }
 
-// ─── AI Edit/Enhance Image ───
+// ─── AI Generate/Edit Image via Gemini API ───
 async function aiGenerateImage(title: string, stream: string, originalImageUrl?: string | null): Promise<string | null> {
-  const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_KEY) return null;
+  const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_KEY) {
+    console.error("GEMINI_API_KEY not set, skipping image generation");
+    return null;
+  }
 
   const styleMap: Record<string, string> = {
     hot: "vibrant crypto trading atmosphere, dramatic lighting with red/green accent glows, cinematic editorial quality",
@@ -223,66 +226,83 @@ async function aiGenerateImage(title: string, stream: string, originalImageUrl?:
     sentiment: "moody atmospheric with data visualization overlay, abstract bull/bear energy, dramatic contrast",
   };
 
-  const messages: any[] = [];
+  const style = styleMap[stream] || styleMap.hot;
+
+  let prompt: string;
+  const parts: any[] = [];
 
   if (originalImageUrl && !originalImageUrl.includes("unsplash.com")) {
-    // Edit mode: enhance the original image
-    const editPrompt = `Transform this news image into a stunning, professional crypto editorial illustration. 
-Style: ${styleMap[stream] || styleMap.hot}. 
-Context: "${title}".
-Requirements: Make it more visually captivating and polished. Enhance colors, add cinematic depth and dramatic lighting. Keep the core subject recognizable but elevate the visual quality to premium editorial standard. No text, no watermarks. 16:9 aspect ratio.`;
-
-    messages.push({
-      role: "user",
-      content: [
-        { type: "text", text: editPrompt },
-        { type: "image_url", image_url: { url: originalImageUrl } },
-      ],
-    });
+    prompt = `Transform this news image into a stunning, professional crypto editorial illustration. Style: ${style}. Context: "${title}". Make it more visually captivating and polished. Enhance colors, add cinematic depth and dramatic lighting. Keep the core subject recognizable but elevate the visual quality. No text, no watermarks. 16:9 aspect ratio.`;
+    
+    // Try to fetch original image and include as inline data
+    try {
+      const imgRes = await fetch(originalImageUrl);
+      if (imgRes.ok) {
+        const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
+        const imgBase64 = btoa(String.fromCharCode(...imgBytes));
+        const mimeType = imgRes.headers.get("content-type") || "image/jpeg";
+        parts.push({ inline_data: { mime_type: mimeType, data: imgBase64 } });
+      }
+    } catch {
+      // If image fetch fails, just generate from text
+    }
+    parts.push({ text: prompt });
   } else {
-    // Generate mode: create from scratch based on content
-    const genPrompt = `Create a stunning, photorealistic crypto news illustration for: "${title}". 
-Style: ${styleMap[stream] || styleMap.hot}. 
-Requirements: Cinematic quality, dramatic lighting, rich colors, professional editorial photography feel. Highly detailed and visually captivating. No text, no watermarks. 16:9 aspect ratio.`;
-
-    messages.push({ role: "user", content: genPrompt });
+    prompt = `Create a stunning, photorealistic crypto news illustration for: "${title}". Style: ${style}. Cinematic quality, dramatic lighting, rich colors, professional editorial photography feel. Highly detailed and visually captivating. No text, no watermarks. 16:9 aspect ratio.`;
+    parts.push({ text: prompt });
   }
 
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_KEY}`;
+    
+    const res = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3.1-flash-image-preview",
-        messages,
-        modalities: ["image", "text"],
+        contents: [{ parts }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+        },
       }),
     });
 
     if (!res.ok) {
-      console.error("Image gen failed:", res.status);
+      console.error("Gemini image gen failed:", res.status, await res.text());
       return null;
     }
 
     const data = await res.json();
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!imageUrl) return null;
+    
+    // Extract image from Gemini response
+    const candidateParts = data.candidates?.[0]?.content?.parts || [];
+    let imageBase64: string | null = null;
+    let imageMimeType = "image/png";
+    
+    for (const part of candidateParts) {
+      if (part.inlineData) {
+        imageBase64 = part.inlineData.data;
+        imageMimeType = part.inlineData.mimeType || "image/png";
+        break;
+      }
+    }
+
+    if (!imageBase64) {
+      console.error("No image in Gemini response");
+      return null;
+    }
 
     // Upload to storage
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
-    const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    const bytes = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
+    const ext = imageMimeType.includes("jpeg") || imageMimeType.includes("jpg") ? "jpg" : "png";
+    const fileName = `news/${Date.now()}-${stream}.${ext}`;
     
-    const fileName = `news/${Date.now()}-${stream}.png`;
     const { error } = await supabase.storage
       .from("news-images")
-      .upload(fileName, bytes, { contentType: "image/png", upsert: true });
+      .upload(fileName, bytes, { contentType: imageMimeType, upsert: true });
 
     if (error) {
       console.error("Upload error:", error);
