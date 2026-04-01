@@ -250,7 +250,7 @@ async function aiGenerateImage(title: string, stream: string, originalImageUrl?:
   }
 
   try {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_KEY}`;
     
     const res = await fetch(apiUrl, {
       method: "POST",
