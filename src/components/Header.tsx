@@ -34,7 +34,6 @@ const useLivePrice = () => {
         if (data?.lastPrice) setGold({ price: parseFloat(data.lastPrice), change: parseFloat(data.priceChangePercent) });
       } catch { /* silent */ }
     };
-    };
     fetchPrices();
     const interval = setInterval(fetchPrices, 30000);
     return () => clearInterval(interval);
