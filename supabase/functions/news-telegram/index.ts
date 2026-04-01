@@ -7,8 +7,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 const TELEGRAM_CHAT_ID = "-1003722231058";
+const NEWS_THREAD_ID = 329;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -16,11 +16,8 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
-    if (!TELEGRAM_API_KEY) throw new Error("TELEGRAM_API_KEY is not configured");
+    const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    if (!BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -62,16 +59,13 @@ serve(async (req) => {
 📌 Nguồn: ${article.source}
 🕐 ${new Date(article.published_at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}`;
 
-    // Send to Telegram
-    const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
+    // Send to Telegram directly
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": TELEGRAM_API_KEY,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
+        message_thread_id: NEWS_THREAD_ID,
         text: message,
         parse_mode: "HTML",
       }),
