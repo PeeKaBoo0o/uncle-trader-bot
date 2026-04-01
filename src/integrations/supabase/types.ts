@@ -44,6 +44,48 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_setups: {
+        Row: {
+          ai_summary: string | null
+          asset: string
+          created_at: string
+          current_price: number | null
+          id: string
+          market_context: string | null
+          price_change_24h: number | null
+          scenarios: Json
+          setup_date: string
+          telegram_message_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          asset: string
+          created_at?: string
+          current_price?: number | null
+          id?: string
+          market_context?: string | null
+          price_change_24h?: number | null
+          scenarios?: Json
+          setup_date: string
+          telegram_message_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          asset?: string
+          created_at?: string
+          current_price?: number | null
+          id?: string
+          market_context?: string | null
+          price_change_24h?: number | null
+          scenarios?: Json
+          setup_date?: string
+          telegram_message_id?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       economic_events: {
         Row: {
           actual: string | null
