@@ -26,7 +26,7 @@ serve(async (req) => {
     // Fetch latest published news article
     const { data: article, error } = await supabase
       .from("news_articles")
-      .select("title, summary, source, published_at, badge, stream")
+      .select("title, summary, source, published_at, badge, stream, image_url")
       .eq("is_published", true)
       .order("published_at", { ascending: false })
       .limit(1)
@@ -51,25 +51,42 @@ serve(async (req) => {
     const emoji = streamEmoji[article.stream] || "📰";
     const badge = article.badge ? `[${article.badge}] ` : "";
     const summary = article.summary
-      ? `\n\n${article.summary.slice(0, 300)}${article.summary.length > 300 ? "..." : ""}`
+      ? `\n\n${article.summary.slice(0, 800)}${article.summary.length > 800 ? "..." : ""}`
       : "";
 
-    const message = `${emoji} <b>${badge}${article.title}</b>${summary}
+    const caption = `${emoji} <b>${badge}${article.title}</b>${summary}
 
 📌 Nguồn: ${article.source}
 🕐 ${new Date(article.published_at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}`;
 
-    // Send to Telegram directly
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        message_thread_id: NEWS_THREAD_ID,
-        text: message,
-        parse_mode: "HTML",
-      }),
-    });
+    let res: Response;
+
+    if (article.image_url) {
+      // Send as photo with caption
+      res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          message_thread_id: NEWS_THREAD_ID,
+          photo: article.image_url,
+          caption: caption.slice(0, 1024), // Telegram caption limit
+          parse_mode: "HTML",
+        }),
+      });
+    } else {
+      // Fallback to text-only
+      res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          message_thread_id: NEWS_THREAD_ID,
+          text: caption,
+          parse_mode: "HTML",
+        }),
+      });
+    }
 
     const result = await res.json();
     if (!res.ok) {
@@ -77,9 +94,9 @@ serve(async (req) => {
       throw new Error(`Telegram API failed [${res.status}]: ${JSON.stringify(result)}`);
     }
 
-    console.log("News sent to Telegram:", article.title);
+    console.log("News sent to Telegram:", article.title, article.image_url ? "(with photo)" : "(text only)");
 
-    return new Response(JSON.stringify({ ok: true, sent: true, title: article.title }), {
+    return new Response(JSON.stringify({ ok: true, sent: true, title: article.title, hasImage: !!article.image_url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
