@@ -585,13 +585,11 @@ serve(async (req) => {
       // 3. Fall back to diverse Unsplash image based on stream + title
       let imageUrl: string | null = null;
 
-      if (true) { // Always try AI image with Gemini API
-        console.log(`🎨 Generating AI image for ${stream}...`);
-        imageUrl = await aiGenerateImage(rewritten.title, stream, raw.imageUrl);
-        if (imageUrl) {
-          aiImagesGenerated++;
-          console.log(`✅ AI image generated for ${stream} (${aiImagesGenerated} this cycle)`);
-        }
+      console.log(`🎨 Generating AI image for ${stream}...`);
+      imageUrl = await aiGenerateImage(rewritten.title, stream, raw.imageUrl);
+      if (imageUrl) {
+        aiImagesGenerated++;
+        console.log(`✅ AI image generated for ${stream} (${aiImagesGenerated} this cycle)`);
       }
 
       if (!imageUrl && raw.imageUrl && !raw.imageUrl.includes("unsplash.com")) {
