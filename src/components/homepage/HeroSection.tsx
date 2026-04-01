@@ -30,7 +30,7 @@ const HeroSection: React.FC = () => {
       const symbols = initialTickers.map((t) => t.binanceSymbol);
       const results = await Promise.allSettled(
         symbols.map((sym) =>
-          fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`, { cache: 'no-store' }).then((r) => r.json())
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy?symbol=${sym}`, { cache: 'no-store' }).then((r) => r.json())
         )
       );
       setTickers((prev) =>
