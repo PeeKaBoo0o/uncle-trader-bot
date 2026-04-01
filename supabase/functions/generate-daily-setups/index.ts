@@ -1,17 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2/cors";
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const FINNHUB_API_KEY = Deno.env.get("FINNHUB_API_KEY") || "";
 
-const AI_GATEWAY = "https://ai-gateway.lovable.dev/v1/chat/completions";
-
-const MODELS = [
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash",
-  "openai/gpt-5-nano",
+const GEMINI_MODELS = [
+  "gemini-2.5-flash-preview-04-17",
+  "gemini-2.0-flash",
 ];
 
 const TOOL_SCHEMA = {
