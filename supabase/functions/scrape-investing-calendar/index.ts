@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Country name → flag mapping
+// ─── Country → Flag mapping ───
 const FLAG_MAP: Record<string, string> = {
   "Mỹ": "🇺🇸", "Anh": "🇬🇧", "Nhật Bản": "🇯🇵", "Eurozone": "🇪🇺",
   "Úc": "🇦🇺", "Canada": "🇨🇦", "Thụy Sĩ": "🇨🇭", "New Zealand": "🇳🇿",
@@ -26,6 +26,169 @@ const FLAG_MAP: Record<string, string> = {
 
 const IMPACT_MAP: Record<number, string> = { 1: "low", 2: "medium", 3: "high" };
 
+// ─── IMPORTANCE OVERRIDES (hardcoded) ───
+// Keywords in event name → forced importance
+const OVERRIDE_DOWN_TO_1: string[] = [
+  // JPY
+  "Thất Nghiệp Nhật", "Bán Lẻ Nhật",
+  // CNY
+  "PBoC", "Lãi Suất Cho Vay Cơ Bản",
+  // CAD
+  "Bán Lẻ Canada", "Doanh Số Bán Lẻ Canada",
+  // AUD
+  "Thay Đổi Việc Làm Úc", "Employment Change Úc",
+  // EUR minor
+  "CPI Pháp",
+  // USD minor
+  "Goolsbee",
+];
+
+const OVERRIDE_TO_2: string[] = [
+  "Chicago PMI",
+  "Thất Nghiệp Đức", "Tỷ Lệ Thất Nghiệp Đức",
+  "CPI Ý", "Italy CPI",
+  "CPI Eurozone", "Eurozone CPI",
+  "Core CPI Eurozone", "CPI Lõi Eurozone",
+  "GDP Canada", "GDP MoM Canada",
+  "Fed Barr", "Barr",
+];
+
+const OVERRIDE_UP_TO_3: string[] = [
+  "PMI Sản Xuất", "PMI Dịch Vụ", "ISM PMI",
+  "Jobless Claims", "Đơn Xin Trợ Cấp Thất Nghiệp",
+  "Trump",
+  "CB Consumer Confidence", "Niềm Tin Tiêu Dùng CB",
+  "JOLTS", "Cơ Hội Việc Làm JOLTS",
+];
+
+function applyOverrides(name: string, country: string, aiImportance: number): number {
+  const text = `${name} ${country}`.toLowerCase();
+
+  for (const kw of OVERRIDE_UP_TO_3) {
+    if (text.includes(kw.toLowerCase())) return 3;
+  }
+  for (const kw of OVERRIDE_TO_2) {
+    if (text.includes(kw.toLowerCase())) return 2;
+  }
+  for (const kw of OVERRIDE_DOWN_TO_1) {
+    if (text.includes(kw.toLowerCase())) return 1;
+  }
+
+  return aiImportance;
+}
+
+// ─── AI extraction with fallback chain ───
+async function extractWithAI(
+  markdown: string,
+  apiKey: string,
+  models: string[]
+): Promise<any[] | null> {
+  const systemPrompt = `You extract economic calendar events from scraped vn.investing.com content. Return ONLY a valid JSON array, no markdown fences, no explanation.
+
+Each object must have: date, time, country, currency, importance, name, actual, forecast, previous.
+
+IMPORTANCE CLASSIFICATION:
+importance=3 (HIGH - market-moving):
+- Interest rate decisions (Lãi Suất, Fed Funds Rate, ECB Rate, BOJ Rate, BOE Rate, RBA Rate)
+- Non-Farm Payrolls (NFP, Bảng Lương Phi Nông Nghiệp)
+- CPI / Core CPI headline (YoY for US, EU, UK, JP, AU)
+- GDP headline for major economies
+- Unemployment Rate (US, EU, UK, JP, AU, CA)
+- PMI Manufacturing/Services ISM
+- Central bank speeches by heads (Fed Chair, ECB President, BOJ Governor, BOE Governor)
+- FOMC Minutes, ECB Press Conference
+- Retail Sales headline for US, EU
+- Spring Forecast Statement / Budget
+
+importance=2 (MEDIUM):
+- PMI for individual countries (not ISM)
+- CPI for smaller economies or sub-components
+- Trade Balance, Current Account
+- Employment Change, Jobless Claims
+- Industrial Production, Factory Orders
+- Consumer Confidence, Business Confidence
+- Housing data, PPI
+- Central bank member speeches (not heads)
+- Bond Auctions (10Y, 30Y)
+
+importance=1 (LOW):
+- Minor auctions (3M, 6M bills)
+- Small country data, revised/final readings
+- Money supply, credit data, holidays
+
+CRITICAL: Times/dates are GMT+7. Extract exactly as shown.`;
+
+  const userPrompt = `Extract ALL economic calendar events from this content.
+Rules:
+- date: YYYY-MM-DD (year 2026)
+- time: HH:MM 24h (GMT+7), or null
+- country: Vietnamese name
+- currency: code (USD, EUR, GBP, JPY, CNY, AUD, CAD, CHF, NZD, etc.)
+- importance: 1, 2, or 3
+- name: Vietnamese event name exactly as shown
+- actual, forecast, previous: string or null
+EXCLUDE holidays, ads, navigation.
+Content: ${markdown}`;
+
+  for (const model of models) {
+    console.log(`Trying model: ${model}`);
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.1,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`Model ${model} failed: ${res.status} - ${errText}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content || "";
+
+      // Parse JSON
+      let events: any[];
+      try {
+        events = JSON.parse(content);
+      } catch {
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          events = JSON.parse(jsonMatch[1].trim());
+        } else {
+          const arrayMatch = content.match(/\[[\s\S]*\]/);
+          if (arrayMatch) {
+            events = JSON.parse(arrayMatch[0]);
+          } else {
+            console.error(`Model ${model}: could not parse JSON`);
+            continue;
+          }
+        }
+      }
+
+      if (Array.isArray(events) && events.length > 0) {
+        console.log(`Model ${model} extracted ${events.length} events`);
+        return events;
+      }
+    } catch (e) {
+      console.error(`Model ${model} error:`, e);
+    }
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -39,7 +202,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Determine date range from request body or default to this week
     let targetUrl = "https://vn.investing.com/economic-calendar/";
     try {
       const body = await req.json();
@@ -48,7 +210,7 @@ serve(async (req) => {
 
     console.log("Scraping:", targetUrl);
 
-    // Fetch the page HTML
+    // Fetch page
     const pageRes = await fetch(targetUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -57,13 +219,9 @@ serve(async (req) => {
       },
     });
 
-    if (!pageRes.ok) {
-      throw new Error(`Failed to fetch investing.com: ${pageRes.status}`);
-    }
+    if (!pageRes.ok) throw new Error(`Fetch failed: ${pageRes.status}`);
 
     const html = await pageRes.text();
-
-    // Convert HTML to readable text (strip tags, keep table structure)
     const textContent = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -77,141 +235,44 @@ serve(async (req) => {
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/\s+/g, " ")
-      .trim();
+      .trim()
+      .slice(0, 60000);
 
-    // Take first 60000 chars for AI extraction
-    const markdown = textContent.slice(0, 60000);
+    console.log("Text length:", textContent.length);
 
-    console.log("Extracted text length:", markdown.length);
+    // AI extraction with fallback chain
+    const MODELS = [
+      "google/gemini-2.5-flash",
+      "google/gemini-2.5-flash-lite",
+      "openai/gpt-5-nano",
+    ];
 
-    // Use AI to extract events
-    const systemPrompt = `You extract economic calendar events from scraped vn.investing.com content. Return ONLY a valid JSON array, no markdown fences, no explanation.
+    const events = await extractWithAI(textContent, LOVABLE_API_KEY, MODELS);
 
-Each object must have: date, time, country, currency, importance, name, actual, forecast, previous.
-
-IMPORTANCE CLASSIFICATION (the scraped markdown does NOT contain star icons, so you MUST classify based on event name):
-importance=3 (HIGH - market-moving):
-- Interest rate decisions (Lãi Suất, Fed Funds Rate, ECB Rate, BOJ Rate, BOE Rate, RBA Rate)
-- Non-Farm Payrolls (NFP, Bảng Lương Phi Nông Nghiệp)
-- CPI / Core CPI headline (Chỉ Số Giá Tiêu Dùng CPI YoY for major economies: US, EU, UK, JP, AU)
-- GDP headline for major economies
-- Unemployment Rate for major economies (US, EU, UK, JP, AU, CA)
-- PMI Manufacturing/Services ISM
-- Central bank speeches by heads (Fed Chair, ECB President, BOJ Governor, BOE Governor)
-- FOMC Minutes, ECB Press Conference
-- Retail Sales headline for US, EU
-- Spring Forecast Statement / Budget
-
-importance=2 (MEDIUM):
-- PMI for individual countries (not ISM)
-- CPI for smaller economies or sub-components (MoM, Core MoM)
-- Trade Balance, Current Account for major economies
-- Employment Change, Jobless Claims
-- Industrial Production, Factory Orders
-- Consumer Confidence, Business Confidence
-- Housing data (Building Permits, Housing Starts)
-- PPI (Producer Price Index)
-- Central bank member speeches (not heads)
-- Auction results for major bonds (10Y, 30Y)
-
-importance=1 (LOW):
-- Minor auction results (3M, 6M bills, Letras)
-- Small country data
-- Revised/final readings
-- Money supply, credit data
-- Vehicle sales, building consents for small economies
-- Holidays
-
-CRITICAL TIMEZONE RULES:
-- Times and dates are in GMT+7 (Vietnam time). Extract exactly as shown.`;
-
-    const userPrompt = `Extract ALL economic calendar events from this vn.investing.com content.
-Rules:
-- date: YYYY-MM-DD format (year 2026)
-- time: HH:MM 24h format (GMT+7), or null
-- country: Vietnamese name (Mỹ, Anh, Nhật Bản, Eurozone, Úc, etc.)
-- currency: code (USD, EUR, GBP, JPY, CNY, AUD, CAD, CHF, NZD, etc.)
-- importance: 1, 2, or 3 — classify by rules above
-- name: Vietnamese event name exactly as shown
-- actual, forecast, previous: string or null
-CRITICAL: Only REAL economic events. EXCLUDE holidays, ads, navigation.
-Content (first 60000 chars): ${markdown}`;
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.1,
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      throw new Error(`AI extraction failed: ${aiRes.status} - ${errText}`);
+    if (!events) {
+      throw new Error("All AI models failed to extract events");
     }
 
-    const aiData = await aiRes.json();
-    const aiContent = aiData.choices?.[0]?.message?.content || "";
-
-    console.log("AI response length:", aiContent.length);
-
-    // Parse JSON from AI response
-    let events: any[];
-    try {
-      // Try direct parse first
-      events = JSON.parse(aiContent);
-    } catch {
-      // Try extracting from code block
-      const jsonMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        events = JSON.parse(jsonMatch[1].trim());
-      } else {
-        // Try finding array in response
-        const arrayMatch = aiContent.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-          events = JSON.parse(arrayMatch[0]);
-        } else {
-          throw new Error("Could not parse AI response as JSON");
-        }
-      }
-    }
-
-    if (!Array.isArray(events)) {
-      throw new Error("AI did not return an array");
-    }
-
-    console.log(`Extracted ${events.length} events from AI`);
-
-    // Transform and upsert events
-    let inserted = 0;
-    let updated = 0;
-    let skipped = 0;
+    // Upsert events
+    let inserted = 0, updated = 0, skipped = 0;
 
     for (const ev of events) {
-      if (!ev.date || !ev.name || !ev.country) {
-        skipped++;
-        continue;
-      }
+      if (!ev.date || !ev.name || !ev.country) { skipped++; continue; }
+
+      // Apply importance overrides
+      const finalImportance = applyOverrides(ev.name, ev.country, ev.importance || 2);
+      const impact = IMPACT_MAP[finalImportance] || "medium";
 
       const eventTime = ev.time
         ? `${ev.date}T${ev.time}:00+07:00`
         : `${ev.date}T00:00:00+07:00`;
 
-      const impact = IMPACT_MAP[ev.importance] || "medium";
       const flag = FLAG_MAP[ev.country] || "🌐";
 
-      // Check if event already exists (same time + name + country)
+      // Check existing
       const { data: existing } = await supabase
         .from("economic_events")
-        .select("id, actual, estimate, prev")
+        .select("id, actual, estimate, prev, impact")
         .eq("event_name", ev.name)
         .eq("country", ev.country)
         .gte("event_time", `${ev.date}T00:00:00+07:00`)
@@ -219,28 +280,28 @@ Content (first 60000 chars): ${markdown}`;
         .limit(1);
 
       if (existing && existing.length > 0) {
-        // Update actual/forecast/previous if changed
-        const existingEv = existing[0];
+        const ex = existing[0];
         const needsUpdate =
-          (ev.actual && ev.actual !== existingEv.actual) ||
-          (ev.forecast && ev.forecast !== existingEv.estimate) ||
-          (ev.previous && ev.previous !== existingEv.prev);
+          (ev.actual && ev.actual !== ex.actual) ||
+          (ev.forecast && ev.forecast !== ex.estimate) ||
+          (ev.previous && ev.previous !== ex.prev) ||
+          (impact !== ex.impact);
 
         if (needsUpdate) {
           await supabase
             .from("economic_events")
             .update({
-              actual: ev.actual || existingEv.actual,
-              estimate: ev.forecast || existingEv.estimate,
-              prev: ev.previous || existingEv.prev,
+              actual: ev.actual || ex.actual,
+              estimate: ev.forecast || ex.estimate,
+              prev: ev.previous || ex.prev,
+              impact,
             })
-            .eq("id", existingEv.id);
+            .eq("id", ex.id);
           updated++;
         } else {
           skipped++;
         }
       } else {
-        // Insert new event
         const { error: insertErr } = await supabase
           .from("economic_events")
           .insert({
@@ -263,14 +324,7 @@ Content (first 60000 chars): ${markdown}`;
       }
     }
 
-    const result = {
-      ok: true,
-      total_extracted: events.length,
-      inserted,
-      updated,
-      skipped,
-    };
-
+    const result = { ok: true, total_extracted: events.length, inserted, updated, skipped };
     console.log("Result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {
