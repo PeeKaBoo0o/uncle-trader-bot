@@ -149,7 +149,7 @@ serve(async (req) => {
     const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
 
-    
+    const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -189,10 +189,9 @@ serve(async (req) => {
     const fngChange = marketData.fngToday - marketData.fngYesterday;
     const fngChangeStr = fngChange >= 0 ? `+${fngChange}` : `${fngChange}`;
 
-    // ─── AI Thumbnail via Lovable AI Gateway ───
+    // ─── AI Thumbnail via Gemini API ───
     let imageUrl: string | null = null;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (LOVABLE_API_KEY) {
+    if (GEMINI_KEY) {
       try {
         const fngVal = marketData.fngToday;
         const arrowDir = marketData.btcChange24h > 0 ? "upward green" : "downward red";
@@ -210,60 +209,46 @@ Style: Ultra-clean, professional fintech dashboard aesthetic. Minimal elements, 
 Do NOT include: people, faces, complex charts, candlesticks, paragraphs of text, logos other than Bitcoin symbol.
 Aspect ratio: 16:9, 800x450 pixels.`;
 
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_KEY}`;
+        const imgRes = await fetch(apiUrl, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
-            messages: [{ role: "user", content: imgPrompt }],
-            modalities: ["image", "text"],
+            contents: [{ parts: [{ text: imgPrompt }] }],
+            generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
           }),
         });
 
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          const images = aiData.choices?.[0]?.message?.images;
+        if (imgRes.ok) {
+          const imgData = await imgRes.json();
+          const parts = imgData.candidates?.[0]?.content?.parts || [];
+          const imgPart = parts.find((p: any) => p.inlineData);
 
-          if (images && images.length > 0) {
-            const dataUrl = images[0].image_url?.url;
-            if (dataUrl) {
-              // Extract base64 data from data URI
-              const base64Data = dataUrl.split(",")[1];
-              const mimeMatch = dataUrl.match(/data:([^;]+);/);
-              const mimeType = mimeMatch?.[1] || "image/png";
-              const ext = mimeType.includes("jpeg") ? "jpg" : "png";
-              const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          if (imgPart?.inlineData?.data) {
+            const mimeType = imgPart.inlineData.mimeType || "image/png";
+            const ext = mimeType.includes("jpeg") ? "jpg" : "png";
+            const bytes = Uint8Array.from(atob(imgPart.inlineData.data), c => c.charCodeAt(0));
+            const now = new Date();
+            const vn = new Date(now.getTime() + 7 * 3600 * 1000);
+            const dateStr = vn.toISOString().split("T")[0];
+            const timeStr2 = `${String(vn.getUTCHours()).padStart(2,"0")}${String(vn.getUTCMinutes()).padStart(2,"0")}`;
+            const fileName = `thumbnails/${dateStr}-${timeStr2}-market-pulse.${ext}`;
 
-              const now = new Date();
-              const vn = new Date(now.getTime() + 7 * 3600 * 1000);
-              const dateStr = vn.toISOString().split("T")[0];
-              const timeStr2 = `${String(vn.getUTCHours()).padStart(2,"0")}${String(vn.getUTCMinutes()).padStart(2,"0")}`;
-              const fileName = `thumbnails/${dateStr}-${timeStr2}-market-pulse.${ext}`;
+            const { error: uploadErr } = await supabase.storage
+              .from("news-images")
+              .upload(fileName, bytes, { contentType: mimeType, upsert: true });
 
-              const { error: uploadErr } = await supabase.storage
-                .from("news-images")
-                .upload(fileName, bytes, { contentType: mimeType, upsert: true });
-
-              if (!uploadErr) {
-                const { data: urlData } = supabase.storage.from("news-images").getPublicUrl(fileName);
-                imageUrl = urlData?.publicUrl || null;
-                console.log("Thumbnail uploaded:", imageUrl);
-              } else {
-                console.error("Upload error:", uploadErr);
-              }
+            if (!uploadErr) {
+              const { data: urlData } = supabase.storage.from("news-images").getPublicUrl(fileName);
+              imageUrl = urlData?.publicUrl || null;
+              console.log("Thumbnail uploaded:", imageUrl);
             }
           }
         } else {
-          const errText = await aiRes.text();
-          console.error("AI Gateway error:", aiRes.status, errText);
+          const errText = await imgRes.text();
+          console.error("Gemini API error:", imgRes.status, errText);
         }
       } catch (e) {
-        console.error("Image gen error:", e);
-      }
-    }
         console.error("Image gen error:", e);
       }
     }
