@@ -149,7 +149,7 @@ serve(async (req) => {
     const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
 
-    const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
