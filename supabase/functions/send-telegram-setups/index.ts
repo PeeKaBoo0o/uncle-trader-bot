@@ -118,13 +118,9 @@ Deno.serve(async (req) => {
     // Format and send
     const message = formatSetupMessage(setups, dateDisplay);
 
-    const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
+    const tgRes = await fetch(`${TG_API}/sendMessage`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": TELEGRAM_API_KEY,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
