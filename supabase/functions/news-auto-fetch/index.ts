@@ -403,23 +403,18 @@ async function countTodayAiImages(supabase: any): Promise<number> {
 
 // ─── Send news notification to Telegram ───
 async function sendNewsTelegram(articles: any[]) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
-  const chatId = Deno.env.get("TELEGRAM_CHAT_ID") || "-1003722231058";
-  if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) return;
+  const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  const chatId = "-1003722231058";
+  if (!BOT_TOKEN) return;
 
   for (const a of articles) {
     const badge = a.badge || "TIN MỚI";
     const msg = `📰 <b>[${badge}]</b> ${a.title}\n\n${(a.summary || "").slice(0, 300)}\n\n🔗 <a href="https://id-preview--a7129c6f-cb5d-4456-aa98-b694e89b3f10.lovable.app/tin-tuc/${a.id}">Đọc đầy đủ</a>`;
 
     try {
-      const res = await fetch("https://connector-gateway.lovable.dev/telegram/sendMessage", {
+      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "X-Connection-Api-Key": TELEGRAM_API_KEY,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: "HTML", message_thread_id: 329 }),
       });
       if (!res.ok) console.error("Telegram news send error:", await res.text());
