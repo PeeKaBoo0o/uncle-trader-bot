@@ -24,7 +24,7 @@ const useLivePrice = () => {
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=["BTCUSDT","XAUUSDT"]');
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy?symbols=${encodeURIComponent('["BTCUSDT","XAUUSDT"]')}`);
         const data = await res.json();
         const btcData = data.find((d: any) => d.symbol === 'BTCUSDT');
         const goldData = data.find((d: any) => d.symbol === 'XAUUSDT');
