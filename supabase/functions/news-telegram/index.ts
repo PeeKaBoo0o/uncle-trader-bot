@@ -23,17 +23,38 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch latest published news article
-    const { data: article, error } = await supabase
-      .from("news_articles")
-      .select("title, summary, source, published_at, badge, stream, image_url")
-      .eq("is_published", true)
-      .order("published_at", { ascending: false })
-      .limit(1)
-      .single();
+    // Support optional article_id from request body
+    let articleId: string | null = null;
+    try {
+      const body = await req.json();
+      articleId = body?.article_id || null;
+    } catch { /* no body */ }
 
-    if (error || !article) {
-      console.log("No news article found:", error?.message);
+    let article: any;
+    let fetchError: any;
+
+    if (articleId) {
+      const { data, error } = await supabase
+        .from("news_articles")
+        .select("title, summary, source, published_at, badge, stream, image_url")
+        .eq("id", articleId)
+        .single();
+      article = data;
+      fetchError = error;
+    } else {
+      const { data, error } = await supabase
+        .from("news_articles")
+        .select("title, summary, source, published_at, badge, stream, image_url")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(1)
+        .single();
+      article = data;
+      fetchError = error;
+    }
+
+    if (fetchError || !article) {
+      console.log("No news article found:", fetchError?.message);
       return new Response(JSON.stringify({ ok: true, sent: false, reason: "no_article" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
