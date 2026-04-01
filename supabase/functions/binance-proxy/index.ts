@@ -16,7 +16,7 @@ serve(async (req) => {
 
     let binanceUrl: string;
     if (symbols) {
-      binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(symbols)}`;
+      binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbols}`;
     } else if (symbol) {
       binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(symbol)}`;
     } else {
