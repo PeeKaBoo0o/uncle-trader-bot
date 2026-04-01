@@ -409,14 +409,31 @@ async function sendNewsTelegram(articles: any[]) {
 
   for (const a of articles) {
     const badge = a.badge || "TIN MỚI";
-    const msg = `📰 <b>[${badge}]</b> ${a.title}\n\n${(a.summary || "").slice(0, 300)}\n\n🔗 <a href="https://id-preview--a7129c6f-cb5d-4456-aa98-b694e89b3f10.lovable.app/tin-tuc/${a.id}">Đọc đầy đủ</a>`;
+    const caption = `📰 <b>[${badge}]</b> ${a.title}\n\n${(a.summary || "").slice(0, 300)}\n\n🔗 <a href="https://bright-build-beau.lovable.app/tin-tuc/${a.id}">Đọc đầy đủ</a>`;
 
     try {
-      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: "HTML", message_thread_id: 329 }),
-      });
+      let res: Response;
+      if (a.image_url) {
+        // Send as photo with caption
+        res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_thread_id: 329,
+            photo: a.image_url,
+            caption: caption.slice(0, 1024),
+            parse_mode: "HTML",
+          }),
+        });
+      } else {
+        // Fallback text-only
+        res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: "HTML", message_thread_id: 329 }),
+        });
+      }
       if (!res.ok) console.error("Telegram news send error:", await res.text());
     } catch (e) {
       console.error("Telegram news error:", e);
