@@ -215,23 +215,68 @@ async function aiGenerateImage(title: string, stream: string, originalImageUrl?:
     return null;
   }
 
-  const styleMap: Record<string, string> = {
-    hot: "vibrant crypto trading atmosphere, dramatic lighting with red/green accent glows, cinematic editorial quality",
-    whale: "deep ocean blue tones with subtle blockchain/network overlay, mysterious and powerful mood",
-    macro: "clean professional editorial style, modern financial/governmental aesthetic, sharp and authoritative",
-    event: "energetic and futuristic tech event vibe, spotlight effects, innovation and excitement",
-    sentiment: "moody atmospheric with data visualization overlay, abstract bull/bear energy, dramatic contrast",
+  // Multiple visual styles per stream for variety
+  const styleVariants: Record<string, string[]> = {
+    hot: [
+      "Neon-lit cyberpunk trading floor, holographic price charts floating in air, deep purple and electric blue with hot pink accents, volumetric fog",
+      "Dramatic close-up of a golden Bitcoin coin reflecting candlestick charts, shallow depth of field, warm amber and cool steel blue contrast, cinematic lens flare",
+      "Abstract 3D render of interconnected crypto nodes pulsing with energy, dark background with vivid red and green particle trails, sci-fi aesthetic",
+      "Aerial view of a futuristic digital city skyline made of circuit boards and blockchain blocks, sunset golden hour lighting, tilt-shift miniature effect",
+      "Macro shot of liquid gold and mercury merging into crypto symbols, studio lighting, hyper-realistic metallic textures, black velvet background",
+    ],
+    whale: [
+      "Massive glowing whale silhouette swimming through a sea of digital data streams, bioluminescent deep ocean blue and teal, ethereal and powerful",
+      "Dark moody underwater scene with blockchain networks forming like coral reefs, deep navy with cyan highlights, mysterious atmosphere",
+      "Giant wave of binary code crashing on a digital shoreline, moonlit night, silver and deep indigo color palette, dramatic long exposure feel",
+      "Abstract visualization of massive fund flows as rivers of light converging, top-down satellite view, electric blue on obsidian black",
+      "Crystalline iceberg floating in digital ocean, the submerged part revealing complex network structures, split underwater/above composition",
+    ],
+    macro: [
+      "Minimalist architectural shot of a modern central bank building with geometric glass facades reflecting economic data, cool gray and steel blue palette",
+      "Globe made of interlocking currency symbols and policy documents, dramatic side lighting, editorial magazine cover quality, warm gold and navy",
+      "Chess pieces on a board where squares show different country flags and economic indicators, shallow depth of field, sophisticated diplomatic mood",
+      "Split composition: traditional Wall Street facade on one side morphing into digital blockchain grid on the other, dawn lighting, transformation theme",
+      "Elegant still life of stacked gold bars, government seals, and a glowing digital tablet showing charts, Renaissance painting lighting style",
+    ],
+    event: [
+      "Futuristic product launch stage with holographic crypto logos, dramatic spotlight beams cutting through haze, electric purple and white, Apple keynote aesthetic",
+      "Rocket launch trailing blockchain-patterned exhaust, dramatic low angle, fiery orange and deep space black, motion blur conveying momentum",
+      "Countdown timer display surrounded by celebratory particle explosions, vibrant multicolor on dark, festival energy with tech precision",
+      "Origami-style paper art of crypto symbols unfolding and transforming, clean white background with a single bold accent color, creative and fresh",
+      "Time-lapse composite of a digital flower blooming made of circuit patterns, representing growth and new beginnings, soft gradients and intricate detail",
+    ],
+    sentiment: [
+      "Dramatic split face composition: one half showing fearful bear in stormy red atmosphere, other half showing confident bull in serene green light, emotional contrast",
+      "Abstract emotional landscape where rolling hills are made of sentiment wave patterns, aurora borealis sky reflecting market mood, dreamy and analytical",
+      "Vintage analog mood meter/gauge with a modern digital overlay, steampunk meets fintech, brass and copper tones with neon data readouts",
+      "Human eye extreme close-up with candlestick chart reflections in the iris, photorealistic, moody dark tones with sharp green/red chart highlights",
+      "Weather map reimagined as market sentiment map, storm clouds over fear zones, sunshine over greed zones, meteorological infographic aesthetic",
+    ],
   };
 
-  const style = styleMap[stream] || styleMap.hot;
+  const variants = styleVariants[stream] || styleVariants.hot;
+  // Pick a variant based on title hash to ensure different articles get different styles
+  const titleHash = title.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+  const variantIdx = Math.abs(titleHash) % variants.length;
+  const chosenStyle = variants[variantIdx];
 
   let prompt: string;
   const parts: any[] = [];
 
   if (originalImageUrl && !originalImageUrl.includes("unsplash.com")) {
-    prompt = `Transform this news image into a stunning, professional crypto editorial illustration. Style: ${style}. Context: "${title}". Make it more visually captivating and polished. Enhance colors, add cinematic depth and dramatic lighting. Keep the core subject recognizable but elevate the visual quality. No text, no watermarks. 16:9 aspect ratio.`;
+    prompt = `Use this reference image as inspiration for composition and subject matter. Create a COMPLETELY NEW, stunning editorial illustration.
+
+Visual direction: ${chosenStyle}
+
+Topic: "${title}"
+
+Requirements:
+- Ultra high quality, 4K editorial photography/illustration feel
+- Unique composition that stands out from generic crypto imagery
+- Rich color depth and dramatic lighting with clear focal point
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, or logos anywhere in the image
+- 16:9 aspect ratio, 800x450px`;
     
-    // Try to fetch original image and include as inline data
     try {
       const imgRes = await fetch(originalImageUrl);
       if (imgRes.ok) {
@@ -240,12 +285,21 @@ async function aiGenerateImage(title: string, stream: string, originalImageUrl?:
         const mimeType = imgRes.headers.get("content-type") || "image/jpeg";
         parts.push({ inline_data: { mime_type: mimeType, data: imgBase64 } });
       }
-    } catch {
-      // If image fetch fails, just generate from text
-    }
+    } catch {}
     parts.push({ text: prompt });
   } else {
-    prompt = `Create a stunning, photorealistic crypto news illustration for: "${title}". Style: ${style}. Cinematic quality, dramatic lighting, rich colors, professional editorial photography feel. Highly detailed and visually captivating. No text, no watermarks. 16:9 aspect ratio.`;
+    prompt = `Create a stunning, unique editorial illustration for a crypto news article.
+
+Visual direction: ${chosenStyle}
+
+Topic: "${title}"
+
+Requirements:
+- Ultra high quality, 4K editorial photography/illustration feel
+- Unique composition — avoid generic stock photo looks
+- Rich color depth and dramatic lighting with clear focal point
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, or logos anywhere in the image
+- 16:9 aspect ratio, 800x450px`;
     parts.push({ text: prompt });
   }
 
