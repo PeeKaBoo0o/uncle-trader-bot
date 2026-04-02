@@ -45,6 +45,8 @@ const Analysis: React.FC = () => {
   const [history, setHistory] = useState<{ asset: string; commentary: string; commentary_date: string; created_at: string }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const btcChartRef = useRef<HTMLDivElement>(null);
+  const goldChartRef = useRef<HTMLDivElement>(null);
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Data hooks
@@ -221,15 +223,37 @@ const Analysis: React.FC = () => {
     } catch (e) { console.error('Screenshot failed:', e); }
   }, [btcTimeframe]);
 
-  // Send signal
+  // Send signal with chart screenshot
   const handleSendSignal = useCallback(async (symbol: string) => {
     setSendingSignal(symbol);
     const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     try {
+      // Capture chart screenshot
+      const chartRef = symbol === 'BTCUSDT' ? btcChartRef : goldChartRef;
+      let chartImage: string | null = null;
+      if (chartRef.current) {
+        try {
+          const canvas = await html2canvas(chartRef.current, {
+            backgroundColor: '#0b0e11',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+          });
+          chartImage = canvas.toDataURL('image/png');
+        } catch (e) {
+          console.warn('Chart capture failed:', e);
+        }
+      }
+
       await supabase.functions.invoke('signal-bot', {
-        body: { mode: 'scan', symbols: [symbol], timeframe: symbol === 'BTCUSDT' ? btcTimeframe : goldTimeframe }
+        body: {
+          mode: 'scan',
+          symbols: [symbol],
+          timeframe: symbol === 'BTCUSDT' ? btcTimeframe : goldTimeframe,
+          chartImage,
+        }
       });
-      setLogs(prev => [`[${now}] ✅ Signal ${symbol} sent`, ...prev].slice(0, 15));
+      setLogs(prev => [`[${now}] ✅ Signal ${symbol} sent (with chart)`, ...prev].slice(0, 15));
     } catch (e: any) {
       setLogs(prev => [`[${now}] ❌ Failed: ${e.message}`, ...prev].slice(0, 15));
     } finally { setSendingSignal(null); }
@@ -374,7 +398,7 @@ const Analysis: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
               {/* ── BTC Column ── */}
-              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/btc')} title="Nhấp để xem chi tiết BTC/USDT">
+              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/btc')} title="Nhấp để xem chi tiết BTC/USDT" ref={btcChartRef}>
                 {btcData.loading ? (
                   <div className="flex items-center justify-center h-[360px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
@@ -407,7 +431,7 @@ const Analysis: React.FC = () => {
               </div>
 
               {/* ── GOLD Column ── */}
-              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/xau')} title="Nhấp để xem chi tiết XAU/USD">
+              <div className="space-y-2 cursor-pointer" onClick={() => navigate('/phan-tich/xau')} title="Nhấp để xem chi tiết XAU/USD" ref={goldChartRef}>
                 {goldData.loading ? (
                   <div className="flex items-center justify-center h-[360px] bg-[#0d1117] rounded-xl">
                     <div className="flex flex-col items-center gap-3">
