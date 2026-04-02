@@ -86,6 +86,7 @@ serve(async (req) => {
       );
     }
 
+    const now = new Date();
     let sentCount = 0;
 
     for (const ev of events) {
