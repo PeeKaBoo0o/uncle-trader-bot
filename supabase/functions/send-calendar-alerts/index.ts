@@ -60,7 +60,6 @@ serve(async (req) => {
         prev: "151K",
       }];
     } else {
-      const now = new Date();
       const minTime = new Date(now.getTime() + 9 * 60 * 1000);
       const maxTime = new Date(now.getTime() + 11 * 60 * 1000);
 
