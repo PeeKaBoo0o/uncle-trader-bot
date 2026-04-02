@@ -221,20 +221,8 @@ const News: React.FC = () => {
                       </h3>
                       <span className="text-[10px] text-muted-foreground/60 mb-3">{formatDate(article.published_at)}</span>
 
-                      {/* AI Summary */}
-                      {bullets.length > 0 && (
-                        <div className="bg-white/[0.03] rounded-lg p-3 border border-white/5 mb-3 flex-1">
-                          <div className="text-[9px] font-bold text-cyan-400/80 uppercase tracking-wider mb-2">✨ AI Tóm Tắt</div>
-                          <ul className="space-y-1.5">
-                            {bullets.slice(0, 3).map((bullet, i) => (
-                              <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground leading-relaxed">
-                                <span className="text-cyan-400 mt-0.5 shrink-0">•</span>
-                                <span>{bullet}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+
+
 
                       <div className="space-y-2 mt-auto">
                         <Link to={`/tin-tuc/${article.id}?stream=${article.stream}`}
