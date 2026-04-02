@@ -152,6 +152,36 @@ export type Database = {
         }
         Relationships: []
       }
+      market_commentaries: {
+        Row: {
+          asset: string
+          commentary: string
+          commentary_date: string
+          created_at: string
+          id: string
+          market_data: Json | null
+          updated_at: string
+        }
+        Insert: {
+          asset: string
+          commentary: string
+          commentary_date?: string
+          created_at?: string
+          id?: string
+          market_data?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          asset?: string
+          commentary?: string
+          commentary_date?: string
+          created_at?: string
+          id?: string
+          market_data?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       news_articles: {
         Row: {
           badge: string | null

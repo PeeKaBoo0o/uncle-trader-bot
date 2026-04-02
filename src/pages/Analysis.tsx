@@ -10,7 +10,7 @@ import { useDXY } from '@/hooks/useDXY';
 import { supabase } from '@/integrations/supabase/client';
 import html2canvas from 'html2canvas';
 import { computeDualTrendlines } from '@/lib/computeTrendline';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, History } from 'lucide-react';
 
 const TIMEFRAMES = ['M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
 
@@ -35,10 +35,15 @@ const Analysis: React.FC = () => {
   const [scanLabel, setScanLabel] = useState('');
   const [autoSignal, setAutoSignal] = useState(false);
   const [sendingSignal, setSendingSignal] = useState<string | null>(null);
-  const [commentary, setCommentary] = useState('');
+  const [btcCommentary, setBtcCommentary] = useState('');
+  const [xauCommentary, setXauCommentary] = useState('');
   const [commentaryLoading, setCommentaryLoading] = useState(false);
   const [commentaryFailed, setCommentaryFailed] = useState(false);
   const [commentaryTime, setCommentaryTime] = useState('');
+  const [commentaryDate, setCommentaryDate] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<{ asset: string; commentary: string; commentary_date: string; created_at: string }[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -85,6 +90,27 @@ const Analysis: React.FC = () => {
   const btcAI = getAIPoints(btcData, 'BTC');
   const goldAI = getAIPoints(goldData, 'XAU');
 
+  // ── Load today's commentary from DB first ──
+  useEffect(() => {
+    const loadToday = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('market_commentaries')
+        .select('asset, commentary, commentary_date, created_at')
+        .eq('commentary_date', today);
+      if (data && data.length > 0) {
+        const btcRow = data.find(r => r.asset === 'BTC');
+        const xauRow = data.find(r => r.asset === 'XAU');
+        if (btcRow) setBtcCommentary(btcRow.commentary);
+        if (xauRow) setXauCommentary(xauRow.commentary);
+        const latest = data.reduce((a, b) => a.created_at > b.created_at ? a : b);
+        setCommentaryTime(new Date(latest.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
+        setCommentaryDate(today);
+      }
+    };
+    loadToday();
+  }, []);
+
   // ── Fetch AI Commentary ──
   const fetchCommentary = useCallback(async () => {
     if (commentaryLoading) return;
@@ -100,28 +126,42 @@ const Analysis: React.FC = () => {
       });
       if (error) throw error;
       if (data.credit_error || data.rate_limited) {
-        setCommentary(data.commentary || '');
         setCommentaryFailed(true);
       } else {
-        setCommentary(data.commentary || '');
+        setBtcCommentary(data.btc_commentary || '');
+        setXauCommentary(data.xau_commentary || '');
         setCommentaryFailed(false);
+        setCommentaryDate(data.commentary_date || new Date().toISOString().slice(0, 10));
       }
       setCommentaryTime(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       console.error('Commentary error:', e);
-      setCommentary('⚠️ Không thể tạo nhận định lúc này. Vui lòng thử lại sau.');
       setCommentaryFailed(true);
     } finally {
       setCommentaryLoading(false);
     }
   }, [btcAI, goldAI, btcPrice, goldPrice, dxy.value, dxy.changePercent, btcTimeframe, goldTimeframe, commentaryLoading]);
 
-  // Auto-fetch commentary when AI points are ready (only once, don't retry on failure)
+  // Auto-fetch commentary when AI points are ready & no existing commentary
   useEffect(() => {
-    if ((btcAI || goldAI) && !commentary && !commentaryLoading && !commentaryFailed) {
+    if ((btcAI || goldAI) && !btcCommentary && !xauCommentary && !commentaryLoading && !commentaryFailed) {
       fetchCommentary();
     }
   }, [btcAI, goldAI]);
+
+  // ── Load history ──
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from('market_commentaries')
+      .select('asset, commentary, commentary_date, created_at')
+      .lt('commentary_date', today)
+      .order('commentary_date', { ascending: false })
+      .limit(20);
+    setHistory(data || []);
+    setHistoryLoading(false);
+  }, []);
 
   // ── Compute trendlines from candle data ──
   const btcTrendlines = useMemo(() => computeDualTrendlines(btcData.candles), [btcData.candles]);
@@ -420,17 +460,39 @@ const Analysis: React.FC = () => {
                 </button>
               </div>
 
-              {commentaryLoading && !commentary ? (
-                <div className="space-y-3 animate-pulse">
-                  <div className="h-3 bg-foreground/5 rounded w-full" />
-                  <div className="h-3 bg-foreground/5 rounded w-11/12" />
-                  <div className="h-3 bg-foreground/5 rounded w-4/5" />
-                  <div className="h-3 bg-foreground/5 rounded w-full" />
-                  <div className="h-3 bg-foreground/5 rounded w-3/4" />
+              {commentaryLoading && !btcCommentary && !xauCommentary ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[0, 1].map(i => (
+                    <div key={i} className="space-y-3 animate-pulse p-3 rounded-lg bg-foreground/[0.02]">
+                      <div className="h-3 bg-foreground/5 rounded w-1/3" />
+                      <div className="h-3 bg-foreground/5 rounded w-full" />
+                      <div className="h-3 bg-foreground/5 rounded w-11/12" />
+                      <div className="h-3 bg-foreground/5 rounded w-4/5" />
+                    </div>
+                  ))}
                 </div>
-              ) : commentary ? (
-                <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {commentary}
+              ) : btcCommentary || xauCommentary ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* BTC Column */}
+                  <div className="rounded-lg border border-amber-500/10 bg-amber-500/[0.03] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm">₿</span>
+                      <span className="text-xs font-bold text-amber-400 font-mono">BTC/USDT</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {btcCommentary || '⏳ Chưa có dữ liệu...'}
+                    </div>
+                  </div>
+                  {/* XAU Column */}
+                  <div className="rounded-lg border border-yellow-500/10 bg-yellow-500/[0.03] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm">🥇</span>
+                      <span className="text-xs font-bold text-yellow-400 font-mono">XAU/USD</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {xauCommentary || '⏳ Chưa có dữ liệu...'}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground/40 text-center py-6">
@@ -438,9 +500,61 @@ const Analysis: React.FC = () => {
                 </div>
               )}
 
-              <div className="mt-4 pt-3 border-t border-foreground/5 text-[9px] text-muted-foreground/40">
-                ⚠️ Bài nhận định được tạo bởi AI, chỉ mang tính tham khảo. Không phải lời khuyên đầu tư.
+              {/* History toggle */}
+              <div className="mt-4 pt-3 border-t border-foreground/5 flex items-center justify-between">
+                <span className="text-[9px] text-muted-foreground/40">
+                  ⚠️ Nhận định bởi AI, chỉ mang tính tham khảo.
+                </span>
+                <button
+                  onClick={() => {
+                    setShowHistory(!showHistory);
+                    if (!showHistory && history.length === 0) loadHistory();
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+                >
+                  <History className="w-3 h-3" />
+                  {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
+                </button>
               </div>
+
+              {/* History section */}
+              {showHistory && (
+                <div className="mt-3 space-y-3 max-h-[400px] overflow-y-auto">
+                  {historyLoading ? (
+                    <div className="text-[10px] text-muted-foreground/40 text-center py-4">Đang tải...</div>
+                  ) : history.length === 0 ? (
+                    <div className="text-[10px] text-muted-foreground/40 text-center py-4">Chưa có nhận định cũ.</div>
+                  ) : (
+                    (() => {
+                      // Group by date
+                      const grouped: Record<string, typeof history> = {};
+                      history.forEach(h => {
+                        if (!grouped[h.commentary_date]) grouped[h.commentary_date] = [];
+                        grouped[h.commentary_date].push(h);
+                      });
+                      return Object.entries(grouped).map(([date, items]) => (
+                        <div key={date} className="rounded-lg border border-foreground/5 p-3">
+                          <div className="text-[10px] font-bold text-muted-foreground/60 mb-2 font-mono">
+                            📅 {new Date(date).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {items.map((item, i) => (
+                              <div key={i} className={`rounded-lg p-3 ${item.asset === 'BTC' ? 'border border-amber-500/10 bg-amber-500/[0.02]' : 'border border-yellow-500/10 bg-yellow-500/[0.02]'}`}>
+                                <span className={`text-[10px] font-bold font-mono ${item.asset === 'BTC' ? 'text-amber-400' : 'text-yellow-400'}`}>
+                                  {item.asset === 'BTC' ? '₿ BTC' : '🥇 XAU'}
+                                </span>
+                                <div className="text-[10px] text-muted-foreground/60 leading-relaxed mt-1 whitespace-pre-line">
+                                  {item.commentary}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ));
+                    })()
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
