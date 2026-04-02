@@ -471,6 +471,7 @@ serve(async (req) => {
     const timeframe = body.timeframe || "H4";
     const interval = TF_MAP[timeframe] || "4h";
     const limit = body.limit || 100;
+    const chartImage = body.chartImage || null; // base64 chart screenshot
 
     const endTime = body.endTime || undefined;
 
