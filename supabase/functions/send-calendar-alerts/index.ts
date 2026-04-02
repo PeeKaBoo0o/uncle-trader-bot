@@ -39,26 +39,47 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const now = new Date();
-    // Window: events happening in 9-11 minutes from now
-    const minTime = new Date(now.getTime() + 9 * 60 * 1000);
-    const maxTime = new Date(now.getTime() + 11 * 60 * 1000);
+    // Check for test mode
+    let isTest = false;
+    try {
+      const body = await req.json();
+      isTest = body?.test_send === true;
+    } catch { /* no body */ }
 
-    console.log(`Checking alerts: ${minTime.toISOString()} → ${maxTime.toISOString()}`);
+    let events: any[] = [];
 
-    // Only 3-star (high impact) events, not yet alerted
-    const { data: events, error: fetchErr } = await supabase
-      .from("economic_events")
-      .select("*")
-      .eq("impact", "high")
-      .eq("telegram_alerted", false)
-      .gte("event_time", minTime.toISOString())
-      .lte("event_time", maxTime.toISOString())
-      .order("event_time", { ascending: true });
+    if (isTest) {
+      // Send a sample test alert
+      events = [{
+        id: "test",
+        event_name: "Bảng Lương Phi Nông Nghiệp (NFP) (Tháng 3)",
+        event_time: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        impact: "high",
+        flag: "🇺🇸",
+        estimate: "140K",
+        prev: "151K",
+      }];
+    } else {
+      const now = new Date();
+      const minTime = new Date(now.getTime() + 9 * 60 * 1000);
+      const maxTime = new Date(now.getTime() + 11 * 60 * 1000);
 
-    if (fetchErr) throw new Error(`DB error: ${fetchErr.message}`);
+      console.log(`Checking alerts: ${minTime.toISOString()} → ${maxTime.toISOString()}`);
 
-    if (!events || events.length === 0) {
+      const { data, error: fetchErr } = await supabase
+        .from("economic_events")
+        .select("*")
+        .eq("impact", "high")
+        .eq("telegram_alerted", false)
+        .gte("event_time", minTime.toISOString())
+        .lte("event_time", maxTime.toISOString())
+        .order("event_time", { ascending: true });
+
+      if (fetchErr) throw new Error(`DB error: ${fetchErr.message}`);
+      events = data || [];
+    }
+
+    if (events.length === 0) {
       return new Response(
         JSON.stringify({ ok: true, sent: 0, reason: "no_upcoming_events" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
