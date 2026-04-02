@@ -508,7 +508,50 @@ serve(async (req) => {
       });
     }
 
-    // Mode: scan (signal bot)
+    // Mode: resend last signal (for testing)
+    if (mode === "resend-last") {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const telegramChatId = body.telegram_chat_id || Deno.env.get("TELEGRAM_CHAT_ID");
+
+      const { data: lastSignal } = await supabase
+        .from("signals")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!lastSignal) {
+        return new Response(JSON.stringify({ error: "No signals found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const msg = `[TÍN HIỆU ${lastSignal.symbol}] - KHUNG ${lastSignal.timeframe}
+🏆 ĐỘ TIN CẬY: ${lastSignal.strength}
+
+📥 CÁC ĐIỀU KIỆN HỘI TỤ:
+${(lastSignal.conditions as string[]).map((c: string) => `• ${c}`).join("\n")}
+
+💰 GIÁ HIỆN TẠI: ${Number(lastSignal.price).toFixed(2)}
+📊 RSI: ${Number(lastSignal.rsi).toFixed(1)} | VOL: ${Number(lastSignal.vol_ratio).toFixed(1)}x
+
+⚠️ Chờ nến ${lastSignal.timeframe} đóng cửa để xác nhận.`;
+
+      if (telegramChatId) {
+        if (chartImage) {
+          await sendTelegramPhoto(telegramChatId, chartImage, msg, 9);
+        } else {
+          await sendTelegram(telegramChatId, msg, 9);
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true, resent: lastSignal }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const symbols = body.symbols || ["BTCUSDT", "XAUUSDT"];
     const telegramChatId = body.telegram_chat_id || Deno.env.get("TELEGRAM_CHAT_ID");
 
