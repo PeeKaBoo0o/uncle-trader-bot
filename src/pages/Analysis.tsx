@@ -442,22 +442,12 @@ const Analysis: React.FC = () => {
 
             {/* ── AI MARKET COMMENTARY ── */}
             <div className="glass-card rounded-xl p-5 border border-primary/10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-4 h-4 text-primary" />
                   <span className="text-sm font-bold text-foreground">Nhận Định Thị Trường — AI Gemini</span>
                   {commentaryTime && (
                     <span className="text-[9px] text-muted-foreground/50 font-mono ml-2">cập nhật {commentaryTime}</span>
                   )}
-                </div>
-                <button
-                  onClick={fetchCommentary}
-                  disabled={commentaryLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-primary border border-primary/20 hover:bg-primary/10 transition-all disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3 h-3 ${commentaryLoading ? 'animate-spin' : ''}`} />
-                  {commentaryLoading ? 'Đang viết...' : 'Viết lại'}
-                </button>
               </div>
 
               {commentaryLoading && !btcCommentary && !xauCommentary ? (
