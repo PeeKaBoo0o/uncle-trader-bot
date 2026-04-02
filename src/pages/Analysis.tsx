@@ -45,6 +45,8 @@ const Analysis: React.FC = () => {
   const [history, setHistory] = useState<{ asset: string; commentary: string; commentary_date: string; created_at: string }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const btcChartRef = useRef<HTMLDivElement>(null);
+  const goldChartRef = useRef<HTMLDivElement>(null);
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Data hooks
