@@ -412,6 +412,35 @@ async function sendTelegram(chatId: string, text: string, messageThreadId?: numb
   }
 }
 
+async function sendTelegramPhoto(chatId: string, imageBase64: string, caption: string, messageThreadId?: number) {
+  const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  if (!BOT_TOKEN) {
+    console.log("TELEGRAM_BOT_TOKEN not configured, skipping photo send");
+    return;
+  }
+
+  // Convert base64 to binary
+  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+  const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+  const formData = new FormData();
+  formData.append("chat_id", chatId);
+  formData.append("photo", new Blob([binaryData], { type: "image/png" }), "chart.png");
+  formData.append("caption", caption);
+  formData.append("parse_mode", "HTML");
+  if (messageThreadId) formData.append("message_thread_id", String(messageThreadId));
+
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("Telegram sendPhoto error:", err);
+  }
+}
+
 function formatTelegramMessage(symbol: string, timeframe: string, conditions: ConditionResult[], price: number, rsiVal: number, volRatio: number, strength: string): string {
   const triggered = conditions.filter(c => c.triggered);
   const condList = triggered.map(c => `• ${c.name}: ${c.detail || ""}`).join("\n");
