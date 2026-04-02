@@ -223,15 +223,37 @@ const Analysis: React.FC = () => {
     } catch (e) { console.error('Screenshot failed:', e); }
   }, [btcTimeframe]);
 
-  // Send signal
+  // Send signal with chart screenshot
   const handleSendSignal = useCallback(async (symbol: string) => {
     setSendingSignal(symbol);
     const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     try {
+      // Capture chart screenshot
+      const chartRef = symbol === 'BTCUSDT' ? btcChartRef : goldChartRef;
+      let chartImage: string | null = null;
+      if (chartRef.current) {
+        try {
+          const canvas = await html2canvas(chartRef.current, {
+            backgroundColor: '#0b0e11',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+          });
+          chartImage = canvas.toDataURL('image/png');
+        } catch (e) {
+          console.warn('Chart capture failed:', e);
+        }
+      }
+
       await supabase.functions.invoke('signal-bot', {
-        body: { mode: 'scan', symbols: [symbol], timeframe: symbol === 'BTCUSDT' ? btcTimeframe : goldTimeframe }
+        body: {
+          mode: 'scan',
+          symbols: [symbol],
+          timeframe: symbol === 'BTCUSDT' ? btcTimeframe : goldTimeframe,
+          chartImage,
+        }
       });
-      setLogs(prev => [`[${now}] ✅ Signal ${symbol} sent`, ...prev].slice(0, 15));
+      setLogs(prev => [`[${now}] ✅ Signal ${symbol} sent (with chart)`, ...prev].slice(0, 15));
     } catch (e: any) {
       setLogs(prev => [`[${now}] ❌ Failed: ${e.message}`, ...prev].slice(0, 15));
     } finally { setSendingSignal(null); }
