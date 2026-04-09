@@ -515,15 +515,19 @@ serve(async (req) => {
     console.log(`🔍 Found ${recentTitles.size} recent articles for dedup`);
 
     // 1. Fetch raw news from multiple sources in parallel
-    const [ccNews, trendingCoins, coinDeskRss, decryptRss, cointelegraphRss] = await Promise.all([
+    const [ccNews, trendingCoins, coinDeskRss, decryptRss, cointelegraphRss, theBlockRss, bitcoinMagRss, dlNewsRss, blockworksRss] = await Promise.all([
       fetchCryptoCompareNews(),
       fetchCoinGeckoTrending(),
       fetchRSS("https://www.coindesk.com/arc/outboundfeeds/rss/"),
       fetchRSS("https://decrypt.co/feed"),
       fetchRSS("https://cointelegraph.com/rss"),
+      fetchRSS("https://www.theblock.co/rss.xml"),
+      fetchRSS("https://bitcoinmagazine.com/.rss/full/"),
+      fetchRSS("https://www.dlnews.com/arc/outboundfeeds/rss/"),
+      fetchRSS("https://blockworks.co/feed"),
     ]);
 
-    console.log(`📰 Fetched: CC=${ccNews.length}, CoinDesk=${coinDeskRss.length}, Decrypt=${decryptRss.length}, CT=${cointelegraphRss.length}`);
+    console.log(`📰 Fetched: CC=${ccNews.length}, CoinDesk=${coinDeskRss.length}, Decrypt=${decryptRss.length}, CT=${cointelegraphRss.length}, TheBlock=${theBlockRss.length}, BtcMag=${bitcoinMagRss.length}, DLNews=${dlNewsRss.length}, Blockworks=${blockworksRss.length}`);
 
     // 2. Normalize all articles
     const allRawArticles: Array<{title: string; body: string; imageUrl: string | null; source: string}> = [];
@@ -561,13 +565,31 @@ serve(async (req) => {
       if (isDuplicate(a.title)) continue;
       allRawArticles.push({ title: a.title, body: a.description, imageUrl: a.imageUrl, source: "CoinTelegraph" });
     }
+    for (const a of theBlockRss) {
+      if (isDuplicate(a.title)) continue;
+      allRawArticles.push({ title: a.title, body: a.description, imageUrl: a.imageUrl, source: "The Block" });
+    }
+    for (const a of bitcoinMagRss) {
+      if (isDuplicate(a.title)) continue;
+      allRawArticles.push({ title: a.title, body: a.description, imageUrl: a.imageUrl, source: "Bitcoin Magazine" });
+    }
+    for (const a of dlNewsRss) {
+      if (isDuplicate(a.title)) continue;
+      allRawArticles.push({ title: a.title, body: a.description, imageUrl: a.imageUrl, source: "DL News" });
+    }
+    for (const a of blockworksRss) {
+      if (isDuplicate(a.title)) continue;
+      allRawArticles.push({ title: a.title, body: a.description, imageUrl: a.imageUrl, source: "Blockworks" });
+    }
 
     console.log(`✅ After dedup: ${allRawArticles.length} unique articles`);
 
-    // 3. Classify and pick 1 article per stream
-    const streamPicks: Record<string, typeof allRawArticles[0]> = {};
+    // 3. Pick 6 articles per cycle (distribute across streams, allow multiple per stream)
+    const ARTICLES_PER_CYCLE = 6;
+    const streamPicks: Array<{ article: typeof allRawArticles[0]; stream: string }> = [];
     const usedIndices = new Set<number>();
 
+    // First pass: pick 1 best article per stream
     for (const stream of STREAMS) {
       let bestIdx = -1;
       let bestScore = -1;
@@ -587,36 +609,51 @@ serve(async (req) => {
       }
 
       if (bestIdx >= 0) {
-        streamPicks[stream] = allRawArticles[bestIdx];
+        streamPicks.push({ article: allRawArticles[bestIdx], stream });
         usedIndices.add(bestIdx);
       }
     }
 
-    // Fill any empty streams with remaining articles
-    for (const stream of STREAMS) {
-      if (!streamPicks[stream]) {
-        for (let i = 0; i < allRawArticles.length; i++) {
-          if (!usedIndices.has(i)) {
-            streamPicks[stream] = allRawArticles[i];
-            usedIndices.add(i);
-            break;
+    // Second pass: fill remaining slots with best-scoring unused articles
+    while (streamPicks.length < ARTICLES_PER_CYCLE && usedIndices.size < allRawArticles.length) {
+      let bestIdx = -1;
+      let bestStream = "hot";
+      let bestScore = -1;
+
+      for (let i = 0; i < allRawArticles.length; i++) {
+        if (usedIndices.has(i)) continue;
+        const a = allRawArticles[i];
+        const text = `${a.title} ${a.body}`.toLowerCase();
+        for (const stream of STREAMS) {
+          let score = 0;
+          for (const kw of STREAM_KEYWORDS[stream]) {
+            if (text.includes(kw.toLowerCase())) score++;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
+            bestStream = stream;
           }
         }
       }
+
+      if (bestIdx >= 0) {
+        streamPicks.push({ article: allRawArticles[bestIdx], stream: bestStream });
+        usedIndices.add(bestIdx);
+      } else break;
     }
 
-    console.log(`🎯 Picked articles for streams: ${Object.keys(streamPicks).join(", ")}`);
+    console.log(`🎯 Picked ${streamPicks.length} articles for this cycle`);
 
     // AI images: no daily cap, Gemini API has its own quota
     let aiImagesGenerated = 0;
 
 
-    // 5. Process each stream article: AI rewrite + image
+    // 5. Process each picked article: AI rewrite + image
     const insertArticles: any[] = [];
 
-    for (const stream of STREAMS) {
-      const raw = streamPicks[stream];
-      if (!raw) continue;
+    for (const pick of streamPicks) {
+      const { article: raw, stream } = pick;
 
       console.log(`📝 Processing ${stream}: "${raw.title.slice(0, 50)}..."`);
 
@@ -628,10 +665,6 @@ serve(async (req) => {
         continue;
       }
 
-      // Image strategy:
-      // 1. Try AI generation if budget allows (spread across streams)
-      // 2. Use original source image if available
-      // 3. Fall back to diverse Unsplash image based on stream + title
       let imageUrl: string | null = null;
 
       console.log(`🎨 Generating AI image for ${stream}...`);
@@ -642,12 +675,10 @@ serve(async (req) => {
       }
 
       if (!imageUrl && raw.imageUrl && !raw.imageUrl.includes("unsplash.com")) {
-        // Use original source image (but not Unsplash placeholders)
         imageUrl = raw.imageUrl;
       }
 
       if (!imageUrl) {
-        // Fallback: diverse Unsplash image unique to this stream + title
         imageUrl = await searchFreeImage(rewritten.title, stream);
       }
 
