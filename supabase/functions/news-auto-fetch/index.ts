@@ -584,10 +584,12 @@ serve(async (req) => {
 
     console.log(`✅ After dedup: ${allRawArticles.length} unique articles`);
 
-    // 3. Classify and pick 1 article per stream
-    const streamPicks: Record<string, typeof allRawArticles[0]> = {};
+    // 3. Pick 6 articles per cycle (distribute across streams, allow multiple per stream)
+    const ARTICLES_PER_CYCLE = 6;
+    const streamPicks: Array<{ article: typeof allRawArticles[0]; stream: string }> = [];
     const usedIndices = new Set<number>();
 
+    // First pass: pick 1 best article per stream
     for (const stream of STREAMS) {
       let bestIdx = -1;
       let bestScore = -1;
@@ -607,25 +609,41 @@ serve(async (req) => {
       }
 
       if (bestIdx >= 0) {
-        streamPicks[stream] = allRawArticles[bestIdx];
+        streamPicks.push({ article: allRawArticles[bestIdx], stream });
         usedIndices.add(bestIdx);
       }
     }
 
-    // Fill any empty streams with remaining articles
-    for (const stream of STREAMS) {
-      if (!streamPicks[stream]) {
-        for (let i = 0; i < allRawArticles.length; i++) {
-          if (!usedIndices.has(i)) {
-            streamPicks[stream] = allRawArticles[i];
-            usedIndices.add(i);
-            break;
+    // Second pass: fill remaining slots with best-scoring unused articles
+    while (streamPicks.length < ARTICLES_PER_CYCLE && usedIndices.size < allRawArticles.length) {
+      let bestIdx = -1;
+      let bestStream = "hot";
+      let bestScore = -1;
+
+      for (let i = 0; i < allRawArticles.length; i++) {
+        if (usedIndices.has(i)) continue;
+        const a = allRawArticles[i];
+        const text = `${a.title} ${a.body}`.toLowerCase();
+        for (const stream of STREAMS) {
+          let score = 0;
+          for (const kw of STREAM_KEYWORDS[stream]) {
+            if (text.includes(kw.toLowerCase())) score++;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
+            bestStream = stream;
           }
         }
       }
+
+      if (bestIdx >= 0) {
+        streamPicks.push({ article: allRawArticles[bestIdx], stream: bestStream });
+        usedIndices.add(bestIdx);
+      } else break;
     }
 
-    console.log(`🎯 Picked articles for streams: ${Object.keys(streamPicks).join(", ")}`);
+    console.log(`🎯 Picked ${streamPicks.length} articles for this cycle`);
 
     // AI images: no daily cap, Gemini API has its own quota
     let aiImagesGenerated = 0;
