@@ -649,12 +649,11 @@ serve(async (req) => {
     let aiImagesGenerated = 0;
 
 
-    // 5. Process each stream article: AI rewrite + image
+    // 5. Process each picked article: AI rewrite + image
     const insertArticles: any[] = [];
 
-    for (const stream of STREAMS) {
-      const raw = streamPicks[stream];
-      if (!raw) continue;
+    for (const pick of streamPicks) {
+      const { article: raw, stream } = pick;
 
       console.log(`📝 Processing ${stream}: "${raw.title.slice(0, 50)}..."`);
 
@@ -666,10 +665,6 @@ serve(async (req) => {
         continue;
       }
 
-      // Image strategy:
-      // 1. Try AI generation if budget allows (spread across streams)
-      // 2. Use original source image if available
-      // 3. Fall back to diverse Unsplash image based on stream + title
       let imageUrl: string | null = null;
 
       console.log(`🎨 Generating AI image for ${stream}...`);
@@ -680,12 +675,10 @@ serve(async (req) => {
       }
 
       if (!imageUrl && raw.imageUrl && !raw.imageUrl.includes("unsplash.com")) {
-        // Use original source image (but not Unsplash placeholders)
         imageUrl = raw.imageUrl;
       }
 
       if (!imageUrl) {
-        // Fallback: diverse Unsplash image unique to this stream + title
         imageUrl = await searchFreeImage(rewritten.title, stream);
       }
 
