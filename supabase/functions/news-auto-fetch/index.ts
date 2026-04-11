@@ -682,6 +682,7 @@ serve(async (req) => {
 
       insertArticles.push({
         title: rewritten!.title,
+        original_title: raw.title,
         summary: rewritten!.summary,
         full_content: rewritten!.full_content,
         image_url: imageUrl,
