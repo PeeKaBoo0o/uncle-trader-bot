@@ -645,33 +645,34 @@ serve(async (req) => {
 
     console.log(`🎯 Picked ${streamPicks.length} articles for this cycle`);
 
-    // AI images: no daily cap, Gemini API has its own quota
+    // 5. AI rewrite ALL articles in parallel (fast, ~2-3s each)
+    console.log(`📝 Rewriting ${streamPicks.length} articles in parallel...`);
+    const rewriteResults = await Promise.all(
+      streamPicks.map(async (pick) => {
+        const rewritten = await aiRewrite(pick.article.title, pick.article.body, pick.stream);
+        return { ...pick, rewritten };
+      })
+    );
+
+    const validPicks = rewriteResults.filter(r => r.rewritten !== null);
+    console.log(`✅ ${validPicks.length}/${streamPicks.length} rewrites succeeded`);
+
+    // 6. Generate images: AI for first 2, fallback for rest (to avoid timeout)
+    const MAX_AI_IMAGES = 2;
     let aiImagesGenerated = 0;
-
-
-    // 5. Process each picked article: AI rewrite + image
     const insertArticles: any[] = [];
 
-    for (const pick of streamPicks) {
-      const { article: raw, stream } = pick;
-
-      console.log(`📝 Processing ${stream}: "${raw.title.slice(0, 50)}..."`);
-
-      // AI rewrite
-      const rewritten = await aiRewrite(raw.title, raw.body, stream);
-      
-      if (!rewritten) {
-        console.error(`❌ AI rewrite failed for ${stream}, skipping`);
-        continue;
-      }
-
+    for (const pick of validPicks) {
+      const { article: raw, stream, rewritten } = pick;
       let imageUrl: string | null = null;
 
-      console.log(`🎨 Generating AI image for ${stream}...`);
-      imageUrl = await aiGenerateImage(rewritten.title, stream, raw.imageUrl);
-      if (imageUrl) {
-        aiImagesGenerated++;
-        console.log(`✅ AI image generated for ${stream} (${aiImagesGenerated} this cycle)`);
+      if (aiImagesGenerated < MAX_AI_IMAGES) {
+        console.log(`🎨 Generating AI image for ${stream}...`);
+        imageUrl = await aiGenerateImage(rewritten!.title, stream, raw.imageUrl);
+        if (imageUrl) {
+          aiImagesGenerated++;
+          console.log(`✅ AI image generated for ${stream} (${aiImagesGenerated}/${MAX_AI_IMAGES})`);
+        }
       }
 
       if (!imageUrl && raw.imageUrl && !raw.imageUrl.includes("unsplash.com")) {
@@ -679,15 +680,15 @@ serve(async (req) => {
       }
 
       if (!imageUrl) {
-        imageUrl = await searchFreeImage(rewritten.title, stream);
+        imageUrl = await searchFreeImage(rewritten!.title, stream);
       }
 
       const badgeInfo = STREAM_BADGES[stream];
 
       insertArticles.push({
-        title: rewritten.title,
-        summary: rewritten.summary,
-        full_content: rewritten.full_content,
+        title: rewritten!.title,
+        summary: rewritten!.summary,
+        full_content: rewritten!.full_content,
         image_url: imageUrl,
         stream,
         source: `Uncle Trader · ${raw.source}`,
